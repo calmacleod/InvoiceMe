@@ -59,7 +59,7 @@ end
 # Invoice generation and Horizon exports.
 gem "prawn", "~> 2.5"
 gem "prawn-table", "~> 0.2"
-gem "roo", "~> 3.0"
+gem "roo", "~> 4.0"
 gem "csv", "~> 3.3"
 
 gem "inertia_rails", "~> 3.23"
