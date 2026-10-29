@@ -1,0 +1,17 @@
+/.bundle
+/vendor/bundle
+/log/*
+!/log/.keep
+/tmp/*
+!/tmp/.keep
+/storage/*
+!/storage/.keep
+/.env*
+!/.env.example
+/config/master.key
+/config/credentials*.yml.enc
+/public/assets
+.DS_Store
+/backups
+/build.log
+/source.tar.gz

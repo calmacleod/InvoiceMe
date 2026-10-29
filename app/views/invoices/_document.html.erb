@@ -1,0 +1,13 @@
+<div class="document">
+  <header class="doc-letterhead"><%= image_tag "eotfoa-logo.jpg", alt: "Eastern Ontario Tackle Football Officials logo", class: "doc-logo" %><strong><%= @invoice.issuer["name"].upcase %></strong></header>
+  <p class="doc-heading">FINAL INVOICE FOR <strong><%= invoice_heading(@invoice) %></strong></p>
+  <div class="doc-metadata"><p>Invoice date: <%= @invoice.issued_on.strftime("%B %-d, %Y") %></p><p>Invoice number: <%= @invoice.number %></p><% if @invoice.due_on %><p>Due date: <%= @invoice.due_on.strftime("%B %-d, %Y") %></p><% end %><%= simple_format @invoice.recipient_address if @invoice.recipient_address.present? %><p><strong>ATTENTION: <%= @invoice.contact.presence || @invoice.recipient %></strong></p></div>
+  <table class="doc-items"><colgroup><col class="doc-item-number"><col class="doc-item-description"><col class="doc-item-quantity"><col class="doc-item-rate"><col class="doc-item-charge"></colgroup><thead><tr><th>Item</th><th>Description</th><th>Quantity</th><th>Rate</th><th>Charge</th></tr></thead><tbody>
+  <% @invoice.line_items.each_with_index do |line,index| %><tr><td><%= index + 1 %></td><td><%= line.description %></td><td><%= number_with_precision(line.quantity, precision: 3, strip_insignificant_zeros: true) %></td><td><%= invoice_money(line.rate_cents, rate: true) %></td><td><%= invoice_money(line.total_cents) %></td></tr><% end %>
+  <% [5-@invoice.line_items.size,0].max.times do %><tr class="doc-blank"><td>&nbsp;</td><td></td><td></td><td></td><td></td></tr><% end %>
+  <tr class="doc-table-total"><td colspan="4"><strong>Total</strong></td><td><%= invoice_money(@invoice.total_cents) %></td></tr></tbody></table>
+  <div class="doc-total"><span>TOTAL PAYABLE</span><strong><%= invoice_money(@invoice.total_cents) %></strong></div>
+  <div class="doc-payment"><p><%= invoice_payment_instructions(@invoice.issuer['payment_instructions']) %></p><p>If paying by <strong>e-transfer</strong>, please email <%= mail_to @invoice.issuer['email'] %></p><div class="doc-mailing"><p>If paying by <strong>check</strong>, please make it payable to:</p><p><strong><%= @invoice.issuer['payable_to'] %></strong></p><p>And mail to</p><p><strong><%= @invoice.issuer['treasurer'] %><br><%= safe_join(@invoice.issuer['address'].to_s.split("\n"),tag.br) %></strong></p></div></div>
+  <% if @invoice.public_notes.present? %><div class="doc-public-notes"><%= simple_format @invoice.public_notes %></div><% end %>
+  <div class="doc-signoff"><p>Thank you.</p><p><%= @invoice.issuer['treasurer'] %><br>Treasurer, EOTFOA<br><%= mail_to @invoice.issuer['email'] %></p></div>
+</div>

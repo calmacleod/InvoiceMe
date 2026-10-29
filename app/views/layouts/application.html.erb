@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title><%= content_for(:title) || "InvoiceMe · EOTFOA" %></title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <%= csrf_meta_tags %><%= csp_meta_tag %>
+  <%= stylesheet_link_tag "application", "invoice" %>
+  <%= javascript_include_tag "application", defer: true %>
+</head>
+<body>
+  <aside class="sidebar">
+    <a class="brand" href="<%= root_path %>"><span class="brand-symbol">i<span>m</span></span><span>InvoiceMe<small>TREASURER WORKSPACE</small></span></a>
+    <div class="workspace"><span class="avatar">EO</span><div>EOTFOA<small>Football officials’ association</small></div></div>
+    <% if session[:authenticated_at] %>
+      <p class="nav-caption">WORKSPACE</p>
+      <nav aria-label="Main navigation">
+        <%= link_to "▤  Invoices", root_path, class: controller_name == "invoices" ? "active" : nil %>
+        <%= link_to "▦  Games & officials", games_path, class: controller_name == "games" ? "active" : nil %>
+        <%= link_to "⚙  Year & settings", current_season ? edit_season_path(current_season) : new_season_path, class: controller_name == "seasons" ? "active" : nil %>
+      </nav>
+      <div class="year-box"><span class="nav-caption">INVOICE YEAR</span>
+        <% Season.order(year: :desc).each do |s| %><%= button_to "#{s.year} #{s.id == current_season&.id ? '✓' : ''}", select_season_path(s), class: "year-button" %><% end %>
+        <%= link_to "+ Set up another year", new_season_path, class: "small-link" %>
+      </div>
+      <div class="sidebar-footer"><span class="avatar">CM</span><div><strong>Callum MacLeod</strong><small>Treasurer</small></div><%= button_to "Sign out", logout_path, method: :delete, class: "text-button" %></div>
+    <% end %>
+  </aside>
+  <main>
+    <header class="topbar"><span>EOTFOA <span class="muted">/</span> <%= controller_name.humanize %></span><span class="topbar-right"><span class="status-dot"></span> <% if session[:authenticated_at] && current_season %><%= form_with url: select_year_path, class: "year-select" do |f| %><%= f.label :id, "Invoice year" %><%= f.select :id, options_from_collection_for_select(Season.order(year: :desc), :id, :year, current_season.id) %><%= f.submit "Go", class: "button" %><% end %><% else %>Treasurer workspace<% end %> <span class="avatar small">CM</span></span></header>
+    <div class="content">
+      <% flash.each do |type, message| %><div role="status" class="flash <%= type %>"><%= message %></div><% end %>
+      <%= yield %>
+      <footer class="page-footer">Made for a little less paperwork. <span>InvoiceMe · EOTFOA</span></footer>
+    </div>
+  </main>
+</body>
+</html>

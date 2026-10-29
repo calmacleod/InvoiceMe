@@ -1,0 +1,32 @@
+name: invoice-me
+services:
+  web:
+    build: .
+    image: invoice-me:local
+    restart: unless-stopped
+    env_file: .env.production
+    volumes:
+      - invoice_me_storage:/rails/storage
+    ports:
+      - "127.0.0.1:3100:3000"
+    networks:
+      default:
+      kamal:
+        aliases:
+          - invoice-me-web
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:3000/up"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+volumes:
+  invoice_me_storage:
+    name: invoice_me_storage
+networks:
+  kamal:
+    external: true
+    name: kamal

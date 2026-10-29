@@ -1,0 +1,9 @@
+#!/bin/sh
+set -eu
+# Run on the VM. SQLite .backup includes committed WAL contents.
+mkdir -p backups
+stamp=$(date -u +%Y%m%dT%H%M%SZ)
+docker compose exec -T web sqlite3 /rails/storage/production.sqlite3 '.backup /tmp/invoice-me-backup.sqlite3'
+docker compose cp web:/tmp/invoice-me-backup.sqlite3 "backups/invoice-me-$stamp.sqlite3"
+chmod 600 "backups/invoice-me-$stamp.sqlite3"
+echo "Created backups/invoice-me-$stamp.sqlite3. Keep an encrypted off-server copy with SECRET_KEY_BASE."
