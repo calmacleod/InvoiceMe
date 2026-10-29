@@ -5,5 +5,5 @@ class Game < ApplicationRecord
   validates :external_id, presence: true, uniqueness: { scope: :season_id }
   validates :date, presence: true
   validates :fees_cents, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
-  def matchup = [away_team.presence, home_team.presence].compact.join(" at ").presence || "Game #{external_id}"
+  def matchup = [ away_team.presence, home_team.presence ].compact.join(" at ").presence || "Game #{external_id}"
 end

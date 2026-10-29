@@ -57,7 +57,7 @@ class PublishInvoice
     current = @api.values(spreadsheet, "#{tab}!A#{row}:I#{row}").first || []
     raise GoogleApi::Error, "The target ledger row is occupied" if current[0].present? && current[0] != @invoice.number
     payment = @invoice.payments.order(:received_on, :id).last
-    values = [@invoice.number, @invoice.issued_on.iso8601, @invoice.description, @invoice.contact.to_s, @invoice.total_cents / 100.0, @invoice.received_cents / 100.0, @invoice.owed_cents / 100.0, payment&.method.to_s, payment&.received_on&.iso8601.to_s]
-    @api.write_values(spreadsheet, "#{tab}!A#{row}:I#{row}", [values])
+    values = [ @invoice.number, @invoice.issued_on.iso8601, @invoice.description, @invoice.contact.to_s, @invoice.total_cents / 100.0, @invoice.received_cents / 100.0, @invoice.owed_cents / 100.0, payment&.method.to_s, payment&.received_on&.iso8601.to_s ]
+    @api.write_values(spreadsheet, "#{tab}!A#{row}:I#{row}", [ values ])
   end
 end

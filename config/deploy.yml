@@ -1,0 +1,48 @@
+service: invoice-me
+image: invoice_me
+
+servers:
+  web:
+    - 144.217.240.192
+
+proxy:
+  ssl: true
+  host: invoices.callummacleod.ca
+  response_timeout: 180
+
+registry:
+  server: localhost:5555
+
+builder:
+  arch: amd64
+  remote: ssh://root@144.217.240.192
+
+env:
+  secret:
+    - RAILS_MASTER_KEY
+    - SECRET_KEY_BASE
+    - ADMIN_EMAIL
+    - ADMIN_PASSWORD
+    - GOOGLE_CLIENT_ID
+    - GOOGLE_CLIENT_SECRET
+    - SMTP_ADDRESS
+    - SMTP_USERNAME
+    - SMTP_PASSWORD
+  clear:
+    APP_URL: https://invoices.callummacleod.ca
+    APP_HOST: invoices.callummacleod.ca
+    GOOGLE_ALLOWED_EMAIL: treasurer@eotfoa.ca
+    SOLID_QUEUE_IN_PUMA: true
+    MAILER_FROM: treasurer@eotfoa.ca
+    SMTP_PORT: 587
+
+volumes:
+  - invoice_me_storage:/rails/storage
+
+asset_path: /rails/public/assets
+
+aliases:
+  console: app exec --interactive --reuse "bin/rails console"
+  shell: app exec --interactive --reuse "bash"
+  logs: app logs -f
+  dbc: app exec --interactive --reuse "bin/rails dbconsole --include-password"

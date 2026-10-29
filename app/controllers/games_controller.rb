@@ -6,26 +6,37 @@ class GamesController < ApplicationController
   end
   def new; end
   def upload
-    headers, rows = GameImport.read(params[:file])
+    headers, rows, info = GameImport.read(params[:file])
     session[:import_id] = SecureRandom.hex(16)
     FileUtils.mkdir_p(Rails.root.join("tmp/imports"))
-    File.write(import_path, JSON.generate(headers: headers, rows: rows, season_id: current_season.id))
-    @headers, @rows = headers, rows
-    @mapping = GameImport.guess(headers).merge(current_season.import_mapping.slice(*GameImport::FIELDS).select { |_, v| headers.include?(v) })
-    render :map
+    File.write(import_path, JSON.generate(headers: headers, rows: rows, info: info, season_id: current_season.id))
+    redirect_to map_games_path, status: :see_other
   rescue ArgumentError, CSV::MalformedCSVError, Zip::Error => e
+    redirect_to new_game_path, alert: e.message
+  end
+  def map
+    data = import_data
+    @headers, @rows, @import_info = data.fetch("headers"), data.fetch("rows"), data.fetch("info", {})
+    @mapping = GameImport.guess(@headers).merge(current_season.import_mapping.slice(*GameImport::FIELDS).select { |_, v| @headers.include?(v) })
+  rescue ArgumentError => e
     redirect_to new_game_path, alert: e.message
   end
   def preview
     data = import_data
-    @headers, @rows = data.fetch("headers"), data.fetch("rows")
-    @mapping = params.require(:mapping).permit(*GameImport::FIELDS, official_columns: [:name, :amount]).to_h
-    @date_format = params[:date_format]
-    raise ArgumentError, "Choose a date format" unless %w[%m/%d/%Y %d/%m/%Y %Y-%m-%d].include?(@date_format)
-    @import = GameImport.new(@headers, @rows, @mapping, date_format: @date_format).parse
-    File.write(import_path, JSON.generate(data.merge("mapping" => @mapping, "date_format" => @date_format)))
-    render :preview
+    mapping = params.require(:mapping).permit(*GameImport::FIELDS, official_columns: [ :name, :amount, :position ]).to_h
+    date_format = params[:date_format]
+    raise ArgumentError, "Choose a date format" unless %w[%m/%d/%Y %d/%m/%Y %Y-%m-%d].include?(date_format)
+    File.write(import_path, JSON.generate(data.merge("mapping" => mapping, "date_format" => date_format)))
+    redirect_to review_games_path, status: :see_other
   rescue ArgumentError => e
+    redirect_to new_game_path, alert: e.message
+  end
+  def review
+    data = import_data
+    @import_info = data.fetch("info", {})
+    @import = GameImport.new(data.fetch("headers"), data.fetch("rows"), data.fetch("mapping"), date_format: data.fetch("date_format")).parse
+    render :preview
+  rescue ArgumentError, KeyError => e
     redirect_to new_game_path, alert: e.message
   end
   def commit
@@ -39,7 +50,7 @@ class GamesController < ApplicationController
     redirect_to new_game_path, alert: e.message
   end
   def sample
-    send_data "Game #,Game Code,Date,Time,Home Team,Away Team,Location,Official,Amount Paid\n12345,CJFL,2026-10-25,13:00,Ottawa,Kingston,TD Place,Example Official,100.00\n", filename: "horizon-example.csv", type: "text/csv"
+    send_data "Game ID#,Game Date,Game Time,Home,Away,Field,Game Code,Paid By Team,# of Officials,Game Length (min),Officials/Positions\n900000001,02/17/2031,1:00pm,Example Alpha,Example Bravo,Fictional Field,TEST-LEAGUE,No,2,120,Example Official,Referee,$13.37,Second Official,Umpire,$22.22\n", filename: "horizon-example.csv", type: "text/csv"
   end
   private
   def import_path

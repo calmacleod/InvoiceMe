@@ -26,7 +26,7 @@ class CreateWorkspace < ActiveRecord::Migration[8.1]
       t.json :source, default: [], null: false
       t.timestamps
     end
-    add_index :games, [:season_id, :external_id], unique: true
+    add_index :games, [ :season_id, :external_id ], unique: true
     create_table :invoices do |t|
       t.references :season, null: false, foreign_key: true
       t.string :number, null: false
@@ -48,7 +48,7 @@ class CreateWorkspace < ActiveRecord::Migration[8.1]
       t.string :publish_error
       t.timestamps
     end
-    add_index :invoices, [:season_id, :number], unique: true
+    add_index :invoices, [ :season_id, :number ], unique: true
     create_table :line_items do |t|
       t.references :invoice, null: false, foreign_key: true
       t.string :description, null: false
@@ -62,7 +62,7 @@ class CreateWorkspace < ActiveRecord::Migration[8.1]
       t.references :game, null: false, foreign_key: true
       t.timestamps
     end
-    add_index :invoice_games, [:invoice_id, :game_id], unique: true
+    add_index :invoice_games, [ :invoice_id, :game_id ], unique: true
     create_table :payments do |t|
       t.references :invoice, null: false, foreign_key: true
       t.integer :amount_cents, null: false

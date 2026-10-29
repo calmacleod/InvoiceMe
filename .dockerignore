@@ -53,3 +53,5 @@
 /source.tar.gz
 /build.log
 **/._*
+
+/.kamal

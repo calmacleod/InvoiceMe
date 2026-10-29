@@ -9,9 +9,17 @@
 /.env*
 !/.env.example
 /config/master.key
-/config/credentials*.yml.enc
 /public/assets
 .DS_Store
 /backups
 /build.log
 /source.tar.gz
+
+/.kamal/secrets
+/.kamal/secrets-common
+/.kamal/secrets.*
+!/.kamal/secrets.example
+/.ruby-lsp
+# Horizon customer exports are private; committed fixtures must be synthetic.
+HorizonWebRef_Master_Fees_*.csv
+/imports/

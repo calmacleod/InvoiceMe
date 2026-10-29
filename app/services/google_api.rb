@@ -4,7 +4,7 @@ class GoogleApi
   class Error < StandardError; end
   SCOPES = "openid email https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/spreadsheets".freeze
   def self.configured? = ENV["GOOGLE_CLIENT_ID"].present? && ENV["GOOGLE_CLIENT_SECRET"].present?
-  def self.redirect_uri = "#{ENV.fetch('APP_URL', 'http://localhost:3100').delete_suffix('/')}/google/callback"
+  def self.redirect_uri = "#{ENV.fetch('APP_URL', 'http://localhost:3000').delete_suffix('/')}/google/callback"
   def self.oauth_params
     { client_id: ENV.fetch("GOOGLE_CLIENT_ID"), client_secret: ENV.fetch("GOOGLE_CLIENT_SECRET"), redirect_uri: redirect_uri }
   end
@@ -41,7 +41,7 @@ class GoogleApi
     raise Error, "Multiple matching Drive files found; check Drive before retrying" if found.size > 1
     return found.first.fetch("id") if found.any?
     boundary = "invoice_me_#{SecureRandom.hex(16)}"
-    metadata = { name: name, mimeType: target_mime, parents: [folder], appProperties: { invoice_me: key } }
+    metadata = { name: name, mimeType: target_mime, parents: [ folder ], appProperties: { invoice_me: key } }
     multipart = "--#{boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n#{JSON.generate(metadata)}\r\n--#{boundary}\r\nContent-Type: #{mime}\r\n\r\n".b + bytes.b + "\r\n--#{boundary}--\r\n".b
     request(:post, "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id", body: multipart, content_type: "multipart/related; boundary=#{boundary}").fetch("id")
   end

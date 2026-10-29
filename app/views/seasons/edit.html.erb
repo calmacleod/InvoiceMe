@@ -1,5 +1,5 @@
 <div class="page-heading"><div><span class="eyebrow">WORKSPACE SETTINGS</span><h1><%= @season.year %> invoice year</h1><p>Update your details here. Finalized invoices retain their original information.</p></div><div class="actions"><%= link_to "Preview invoice design ↗", preview_season_path(@season), target: "_blank", class: "button" %><%= link_to "+ Another year", new_season_path, class: "button" %></div></div>
 <div class="card connection"><div><h2>Google Drive connection</h2><p><%= GoogleConnection.first&.email || "Connect your treasurer account to publish documents and update the ledger." %></p></div>
-<% if GoogleConnection.exists? %><%= button_to "Disconnect", google_disconnect_path, method: :delete, class: "button" %><% else %><%= button_to "Connect Google account ↗", google_connect_path, class: "button primary" %><% end %></div>
+<% if GoogleConnection.exists? %><%= button_to "Disconnect", google_disconnect_path, method: :delete, class: "button" %><% else %><%= button_to "Connect Google account ↗", google_connect_path, class: "button primary", form: { data: { turbo: false } } %><% end %></div>
 <% unless GoogleApi.configured? %><div class="flash notice">Google OAuth credentials are not configured yet. See the README for the one-time server setup.</div><% end %>
 <%= render "form" %>

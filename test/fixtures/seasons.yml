@@ -1,0 +1,11 @@
+current:
+  year: 2026
+  sheet_name: 2026 invoices
+  ledger_start_row: 3
+  issuer:
+    name: Example Officials Association
+    payable_to: EXAMPLE OFFICIALS ASSOCIATION
+    treasurer: Example Treasurer
+    email: treasurer@example.test
+    address: "123 Fictional Street\nExample City, ON\nA1A 1A1"
+    payment_instructions: Payment instructions for a fictional organization.

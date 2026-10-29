@@ -52,13 +52,12 @@ Use a Google Cloud project owned by the EOTFOA Workspace, signed in as `treasure
    https://invoices.callummacleod.ca/google/callback
    ```
 
-   For local development, optionally add `http://localhost:3100/google/callback` and set `APP_URL=http://localhost:3100`.
-6. Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in `/opt/invoice-me/.env.production` on the VM. Keep the existing `SECRET_KEY_BASE` and `ADMIN_PASSWORD` values.
+   For local development, optionally add `http://localhost:3000/google/callback` and export `APP_URL=http://localhost:3000`.
+6. Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in the ignored `.kamal/secrets` file on your development machine. Preserve the existing `SECRET_KEY_BASE` so stored Google tokens remain decryptable.
 7. Apply the new environment:
 
    ```sh
-   cd /opt/invoice-me
-   docker compose up -d --force-recreate web
+   bin/kamal deploy
    ```
 
 8. Sign into InvoiceMe, open **Year & settings**, choose **Connect Google account**, and authorize the treasurer account. Check the folder, PDF folder, tab name, and header row before the first publish. The refresh token is encrypted in SQLite using keys derived from `SECRET_KEY_BASE`.
@@ -67,47 +66,71 @@ Follow Google's [web-server OAuth guide](https://developers.google.com/identity/
 
 ## Local development
 
-Ruby 4.0.9 and Bundler are used. No Node build, PostgreSQL, or Redis is needed.
+This is a standard Rails 8.1 application using Ruby 4.0.9, SQLite, Importmap, Turbo, Stimulus, Bootsnap, and the default Solid Queue/Cache/Cable adapters. The production Dockerfile is the Rails-generated template, including Thruster on port 80.
 
 ```sh
-bundle install
-bin/rails db:prepare
-bin/rails server -p 3100
+bin/setup
 ```
 
-Open `http://localhost:3100`. Development-only password: `invoice-local`, unless `ADMIN_PASSWORD` is set. Production requires an explicit password and secret key. Sessions expire after 12 hours; login is rate limited.
+The setup script installs dependencies, prepares the database, and starts `bin/dev` at **http://localhost:3000**. Use `bin/setup --skip-server` to prepare without starting the server, and `bin/dev` or `bin/rails server` for subsequent runs. Production assets are compiled during the Docker build; local development uses the Rails asset pipeline.
 
-Run the checks with `bin/ci`: domain/workflow tests, eager-loading check, Brakeman, and production asset compilation. Google writes are tested against a fake API; no live Google changes are performed by tests. A real first-publish verification is still needed after OAuth setup.
+## Authentication
 
-## OVH Docker deployment
+Authentication comes from **`bin/rails generate authentication`**: `User` with `has_secure_password`/bcrypt, persisted `Session` records, signed session cookies, `Current.user`, rate-limited sign-in, and token-based password resets. Public account registration is not enabled. The old shared password gate and development-only password have been removed.
 
-The app lives at `/opt/invoice-me` on `144.217.240.192` and uses Compose project `invoice-me`, container `invoice-me-web-1`, and volume `invoice_me_storage`. It binds only `127.0.0.1:3100` on the VM. The container joins the existing `kamal` network under alias `invoice-me-web`, and the existing proxy receives a separate service route named `invoice-me-web`. Other application containers, volumes, and routes are not restarted or reconfigured. TLS is handled by the existing proxy.
+Create your first local account using the Rails console:
 
-Create a `.env.production` from `.env.example` for a new installation. Generate a long random password and `SECRET_KEY_BASE`; keep both out of Git. Existing credentials are in the ignored local `.env.production` and the VM's matching file. Never regenerate the secret for an existing database: it is required to decrypt Google tokens.
+```ruby
+User.create!(email_address: "treasurer@eotfoa.ca", password: "choose-your-own-password", password_confirmation: "choose-your-own-password")
+```
+
+For initial provisioning during deployment, `db:seed` accepts `ADMIN_EMAIL` and `ADMIN_PASSWORD`. They create an account only when it does not exist and **never overwrite an existing password**. Subsequent authentication uses the database password digest. The production treasurer account was provisioned with the previous password.
+
+The generated password-reset mailer uses Action Mailer and Active Job. Development emails appear in the Rails log. For production delivery, configure `SMTP_ADDRESS`, `SMTP_USERNAME`, and `SMTP_PASSWORD` in `.kamal/secrets`; `SMTP_PORT` defaults to 587 and `MAILER_FROM` is configured in `config/deploy.yml`. Password-reset delivery requires those SMTP settings. No production SMTP credentials have been supplied yet.
+
+## Deployment with Kamal
+
+Run deployment commands from this checkout. `config/deploy.yml` configures service **invoice-me**, hostname **invoices.callummacleod.ca**, OVH host **144.217.240.192**, the local registry on port 5555, and a native AMD64 remote builder on the VM. Kamal handles the build, push/pull, release containers, health checks, proxy route, asset bridging, logs, and rollback.
+
+Secrets are loaded by Kamal from the ignored `.kamal/secrets` file. For a new checkout, copy `.kamal/secrets.example`, fill it in, and securely supply `config/master.key`. Keep `SECRET_KEY_BASE` stable: it protects stored Google refresh tokens. Configuration uses standard Rails credentials and exported environment variables; local Rails does not automatically load the old production env file.
 
 ```sh
-cd /opt/invoice-me
-docker compose build
-docker compose up -d
-docker compose exec -T web bin/rails db:seed
-docker exec kamal-proxy kamal-proxy deploy invoice-me-web \
-  --target invoice-me-web:3000 \
-  --host invoices.callummacleod.ca \
-  --tls --health-check-path /up --target-timeout 180s
+# First installation on a new host:
+bin/kamal setup
+
+# Normal release from committed source:
+bin/kamal deploy
+
+# Provision the initial account/year, without resetting existing records:
+bin/kamal app exec --reuse "bin/rails db:seed"
+
+# Operations:
+bin/kamal details
+bin/kamal logs
+bin/kamal console
+bin/kamal rollback <previous-version>
 ```
 
-The hostname's A record must point to `144.217.240.192` before TLS provisioning. `/up` is public; all application records require login. Google publishing can take longer than a normal web request, so this service route has its own 180-second target timeout.
+The `invoice_me_storage` named volume contains the existing primary database and Rails' separate production cache, queue, and cable databases. It was retained during migration from Compose. No host application port is published; the shared Kamal proxy routes HTTPS to the active release's Thruster port. Other apps use their own services and volumes.
 
-For updates, copy source files to the same directory and run `docker compose build && docker compose up -d`. This may briefly restart only InvoiceMe. The named volume retains the database. Do not run `docker compose down -v` against a live installation.
+Production migrations run through the generated Docker entrypoint's `db:prepare`. `/up` is the health endpoint. Invoice publishing has a per-service 180-second response timeout. The retired Compose deployment is no longer used; its original source and a pre-migration database snapshot are retained on the VM for recovery.
 
-View logs using `docker compose logs --tail 100 web`. Retry a failed Google sync from its invoice page after fixing the reported issue. The app records completed file IDs, tags uploads for recovery after lost responses, persists pending ledger row numbers, and serializes Google publications with a cross-process file lock. It never automatically sends an invoice to its recipient. If a failure locks an invoice with incorrect destination settings, inspect it before changing records directly; finalized destinations deliberately remain fixed.
+## Checks
+
+```sh
+bin/ci
+```
+
+This is Rails' default CI runner: setup, Omakase RuboCop, Bundler audit, Importmap audit, Brakeman, Rails tests, and seed verification. The tests cover generated authentication/password-reset behavior, session revocation, invoice calculations and locking, PDF/ODT rendering and privacy, Horizon imports, and resumable Google writes against a fake API. Live Google publishing still needs an OAuth connection and first-publish verification.
 
 ## Backups and recovery
 
-Run `bin/backup` from `/opt/invoice-me`. It uses SQLite's `.backup` command rather than copying an active database file, then copies the consistent snapshot to `backups/` with mode 0600. Keep encrypted copies off the VM, together with a separate secure backup of `.env.production`. This repository includes the backup command; an off-server backup schedule is not configured automatically.
+`bin/backup` uses `bin/kamal app exec` to run SQLite's `.backup` in the active release and writes a consistent snapshot under `/rails/storage/backups` in `invoice_me_storage`. Keep encrypted copies **off the VM**, together with the matching production secrets and Rails master key. An off-server backup schedule is not configured automatically.
 
-To restore, stop only InvoiceMe (`docker compose stop web`), back up the current volume, restore the snapshot as `production.sqlite3` in `invoice_me_storage` with owner UID/GID 1000, remove stale WAL/SHM files only while stopped, and start the app again. Preserve the matching `SECRET_KEY_BASE`. Verify the restored records before retrying Google publications.
+Restore only while the InvoiceMe service is stopped, with a backup of the current volume first. Restore `production.sqlite3` with UID/GID 1000, remove stale WAL/SHM files only while stopped, then start the release using Kamal. Preserve the same `SECRET_KEY_BASE`, and verify restored records before retrying Google publications.
 
 ## Horizon integration
 
-This version imports downloaded CSV/XLSX files. It does not scrape the signed-in website and does not assume access to Horizon's Developer API. Export the complete filtered schedule/payroll report yourself and use the upload/review workflow. CSV layouts vary; explicit mapping and separate position-name/fee pairs are supported. API synchronization can be added once EOTFOA's API access and the actual API contract are available.
+This version imports downloaded CSV/XLSX files. The native master-fees export is detected automatically, including its repeated name/position/fee groups after the fixed game fields. Every official and position is retained, the fees are summed exactly, the Paid By Team field is retained, and meeting entries are excluded with a visible count. These are fee amounts, not evidence that an official has actually been paid. It does not scrape the signed-in website and does not assume access to Horizon's Developer API. Export the complete filtered schedule/payroll report yourself and use the upload/review workflow. CSV layouts vary; explicit mapping and separate position-name/fee pairs are supported. API synchronization can be added once EOTFOA's API access and the actual API contract are available.
+
+Horizon exports contain private information. Keep downloaded exports outside Git. Automated fixtures use fictional names, teams, locations, game IDs, dates, and fees; the normal `HorizonWebRef_Master_Fees_*.csv` export filename pattern is ignored.

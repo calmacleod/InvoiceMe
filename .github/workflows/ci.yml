@@ -9,11 +9,6 @@ jobs:
         with:
           ruby-version: '4.0.9'
           bundler-cache: true
-      - run: bin/rails db:prepare test
+      - run: bin/ci
         env:
-          RAILS_ENV: test
-      - run: bundle exec brakeman --no-pager -q
-      - run: bin/rails assets:precompile
-        env:
-          RAILS_ENV: production
-          SECRET_KEY_BASE_DUMMY: '1'
+          CI: 'true'

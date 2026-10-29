@@ -12,18 +12,19 @@ class PublishInvoiceTest < ActiveSupport::TestCase
     end
     def validate_destination(_) = true
     def values(_, range)
-      return @row ? [@row] : [] if range.include?("I100000")
-      @row ? [@row] : []
+      return @row ? [ @row ] : [] if range.include?("I100000")
+      @row ? [ @row ] : []
     end
     def write_values(_, range, values)
       raise GoogleApi::Error, "Network failed" if @fail_write
-      @writes << [range, values]
+      @writes << [ range, values ]
       @row = values.first
     end
   end
   def setup
-    @season = Season.create!(year: 2026, sheet_name: "2026 invoices", issuer: Season::DEFAULT_ISSUER, drive_folder_id: "folder", spreadsheet_id: "sheet")
-    @invoice = @season.invoices.create!(number: "2026_Test", recipient: "Test", description: "Fees", issued_on: Date.current, line_items_attributes: [{description: "Officials", quantity: 4, rate: "1000"}])
+    @season = seasons(:current)
+    @season.update!(drive_folder_id: "folder", spreadsheet_id: "sheet")
+    @invoice = @season.invoices.create!(number: "2026_Test", recipient: "Test", description: "Fees", issued_on: Date.current, line_items_attributes: [ { description: "Officials", quantity: 4, rate: "1000" } ])
     @api = FakeGoogle.new
   end
   test "publish creates doc pdf and ledger row with exact balance" do
@@ -51,7 +52,7 @@ class PublishInvoiceTest < ActiveSupport::TestCase
     assert_equal 1, @api.writes.size
   end
   test "existing invoice number is never overwritten" do
-    @api.write_values("sheet", "range", [["2026_Test", "existing"]])
+    @api.write_values("sheet", "range", [ [ "2026_Test", "existing" ] ])
     assert_raises(GoogleApi::Error) { PublishInvoice.new(@invoice, api: @api).call }
     assert_equal 1, @api.writes.size
     assert_nil @invoice.reload.finalized_at

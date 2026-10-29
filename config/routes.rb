@@ -1,8 +1,7 @@
 Rails.application.routes.draw do
+  resource :session
+  resources :passwords, param: :token
   get "up" => "rails/health#show", as: :rails_health_check
-  get "login" => "sessions#new"
-  post "login" => "sessions#create"
-  delete "logout" => "sessions#destroy"
   root "invoices#index"
   post "select_year" => "seasons#select"
   resources :seasons, only: %i[new create edit update] do
@@ -18,6 +17,8 @@ Rails.application.routes.draw do
     collection do
       post :upload
       post :preview
+      get :map
+      get :review
       post :commit
       get :sample
     end

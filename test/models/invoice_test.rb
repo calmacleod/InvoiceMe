@@ -1,15 +1,15 @@
 require "test_helper"
 class InvoiceTest < ActiveSupport::TestCase
   def setup
-    @season = Season.create!(year: 2026, sheet_name: "2026 invoices", issuer: Season::DEFAULT_ISSUER)
-    @invoice = @season.invoices.create!(number: "2026_16_Test", recipient: "Test club", description: "Season fees", issued_on: Date.current, line_items_attributes: [{description: "Officials", quantity: "2.5", rate: "100.25"}])
+    @season = seasons(:current)
+    @invoice = @season.invoices.create!(number: "2026_16_Test", recipient: "Test club", description: "Season fees", issued_on: Date.current, line_items_attributes: [ { description: "Officials", quantity: "2.5", rate: "100.25" } ])
   end
   test "quantities multiply exact cents and round each line" do
     assert_equal 25_063, @invoice.total_cents
     assert_equal 25_063, @invoice.owed_cents
   end
   test "money rejects precision loss and malformed amounts" do
-    ["10.005", "oops", "-1", "1e3"].each { |v| assert_raises(ArgumentError) { MoneyValue.cents(v) } }
+    [ "10.005", "oops", "-1", "1e3" ].each { |v| assert_raises(ArgumentError) { MoneyValue.cents(v) } }
     assert_equal 123456, MoneyValue.cents("$1,234.56")
   end
   test "invalid rate and empty invoice cannot save" do
@@ -25,9 +25,10 @@ class InvoiceTest < ActiveSupport::TestCase
     assert_includes duplicate.errors[:number], "has already been taken"
   end
   test "finalized invoice snapshots details and prevents editing" do
+    original_address = @season.issuer["address"]
     @invoice.finalize!
     @season.update!(issuer: @season.issuer.merge("address" => "New address"))
-    assert_equal Season::DEFAULT_ISSUER["address"], @invoice.reload.issuer["address"]
+    assert_equal original_address, @invoice.reload.issuer["address"]
     assert_not @invoice.update(recipient: "Changed")
     @invoice.reload
     assert @invoice.update(private_notes: "Internal only")

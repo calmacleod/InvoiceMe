@@ -1,0 +1,4 @@
+Game ID#,Game Date,Game Time,Home,Away,Field,Game Code,Paid By Team,# of Officials,Game Length (min),Officials/Positions
+900000001,02/17/2031,9:30am,Example Alpha,Example Bravo,Fictional Field A,TEST-LEAGUE,No,2,120,"Example, Alex",Referee,$13.37,"Sample, Pat",Umpire,$22.22
+MEETING,02/18/2031,2:30pm,Fictional Training,,,,,,180
+900000002,02/19/2031,10:30am,Example Charlie,Example Delta,Fictional Field B,TEST-CODE,Yes,0,120,
