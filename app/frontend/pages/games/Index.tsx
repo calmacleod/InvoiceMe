@@ -95,7 +95,12 @@ export default function Index({
                   <td {...stylex.props(ui.td)}>
                     <button
                       type="button"
-                      {...stylex.props(ui.nativeButton, ui.link, ui.smallLink)}
+                      {...stylex.props(
+                        ui.nativeButton,
+                        ui.textButton,
+                        ui.link,
+                        ui.smallLink,
+                      )}
                       aria-expanded={expanded === game.id}
                       onClick={() => {
                         if (expanded === game.id) {
