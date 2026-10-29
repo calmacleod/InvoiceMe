@@ -8,6 +8,7 @@ CI.run do
   step "Security: Gem audit", "bin/bundler-audit"
   step "Security: npm audit", "npm audit"
   step "Style: React", "npm run format:check"
+  step "Types: TypeScript", "npm run typecheck"
   step "Build: React", "npm run build"
   step "Tests: React money calculations", "npm test"
   step "Security: Brakeman code analysis", "bin/brakeman --quiet --no-pager --exit-on-warn --exit-on-error"

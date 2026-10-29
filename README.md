@@ -121,7 +121,7 @@ Production migrations run through the generated Docker entrypoint's `db:prepare`
 bin/ci
 ```
 
-This is Rails' default CI runner: setup, Omakase RuboCop, Bundler and npm audits, the React production build, exact-decimal JavaScript tests, Brakeman, Rails/Inertia tests, and seed verification. The tests cover generated authentication/password-reset behavior, session revocation, invoice calculations and locking, PDF/ODT rendering and privacy, Horizon imports, and resumable Google writes against a fake API. Live Google publishing still needs an OAuth connection and first-publish verification.
+This is Rails' default CI runner: setup, Omakase RuboCop, Bundler and npm audits, strict TypeScript checks, the React/StyleX production build, exact-decimal frontend tests, Brakeman, Rails/Inertia tests, and seed verification. The tests cover generated authentication/password-reset behavior, session revocation, invoice calculations and locking, PDF/ODT rendering and privacy, Horizon imports, and resumable Google writes against a fake API. Live Google publishing still needs an OAuth connection and first-publish verification.
 
 ## Backups and recovery
 
@@ -140,3 +140,11 @@ Horizon exports contain private information. Keep downloaded exports outside Git
 All application screens are React pages in `app/frontend/pages`, rendered by the existing Rails controllers through [Inertia Rails](https://inertia-rails.dev/). Navigation and forms use Inertia rather than a separate JSON API or browser router. Rails owns authentication, sessions, CSRF protection, validation, and authorization. Validation redirects use the adapter’s error props, preserving entered form values. The generated Rails password-reset flow remains on the server.
 
 Vite builds the frontend under `public/assets/vite`, inside Kamal’s existing asset bridge so old tabs retain their versioned assets during releases. `bin/dev` runs the Rails and Vite servers with React hot reload; production uses only compiled assets. PDF and Google Docs/ODT generation remain server-side. The React document preview retains the supplied invoice design.
+
+## UI styling and TypeScript
+
+Application components and page props use strict TypeScript in `app/frontend` (`npm run typecheck`). Shared types describe the Rails response props, invoice forms, games, and import mappings. Inertia’s shared props and validation error types are augmented centrally. The money tests run the typed calculation module using Node 24’s native TypeScript support.
+
+The application UI uses [StyleX](https://stylexjs.com/docs/learn/installation/vite/vite-react). Design tokens live in `styles/tokens.stylex.ts`, shared UI styles in `styles/ui.stylex.ts`, and shell styles alongside the Layout component. Apply styles with `stylex.props`; use explicit variants and media queries rather than global class selectors. A small reset is the only global UI CSS. The invoice preview and server document share the scoped `invoice.css` contract so exports retain their existing appearance.
+
+The official StyleX Vite plugin extracts atomic CSS at build time and adds it to the manifest alongside the typed Inertia entrypoint. The build checks that the extracted CSS, design tokens, and responsive rules are present. Rails loads the generated stylesheet through Vite Rails; Kamal bridges it with the other versioned assets. Development uses a linked StyleX stylesheet and Vite events to refresh it across the separate Rails/Vite origins, without runtime style injection or loosening the production content security policy.

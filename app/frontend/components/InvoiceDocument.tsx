@@ -1,8 +1,9 @@
+import type { SavedInvoice } from "../types";
 import { usePage } from "@inertiajs/react";
 
-const amount = (cents, rate = false) =>
-  `$${(Number(cents) / 100).toFixed(rate && cents % 100 === 0 ? 0 : 2)}`;
-const lines = (text) =>
+const amount = (cents: number | null, rate = false) =>
+  `$${(Number(cents) / 100).toFixed(rate && Number(cents) % 100 === 0 ? 0 : 2)}`;
+const lines = (text: string | null | undefined) =>
   String(text ?? "")
     .split("\n")
     .map((line, index) => (
@@ -11,13 +12,17 @@ const lines = (text) =>
         <br />
       </span>
     ));
-export default function InvoiceDocument({ invoice }) {
+export default function InvoiceDocument({
+  invoice,
+}: {
+  invoice: SavedInvoice;
+}) {
   const { logo_url } = usePage().props;
   const issuer = invoice.issuer;
   const title = invoice.recipient.includes(String(invoice.year))
     ? invoice.recipient
     : `${invoice.recipient} ${invoice.year}`;
-  const longDate = (value) =>
+  const longDate = (value: string) =>
     new Intl.DateTimeFormat("en-CA", {
       month: "long",
       day: "numeric",
@@ -85,7 +90,7 @@ export default function InvoiceDocument({ invoice }) {
             ),
           )}
           <tr className="doc-table-total">
-            <td colSpan="4">
+            <td colSpan={4}>
               <strong>Total</strong>
             </td>
             <td>{amount(invoice.total_cents)}</td>

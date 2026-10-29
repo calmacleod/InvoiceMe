@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { invoiceTotal, lineTotal } from "../../app/frontend/lib/money.js";
+import { invoiceTotal, lineTotal } from "../../app/frontend/lib/money.ts";
 
 test("line totals round half cents exactly, matching Rails decimal calculations", () => {
   assert.equal(lineTotal("2.5", "13.37"), 3343);

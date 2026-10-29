@@ -1,23 +1,38 @@
+import type { FormEvent } from "react";
+import type {
+  InvoiceDetail,
+  InvoiceFields,
+  InvoiceForm,
+  EditableLineItem,
+  GameSummary,
+} from "../../types";
+import type { FieldOptions } from "../../components/UI";
+import * as stylex from "@stylexjs/stylex";
+import { ui } from "../../styles/ui.stylex";
 import { Head, Link, useForm } from "@inertiajs/react";
 import { useState } from "react";
-import { Errors, Field, Heading, Section, money } from "../../components/UI";
+import { Errors, Field, Heading, Section } from "../../components/UI";
+import { money } from "../../lib/format";
 import { invoiceTotal } from "../../lib/money";
-
-export default function Edit({ invoice, games }) {
-  const initial = Object.fromEntries(
-    [
-      "number",
-      "recipient",
-      "description",
-      "contact",
-      "recipient_address",
-      "issued_on",
-      "due_on",
-      "public_notes",
-      "private_notes",
-    ].map((key) => [key, invoice[key] ?? ""]),
-  );
-  const form = useForm({
+export default function Edit({
+  invoice,
+  games,
+}: {
+  invoice: InvoiceDetail;
+  games: GameSummary[];
+}) {
+  const initial: InvoiceFields = {
+    number: invoice.number ?? "",
+    recipient: invoice.recipient ?? "",
+    description: invoice.description ?? "",
+    contact: invoice.contact ?? "",
+    recipient_address: invoice.recipient_address ?? "",
+    issued_on: invoice.issued_on ?? "",
+    due_on: invoice.due_on ?? "",
+    public_notes: invoice.public_notes ?? "",
+    private_notes: invoice.private_notes ?? "",
+  };
+  const form = useForm<InvoiceForm>({
     ...initial,
     game_ids: invoice.game_ids,
     line_items_attributes: invoice.line_items.map((item, index) => ({
@@ -31,14 +46,27 @@ export default function Edit({ invoice, games }) {
     })),
   });
   const [filter, setFilter] = useState("");
-  const changeLine = (index, key, value) =>
+  const changeLine = <Key extends keyof EditableLineItem>(
+    index: number,
+    key: Key,
+    value: EditableLineItem[Key],
+  ) =>
     form.setData(
       "line_items_attributes",
       form.data.line_items_attributes.map((item, i) =>
-        i === index ? { ...item, [key]: value } : item,
+        i === index
+          ? {
+              ...item,
+              [key]: value,
+            }
+          : item,
       ),
     );
-  const field = (key, label, props = {}) => (
+  const field = (
+    key: keyof InvoiceFields,
+    label: string,
+    props: FieldOptions = {},
+  ) => (
     <Field
       name={key}
       label={label}
@@ -47,7 +75,7 @@ export default function Edit({ invoice, games }) {
       {...props}
     />
   );
-  function submit(event) {
+  function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     form.transform((data) => ({
       invoice: {
@@ -71,16 +99,20 @@ export default function Edit({ invoice, games }) {
       </Heading>
       <form onSubmit={submit}>
         <Errors errors={form.errors} />
-        <div className="editor-layout">
+        <div {...stylex.props(ui.editorLayout)}>
           <div>
             <Section
               step="01"
               title="Invoice details"
               hint="Who it's for and how you'll find it later."
             >
-              <div className="form-grid">
-                {field("number", "Invoice number", { required: true })}
-                {field("recipient", "Bill to", { required: true })}
+              <div {...stylex.props(ui.formGrid)}>
+                {field("number", "Invoice number", {
+                  required: true,
+                })}
+                {field("recipient", "Bill to", {
+                  required: true,
+                })}
                 {field("description", "Description for master ledger", {
                   required: true,
                 })}
@@ -93,7 +125,9 @@ export default function Edit({ invoice, games }) {
                   type: "date",
                   required: true,
                 })}
-                {field("due_on", "Due date (optional)", { type: "date" })}
+                {field("due_on", "Due date (optional)", {
+                  type: "date",
+                })}
               </div>
             </Section>
             <Section
@@ -101,11 +135,11 @@ export default function Edit({ invoice, games }) {
               title="Line items"
               hint="Set your own descriptions, quantities, and rates."
             >
-              <div className="line-items">
+              <div {...stylex.props(ui.lineItems)}>
                 {form.data.line_items_attributes.map(
                   (item, index) =>
                     !item._destroy && (
-                      <div className="line-row" key={item.key}>
+                      <div {...stylex.props(ui.lineRow)} key={item.key}>
                         <Field
                           name={`description-${index}`}
                           label="Description"
@@ -140,9 +174,9 @@ export default function Edit({ invoice, games }) {
                           required
                         />
                         <button
+                          {...stylex.props(ui.nativeButton, ui.removeItem)}
                           type="button"
                           aria-label="Remove line item"
-                          className="remove-item"
                           onClick={() => changeLine(index, "_destroy", true)}
                         >
                           ×
@@ -152,8 +186,8 @@ export default function Edit({ invoice, games }) {
                 )}
               </div>
               <button
+                {...stylex.props(ui.nativeButton, ui.button, ui.dashed)}
                 type="button"
-                className="button dashed"
                 onClick={() =>
                   form.setData("line_items_attributes", [
                     ...form.data.line_items_attributes,
@@ -170,11 +204,14 @@ export default function Edit({ invoice, games }) {
               >
                 + Add line item
               </button>
-              <div className="editor-total">
+              <div {...stylex.props(ui.editorTotal)}>
                 <span>
-                  Total <small>CAD</small>
+                  Total <small {...stylex.props(ui.small)}>CAD</small>
                 </span>
-                <strong aria-live="polite">
+                <strong
+                  {...stylex.props(ui.strong, ui.totalValue)}
+                  aria-live="polite"
+                >
                   {money(invoiceTotal(form.data.line_items_attributes))}
                 </strong>
               </div>
@@ -184,7 +221,7 @@ export default function Edit({ invoice, games }) {
               title="Notes"
               hint="The right details, in the right place."
             >
-              <div className="form-grid">
+              <div {...stylex.props(ui.formGrid)}>
                 {field("public_notes", "Notes on invoice", {
                   multiline: true,
                   rows: 4,
@@ -196,19 +233,20 @@ export default function Edit({ invoice, games }) {
               </div>
             </Section>
           </div>
-          <aside className="editor-aside">
+          <aside {...stylex.props(ui.editorAside)}>
             <Section
               title="Link Horizon games"
               hint="Links keep your records connected. Invoice amounts come from the line items you enter."
             >
               <input
+                {...stylex.props(ui.input)}
                 type="search"
                 aria-label="Filter games"
                 placeholder="Filter by game code or team…"
                 value={filter}
                 onChange={(event) => setFilter(event.target.value)}
               />
-              <div className="game-picker">
+              <div {...stylex.props(ui.gamePicker)}>
                 {games
                   .filter((game) =>
                     `${game.code} ${game.external_id} ${game.matchup}`
@@ -216,8 +254,12 @@ export default function Edit({ invoice, games }) {
                       .includes(filter.toLowerCase()),
                   )
                   .map((game) => (
-                    <label className="game-option" key={game.id}>
+                    <label
+                      {...stylex.props(ui.label, ui.gameOption)}
+                      key={game.id}
+                    >
                       <input
+                        {...stylex.props(ui.checkbox)}
                         type="checkbox"
                         checked={form.data.game_ids.includes(game.id)}
                         onChange={(event) =>
@@ -232,18 +274,23 @@ export default function Edit({ invoice, games }) {
                         }
                       />
                       <span>
-                        <strong>
+                        <strong {...stylex.props(ui.strong)}>
                           {game.code || game.external_id} · {game.date}
                         </strong>
-                        <small>{game.matchup}</small>
-                        <small>
+                        <small {...stylex.props(ui.small)}>
+                          {game.matchup}
+                        </small>
+                        <small {...stylex.props(ui.small)}>
                           {money(game.fees_cents)} · {game.official_count}{" "}
                           officials
                         </small>
                         {game.invoices
                           .filter((other) => other.id !== invoice.id)
                           .map((other) => (
-                            <small key={other.id} className="amber">
+                            <small
+                              {...stylex.props(ui.small, ui.amber)}
+                              key={other.id}
+                            >
                               Also linked to {other.number}
                             </small>
                           ))}
@@ -253,30 +300,40 @@ export default function Edit({ invoice, games }) {
               </div>
               {!games.length && (
                 <>
-                  <p className="hint">No games imported for this year yet.</p>
-                  <Link href="/games/new" className="small-link">
+                  <p {...stylex.props(ui.paragraph, ui.hint)}>
+                    No games imported for this year yet.
+                  </p>
+                  <Link
+                    {...stylex.props(ui.link, ui.smallLink)}
+                    href="/games/new"
+                  >
                     Import games →
                   </Link>
                 </>
               )}
             </Section>
-            <div className="tip">
-              <strong>A draft is just a draft.</strong>
-              <p>
+            <div {...stylex.props(ui.tip)}>
+              <strong {...stylex.props(ui.strong)}>
+                A draft is just a draft.
+              </strong>
+              <p {...stylex.props(ui.paragraph)}>
                 Save and preview your invoice first. Publish when you're happy
                 with it.
               </p>
             </div>
           </aside>
         </div>
-        <div className="form-actions sticky">
+        <div {...stylex.props(ui.formActions, ui.sticky)}>
           <Link
+            {...stylex.props(ui.link, ui.button)}
             href={invoice.id ? `/invoices/${invoice.id}` : "/"}
-            className="button"
           >
             Cancel
           </Link>
-          <button className="button primary" disabled={form.processing}>
+          <button
+            {...stylex.props(ui.nativeButton, ui.button, ui.primary)}
+            disabled={form.processing}
+          >
             Save & preview →
           </button>
         </div>

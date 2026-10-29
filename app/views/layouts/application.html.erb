@@ -4,10 +4,11 @@
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <%= csrf_meta_tags %><%= csp_meta_tag %>
     <%= inertia_meta_tags %>
-    <%= stylesheet_link_tag "application", "invoice" %>
+    <%= tag.meta(property: "csp-nonce", nonce: content_security_policy_nonce) if Rails.env.development? %>
+    <%= stylesheet_link_tag "invoice" %>
     <%= vite_react_refresh_tag %>
     <%= vite_client_tag %>
-    <%= vite_javascript_tag "inertia.jsx" %>
+    <%= vite_javascript_tag "inertia.tsx" %>
   </head>
   <body><%= yield %></body>
 </html>

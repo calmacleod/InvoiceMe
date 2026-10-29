@@ -6,6 +6,14 @@ class InertiaWorkspaceTest < ActionDispatch::IntegrationTest
     @season = seasons(:current)
   end
 
+  test "Rails loads the extracted StyleX stylesheet with the React entrypoint" do
+    get root_path
+    assert_response :success
+    assert_select "link[rel=stylesheet]" do |links|
+      assert links.any? { |link| link["href"].include?("inertia-") && link["href"].end_with?(".css") }
+    end
+  end
+
   test "validation redirects provide errors to React without exposing credentials" do
     post invoices_path, params: { invoice: { number: "2031_Fictional", recipient: "Example club", description: "", issued_on: "2031-02-17" } }
     assert_redirected_to new_invoice_path

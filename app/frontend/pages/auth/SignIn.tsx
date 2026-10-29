@@ -1,19 +1,28 @@
+import * as stylex from "@stylexjs/stylex";
+import { ui } from "../../styles/ui.stylex";
 import { Head, Link, useForm } from "@inertiajs/react";
 import { Field, Errors } from "../../components/UI";
-
 export default function SignIn() {
-  const form = useForm({ email_address: "", password: "" });
+  const form = useForm({
+    email_address: "",
+    password: "",
+  });
   return (
-    <div className="login-panel card">
+    <div {...stylex.props(ui.card, ui.loginPanel)}>
       <Head title="Sign in" />
-      <span className="eyebrow">EOTFOA TREASURER</span>
-      <h1>Sign in</h1>
-      <p>Your games, invoices, and records in one place.</p>
+      <span {...stylex.props(ui.eyebrow)}>EOTFOA TREASURER</span>
+      <h1 {...stylex.props(ui.h1)}>Sign in</h1>
+      <p {...stylex.props(ui.paragraph)}>
+        Your games, invoices, and records in one place.
+      </p>
       <Errors errors={form.errors} />
       <form
+        {...stylex.props(ui.formStack)}
         onSubmit={(event) => {
           event.preventDefault();
-          form.post("/session", { onFinish: () => form.reset("password") });
+          form.post("/session", {
+            onFinish: () => form.reset("password"),
+          });
         }}
       >
         <Field
@@ -36,12 +45,17 @@ export default function SignIn() {
           maxLength={72}
           autoComplete="current-password"
         />
-        <button disabled={form.processing} className="button primary full">
+        <button
+          {...stylex.props(ui.nativeButton, ui.button, ui.primary, ui.full)}
+          disabled={form.processing}
+        >
           Sign in
         </button>
       </form>
-      <p className="hint">
-        <Link href="/passwords/new">Forgot password?</Link>
+      <p {...stylex.props(ui.paragraph, ui.hint)}>
+        <Link {...stylex.props(ui.link)} href="/passwords/new">
+          Forgot password?
+        </Link>
       </p>
     </div>
   );

@@ -1,14 +1,18 @@
+import * as stylex from "@stylexjs/stylex";
+import { ui } from "../../styles/ui.stylex";
 import { Head, Link, useForm } from "@inertiajs/react";
 import { Field, Errors } from "../../components/UI";
-
 export default function ForgotPassword() {
-  const form = useForm({ email_address: "" });
+  const form = useForm({
+    email_address: "",
+  });
   return (
-    <div className="login-panel card">
+    <div {...stylex.props(ui.card, ui.loginPanel)}>
       <Head title="Forgot password" />
-      <h1>Forgot your password?</h1>
+      <h1 {...stylex.props(ui.h1)}>Forgot your password?</h1>
       <Errors errors={form.errors} />
       <form
+        {...stylex.props(ui.formStack)}
         onSubmit={(event) => {
           event.preventDefault();
           form.post("/passwords");
@@ -24,12 +28,17 @@ export default function ForgotPassword() {
           autoFocus
           autoComplete="username"
         />
-        <button className="button primary full" disabled={form.processing}>
+        <button
+          {...stylex.props(ui.nativeButton, ui.button, ui.primary, ui.full)}
+          disabled={form.processing}
+        >
           Email reset instructions
         </button>
       </form>
-      <p className="hint">
-        <Link href="/session/new">Back to sign in</Link>
+      <p {...stylex.props(ui.paragraph, ui.hint)}>
+        <Link {...stylex.props(ui.link)} href="/session/new">
+          Back to sign in
+        </Link>
       </p>
     </div>
   );

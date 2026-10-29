@@ -5,11 +5,11 @@ Rails.application.config.content_security_policy do |policy|
   policy.script_src :self
   if Rails.env.development?
     policy.script_src :self, "http://localhost:3036"
+    policy.style_src :self, "http://localhost:3036"
     policy.connect_src :self, "http://localhost:3036", "ws://localhost:3036"
   end
 
-
-  policy.style_src :self
+  policy.style_src :self unless Rails.env.development?
 
   policy.object_src :none
   policy.base_uri :self

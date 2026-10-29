@@ -1,10 +1,15 @@
+import type { SavedInvoice } from "../../types";
+import * as stylex from "@stylexjs/stylex";
+import { ui } from "../../styles/ui.stylex";
 import { Head, Link, useForm, usePage } from "@inertiajs/react";
-import { Badge, Errors, Field, Heading, money } from "../../components/UI";
+import { Badge, Errors, Field, Heading } from "../../components/UI";
+import { money } from "../../lib/format";
 import InvoiceDocument from "../../components/InvoiceDocument";
-
-export default function Show({ invoice }) {
+export default function Show({ invoice }: { invoice: SavedInvoice }) {
   const { today } = usePage().props;
-  const notes = useForm({ private_notes: invoice.private_notes ?? "" });
+  const notes = useForm({
+    private_notes: invoice.private_notes ?? "",
+  });
   const payment = useForm({
     amount: "",
     received_on: today,
@@ -20,18 +25,18 @@ export default function Show({ invoice }) {
       <Heading
         title={invoice.number}
         actions={
-          <div className="actions">
+          <div {...stylex.props(ui.actions)}>
             <Badge status={invoice.status} />
             {!invoice.finalized_at && (
-              <Link href={`${url}/edit`} className="button">
+              <Link {...stylex.props(ui.link, ui.button)} href={`${url}/edit`}>
                 Edit draft
               </Link>
             )}
             <a
+              {...stylex.props(ui.link, ui.button)}
               href={`${url}.pdf`}
               target="_blank"
               rel="noopener"
-              className="button"
             >
               Download PDF ↗
             </a>
@@ -41,28 +46,30 @@ export default function Show({ invoice }) {
         {invoice.description}
       </Heading>
       {invoice.publish_error && (
-        <div className="flash alert">
-          <strong>Google sync needs attention.</strong> {invoice.publish_error}{" "}
-          Your invoice and completed export steps are retained. Retry after
-          resolving the problem.
+        <div {...stylex.props(ui.flash, ui.alert)}>
+          <strong {...stylex.props(ui.strong)}>
+            Google sync needs attention.
+          </strong>{" "}
+          {invoice.publish_error} Your invoice and completed export steps are
+          retained. Retry after resolving the problem.
         </div>
       )}
-      <div className="editor-layout">
-        <section className="card invoice-paper">
+      <div {...stylex.props(ui.editorLayout)}>
+        <section {...stylex.props(ui.card, ui.invoicePaper)}>
           <InvoiceDocument invoice={invoice} />
         </section>
-        <aside className="editor-aside">
-          <section className="card">
-            <h2>
+        <aside {...stylex.props(ui.editorAside)}>
+          <section {...stylex.props(ui.card)}>
+            <h2 {...stylex.props(ui.h2)}>
               {invoice.finalized_at ? "Google records" : "Ready to publish?"}
             </h2>
-            <p className="hint">
+            <p {...stylex.props(ui.paragraph, ui.hint)}>
               {invoice.finalized_at
                 ? "Sync safely resumes completed steps and updates the ledger."
                 : "Publishing finalizes the invoice, saves a Google Doc and PDF, and records it in your master spreadsheet."}
             </p>
             <button
-              className="button primary full"
+              {...stylex.props(ui.nativeButton, ui.button, ui.primary, ui.full)}
               disabled={publish.processing}
               onClick={() => {
                 if (
@@ -81,8 +88,9 @@ export default function Show({ invoice }) {
                   : "Finalize & save to Google ↗"}
             </button>
             {invoice.google_doc_id && (
-              <p>
+              <p {...stylex.props(ui.paragraph)}>
                 <a
+                  {...stylex.props(ui.link)}
                   href={`https://docs.google.com/document/d/${invoice.google_doc_id}/edit`}
                   target="_blank"
                   rel="noopener"
@@ -92,8 +100,9 @@ export default function Show({ invoice }) {
               </p>
             )}
             {invoice.google_pdf_id && (
-              <p>
+              <p {...stylex.props(ui.paragraph)}>
                 <a
+                  {...stylex.props(ui.link)}
                   href={`https://drive.google.com/file/d/${invoice.google_pdf_id}/view`}
                   target="_blank"
                   rel="noopener"
@@ -103,26 +112,33 @@ export default function Show({ invoice }) {
               </p>
             )}
             {invoice.ledger_row && (
-              <p className="hint">Master ledger row {invoice.ledger_row}</p>
+              <p {...stylex.props(ui.paragraph, ui.hint)}>
+                Master ledger row {invoice.ledger_row}
+              </p>
             )}
           </section>
           {invoice.finalized_at && (
-            <section className="card">
-              <h2>Payments</h2>
-              <div className="balance">
+            <section {...stylex.props(ui.card)}>
+              <h2 {...stylex.props(ui.h2)}>Payments</h2>
+              <div {...stylex.props(ui.balance)}>
                 <span>Received</span>
-                <strong>{money(invoice.received_cents)}</strong>
+                <strong {...stylex.props(ui.strong)}>
+                  {money(invoice.received_cents)}
+                </strong>
                 <span>Outstanding</span>
-                <strong>{money(invoice.owed_cents)}</strong>
+                <strong {...stylex.props(ui.strong)}>
+                  {money(invoice.owed_cents)}
+                </strong>
               </div>
               {invoice.payments.map((item) => (
-                <p key={item.id} className="hint">
+                <p {...stylex.props(ui.paragraph, ui.hint)} key={item.id}>
                   {item.received_on} · {item.method} ·{" "}
                   {money(item.amount_cents)}
                 </p>
               ))}
               {invoice.owed_cents > 0 && (
                 <form
+                  {...stylex.props(ui.formStack)}
                   onSubmit={(event) => {
                     event.preventDefault();
                     payment.post(`${url}/payment`, {
@@ -150,8 +166,11 @@ export default function Show({ invoice }) {
                     onChange={(value) => payment.setData("received_on", value)}
                     required
                   />
-                  <label htmlFor="payment_method">Payment method</label>
+                  <label {...stylex.props(ui.label)} htmlFor="payment_method">
+                    Payment method
+                  </label>
                   <select
+                    {...stylex.props(ui.input)}
                     id="payment_method"
                     value={payment.data.payment_method}
                     onChange={(event) =>
@@ -176,16 +195,20 @@ export default function Show({ invoice }) {
                     value={payment.data.notes}
                     onChange={(value) => payment.setData("notes", value)}
                   />
-                  <button className="button full" disabled={payment.processing}>
+                  <button
+                    {...stylex.props(ui.nativeButton, ui.button, ui.full)}
+                    disabled={payment.processing}
+                  >
                     Record payment
                   </button>
                 </form>
               )}
             </section>
           )}
-          <section className="card">
-            <h2>Private notes</h2>
+          <section {...stylex.props(ui.card)}>
+            <h2 {...stylex.props(ui.h2)}>Private notes</h2>
             <form
+              {...stylex.props(ui.formStack)}
               onSubmit={(event) => {
                 event.preventDefault();
                 notes.patch(`${url}/notes`);
@@ -199,23 +222,26 @@ export default function Show({ invoice }) {
                 value={notes.data.private_notes}
                 onChange={(value) => notes.setData("private_notes", value)}
               />
-              <button className="button full" disabled={notes.processing}>
+              <button
+                {...stylex.props(ui.nativeButton, ui.button, ui.full)}
+                disabled={notes.processing}
+              >
                 Save notes
               </button>
             </form>
-            <p className="hint">
+            <p {...stylex.props(ui.paragraph, ui.hint)}>
               For your records. Not included in the document or PDF.
             </p>
           </section>
           {!!invoice.games.length && (
-            <section className="card">
-              <h2>Linked games</h2>
+            <section {...stylex.props(ui.card)}>
+              <h2 {...stylex.props(ui.h2)}>Linked games</h2>
               {invoice.games.map((game) => (
-                <p key={game.id}>
-                  <strong>
+                <p {...stylex.props(ui.paragraph)} key={game.id}>
+                  <strong {...stylex.props(ui.strong)}>
                     {game.code} · #{game.external_id}
                   </strong>
-                  <small>
+                  <small {...stylex.props(ui.small)}>
                     {game.date} · {game.matchup}
                   </small>
                 </p>
@@ -224,7 +250,7 @@ export default function Show({ invoice }) {
           )}
           {!invoice.finalized_at && (
             <button
-              className="text-button danger"
+              {...stylex.props(ui.nativeButton, ui.textButton, ui.danger)}
               disabled={deletion.processing}
               onClick={() => {
                 if (window.confirm("Delete this draft?")) deletion.delete(url);
