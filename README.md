@@ -148,3 +148,19 @@ Application components and page props use strict TypeScript in `app/frontend` (`
 The application UI uses [StyleX](https://stylexjs.com/docs/learn/installation/vite/vite-react). Design tokens live in `styles/tokens.stylex.ts`, shared UI styles in `styles/ui.stylex.ts`, and shell styles alongside the Layout component. Apply styles with `stylex.props`; use explicit variants and media queries rather than global class selectors. A small reset is the only global UI CSS. The invoice preview and server document share the scoped `invoice.css` contract so exports retain their existing appearance.
 
 The official StyleX Vite plugin extracts atomic CSS at build time and adds it to the manifest alongside the typed Inertia entrypoint. The build checks that the extracted CSS, design tokens, and responsive rules are present. Rails loads the generated stylesheet through Vite Rails; Kamal bridges it with the other versioned assets. Development uses a linked StyleX stylesheet and Vite events to refresh it across the separate Rails/Vite origins, without runtime style injection or loosening the production content security policy.
+
+## Performance
+
+Registers and game searches return 25 records per page. Game summaries select only scalar fields and SQL-computed official counts; officials and original source rows load when a game's details are opened. The invoice picker searches on the server and keeps selected games visible across pages without replacing unsaved form data. Invoice lists preload only the visible records' line items and payments; season totals use grouped SQL with exact per-line cent rounding. Search and pagination use partial Inertia reloads to skip season totals and unrelated props. Composite indexes cover list ordering. Invoice detail serialization preloads linked invoice references instead of querying once per game.
+
+Page JavaScript is split into lazy chunks. Internal GET links prefetch their Inertia response and page chunk on hover, with a 15-second cache. Mutations, year changes, and sign-out clear that cache. Sidebar navigation starts on primary mousedown; keyboard, touch fallback, and modified clicks retain normal behavior. Mutation links are never prefetched. Currency and date formatters are reused, and the game picker is memoized so typing invoice fields does not re-render its list.
+
+Reproduce the benchmark with `RAILS_ENV=test bin/rails runner script/benchmark_workspace.rb`. It creates only fictional data inside a rolled-back transaction and refuses development/production. The workload has 500 games, 250 invoices, 1,250 line items, and 125 payments. These are local warm request medians (11 samples after five warm-ups, Ruby 4.0.9), not production network timings. Compared with commit `851d01e`:
+
+| Inertia response | Before → after | JSON bytes before → after | Active Record objects before → after |
+| --- | --- | --- | --- |
+| Invoice register | 25.61 → 14.12 ms | 61,384 → 6,773 | 1,630 → 167 |
+| Games | 27.71 → 7.49 ms | 698,240 → 8,442 | 1,255 → 80 |
+| New invoice | 25.87 → 8.01 ms | 147,502 → 9,122 | 1,255 → 80 |
+
+The register uses more small SQL queries to aggregate season totals, while loading 90% fewer model objects. Browser checks also cover hover data/chunk requests, navigation before mouse release, keyboard navigation, pagination, detail loading, unsaved field/selection retention, and cache invalidation when changing years. CI checks pagination, cross-year detail isolation, per-line rounding, partial reloads, and a query budget for invoices linked to many games.

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_29_201505) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_30_020000) do
   create_table "games", force: :cascade do |t|
     t.integer "season_id", null: false
     t.string "external_id", null: false
@@ -25,6 +25,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_29_201505) do
     t.json "source", default: [], null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.index ["season_id", "date", "external_id"], name: "index_games_on_season_id_and_date_and_external_id", order: { date: :desc }
     t.index ["season_id", "external_id"], name: "index_games_on_season_id_and_external_id", unique: true
     t.index ["season_id"], name: "index_games_on_season_id"
   end
@@ -67,6 +68,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_29_201505) do
     t.string "publish_error"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.index ["season_id", "issued_on", "id"], name: "index_invoices_on_season_id_and_issued_on_and_id", order: { issued_on: :desc, id: :desc }
     t.index ["season_id", "number"], name: "index_invoices_on_season_id_and_number", unique: true
     t.index ["season_id"], name: "index_invoices_on_season_id"
   end

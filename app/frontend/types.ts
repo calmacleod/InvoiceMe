@@ -76,6 +76,18 @@ export type Official = {
   fee_cents?: number;
   paid_cents?: number;
 };
+export type Pagination = {
+  page: number;
+  pages: number;
+  total: number;
+  from: number;
+  to: number;
+};
+export type GameOptions = {
+  games: GameSummary[];
+  pagination: Pagination;
+  query: string;
+};
 export type GameSummary = {
   id: number;
   external_id: string;
@@ -88,6 +100,7 @@ export type GameSummary = {
   fees_cents: number;
   matchup: string;
   official_count: number;
+  paid_by_team: string | null;
   invoices: { id: number; number: string }[];
 };
 export type GameDetail = GameSummary & {

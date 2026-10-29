@@ -1,19 +1,28 @@
-import type { InvoiceSummary, InvoiceTotals } from "../../types";
+import Link from "../../components/AppLink";
+import type { InvoiceSummary, InvoiceTotals, Pagination } from "../../types";
 import * as stylex from "@stylexjs/stylex";
 import { ui } from "../../styles/ui.stylex";
-import { Head, Link, usePage } from "@inertiajs/react";
-import { Badge, Heading, Search, Stat } from "../../components/UI";
+import { Head, usePage } from "@inertiajs/react";
+import {
+  Badge,
+  Heading,
+  Search,
+  Stat,
+  PaginationControls,
+} from "../../components/UI";
 import { date, money } from "../../lib/format";
 export default function Index({
   invoices,
   total_count,
   query,
   totals,
+  pagination,
 }: {
   invoices: InvoiceSummary[];
   total_count: number;
   query: string;
   totals: InvoiceTotals;
+  pagination: Pagination;
 }) {
   const { current_season: season } = usePage().props;
   if (!season) return null;
@@ -59,7 +68,12 @@ export default function Index({
               Your records for the {season.year} season.
             </p>
           </div>
-          <Search url="/" query={query} label="Search invoices" />
+          <Search
+            url="/"
+            query={query}
+            label="Search invoices"
+            only={["invoices", "pagination", "query"]}
+          />
         </div>
         <div {...stylex.props(ui.tableScroll)}>
           <table {...stylex.props(ui.table)}>
@@ -141,6 +155,12 @@ export default function Index({
             </div>
           </div>
         )}
+        <PaginationControls
+          pagination={pagination}
+          url="/"
+          query={query}
+          only={["invoices", "pagination", "query"]}
+        />
         <div {...stylex.props(ui.tableBottom)}>
           <span>Amounts in CAD</span>
           <span>Drafts stay private until you publish to Google.</span>

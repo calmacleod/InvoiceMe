@@ -1,25 +1,27 @@
+import Link from "../../components/AppLink";
 import type { FormEvent } from "react";
 import type {
   InvoiceDetail,
   InvoiceFields,
   InvoiceForm,
   EditableLineItem,
-  GameSummary,
+  GameOptions,
 } from "../../types";
 import type { FieldOptions } from "../../components/UI";
 import * as stylex from "@stylexjs/stylex";
 import { ui } from "../../styles/ui.stylex";
-import { Head, Link, useForm } from "@inertiajs/react";
-import { useState } from "react";
+import { Head, useForm } from "@inertiajs/react";
+import { useCallback } from "react";
 import { Errors, Field, Heading, Section } from "../../components/UI";
+import GamePicker from "../../components/GamePicker";
 import { money } from "../../lib/format";
 import { invoiceTotal } from "../../lib/money";
 export default function Edit({
   invoice,
-  games,
+  game_options,
 }: {
   invoice: InvoiceDetail;
-  games: GameSummary[];
+  game_options: GameOptions;
 }) {
   const initial: InvoiceFields = {
     number: invoice.number ?? "",
@@ -45,7 +47,10 @@ export default function Edit({
       key: item.id ?? `new-${index}`,
     })),
   });
-  const [filter, setFilter] = useState("");
+  const selectGames = useCallback(
+    (ids: number[]) => form.setData("game_ids", ids),
+    [form.setData],
+  );
   const changeLine = <Key extends keyof EditableLineItem>(
     index: number,
     key: Key,
@@ -238,79 +243,13 @@ export default function Edit({
               title="Link Horizon games"
               hint="Links keep your records connected. Invoice amounts come from the line items you enter."
             >
-              <input
-                {...stylex.props(ui.input)}
-                type="search"
-                aria-label="Filter games"
-                placeholder="Filter by game code or team…"
-                value={filter}
-                onChange={(event) => setFilter(event.target.value)}
+              <GamePicker
+                options={game_options}
+                initialSelected={invoice.games}
+                selectedIds={form.data.game_ids}
+                onChange={selectGames}
+                invoiceId={invoice.id}
               />
-              <div {...stylex.props(ui.gamePicker)}>
-                {games
-                  .filter((game) =>
-                    `${game.code} ${game.external_id} ${game.matchup}`
-                      .toLowerCase()
-                      .includes(filter.toLowerCase()),
-                  )
-                  .map((game) => (
-                    <label
-                      {...stylex.props(ui.label, ui.gameOption)}
-                      key={game.id}
-                    >
-                      <input
-                        {...stylex.props(ui.checkbox)}
-                        type="checkbox"
-                        checked={form.data.game_ids.includes(game.id)}
-                        onChange={(event) =>
-                          form.setData(
-                            "game_ids",
-                            event.target.checked
-                              ? [...form.data.game_ids, game.id]
-                              : form.data.game_ids.filter(
-                                  (id) => id !== game.id,
-                                ),
-                          )
-                        }
-                      />
-                      <span>
-                        <strong {...stylex.props(ui.strong)}>
-                          {game.code || game.external_id} · {game.date}
-                        </strong>
-                        <small {...stylex.props(ui.small)}>
-                          {game.matchup}
-                        </small>
-                        <small {...stylex.props(ui.small)}>
-                          {money(game.fees_cents)} · {game.official_count}{" "}
-                          officials
-                        </small>
-                        {game.invoices
-                          .filter((other) => other.id !== invoice.id)
-                          .map((other) => (
-                            <small
-                              {...stylex.props(ui.small, ui.amber)}
-                              key={other.id}
-                            >
-                              Also linked to {other.number}
-                            </small>
-                          ))}
-                      </span>
-                    </label>
-                  ))}
-              </div>
-              {!games.length && (
-                <>
-                  <p {...stylex.props(ui.paragraph, ui.hint)}>
-                    No games imported for this year yet.
-                  </p>
-                  <Link
-                    {...stylex.props(ui.link, ui.smallLink)}
-                    href="/games/new"
-                  >
-                    Import games →
-                  </Link>
-                </>
-              )}
             </Section>
             <div {...stylex.props(ui.tip)}>
               <strong {...stylex.props(ui.strong)}>

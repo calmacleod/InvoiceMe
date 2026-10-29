@@ -6,7 +6,7 @@ class ApplicationController < ActionController::Base
     signed_in = authenticated?
     {
       auth: signed_in ? { email: Current.user.email_address } : nil,
-      seasons: signed_in ? Season.order(year: :desc).as_json(only: %i[id year]) : [],
+      seasons: -> { signed_in ? Season.select(:id, :year).order(year: :desc).as_json : [] },
       current_season: signed_in && current_season ? { id: current_season.id, year: current_season.year } : nil,
       flash: flash.to_hash,
       today: Date.current.iso8601,

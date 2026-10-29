@@ -1,9 +1,10 @@
+import Link from "../../components/AppLink";
 import type { FormEvent } from "react";
 import type { SeasonSettings, SeasonForm, Issuer } from "../../types";
 import type { FieldOptions } from "../../components/UI";
 import * as stylex from "@stylexjs/stylex";
 import { ui } from "../../styles/ui.stylex";
-import { Head, Link, useForm } from "@inertiajs/react";
+import { Head, useForm } from "@inertiajs/react";
 import { Errors, Field, Heading, Section } from "../../components/UI";
 export default function Edit({
   season,

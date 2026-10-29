@@ -1,7 +1,8 @@
+import Link from "../../components/AppLink";
 import type { ImportGame } from "../../types";
 import * as stylex from "@stylexjs/stylex";
 import { ui } from "../../styles/ui.stylex";
-import { Head, Link, useForm, usePage } from "@inertiajs/react";
+import { Head, useForm, usePage } from "@inertiajs/react";
 import { Heading, Stat } from "../../components/UI";
 import { money } from "../../lib/format";
 export default function Review({

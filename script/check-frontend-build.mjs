@@ -12,6 +12,10 @@ assert(
   "The typed Inertia entrypoint must be in the Vite manifest",
 );
 assert(
+  entry.dynamicImports?.length >= 10,
+  "Application pages must remain lazy chunks",
+);
+assert(
   entry.css?.length,
   "Rails needs a stylesheet entry for the compiled StyleX styles",
 );

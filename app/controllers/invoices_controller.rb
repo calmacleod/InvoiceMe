@@ -2,20 +2,18 @@ class InvoicesController < ApplicationController
   before_action :need_season
   before_action :set_invoice, only: %i[show edit update destroy publish payment notes]
   def index
-    @invoices = current_season.invoices.includes(:line_items, :payments).order(issued_on: :desc, id: :desc)
-    @all_invoices = @invoices.to_a
-    @invoices = @invoices.where("number LIKE :q OR recipient LIKE :q OR description LIKE :q", q: "%#{Invoice.sanitize_sql_like(params[:q].to_s)}%") if params[:q].present?
-    finalized = @all_invoices.select(&:finalized_at)
+    invoices = current_season.invoices.order(issued_on: :desc, id: :desc)
+    invoices = invoices.where("number LIKE :q OR recipient LIKE :q OR description LIKE :q", q: "%#{Invoice.sanitize_sql_like(params[:q].to_s)}%") if params[:q].present?
+    page = WorkspacePage.new(invoices, params[:page])
     render inertia: "invoices/Index", props: {
-      invoices: @invoices.map { |invoice| invoice_props(invoice) },
-      total_count: @all_invoices.size, query: params[:q].to_s,
-      totals: { invoiced: finalized.sum(&:total_cents), received: finalized.sum(&:received_cents), owed: finalized.sum(&:owed_cents), outstanding: finalized.count { |invoice| invoice.owed_cents > 0 }, drafts: @all_invoices.count { |invoice| !invoice.finalized_at } }
+      invoices: -> { page.records.includes(:line_items, :payments).map { |invoice| invoice_props(invoice) } },
+      pagination: page.props, total_count: -> { current_season.invoices.count }, query: params[:q].to_s,
+      totals: -> { InvoiceTotals.new(current_season.invoices).call }
     }
   end
   def new
     @invoice = current_season.invoices.new(number: "#{current_season.year}_", issued_on: Date.current)
     @invoice.line_items.build(quantity: 1)
-    load_games
     render_editor
   end
   def create
@@ -34,7 +32,6 @@ class InvoicesController < ApplicationController
   end
   def edit
     return redirect_to @invoice, alert: "This invoice is finalized" if @invoice.finalized_at
-    load_games
     render_editor
   end
   def update
@@ -79,13 +76,19 @@ class InvoicesController < ApplicationController
   end
   private
   def set_invoice
-    @invoice = Invoice.find(params[:id])
+    scope = %w[show edit].include?(action_name) ? Invoice.includes(:line_items, :payments) : Invoice.all
+    @invoice = scope.find(params[:id])
     @current_season = @invoice.season
     session[:season_id] = @current_season.id
   end
-  def load_games = @games = current_season.games.includes(:invoices).order(date: :desc)
   def render_editor
-    render inertia: "invoices/Edit", props: { invoice: invoice_props(@invoice, detail: true), games: @games.map { |game| game_props(game) } }
+    render inertia: "invoices/Edit", props: {
+      invoice: -> { invoice_props(@invoice, detail: true) },
+      game_options: -> {
+        page = WorkspacePage.new(current_season.games.matching(params[:game_q]).order(date: :desc, external_id: :asc), params[:game_page])
+        { games: page.records.summaries.includes(:invoices).map { |game| game_props(game) }, pagination: page.props, query: params[:game_q].to_s }
+      }
+    }
   end
   def invoice_params
     attrs = params.require(:invoice).permit(:number, :recipient, :contact, :recipient_address, :description, :issued_on, :due_on, :public_notes, :private_notes, game_ids: [], line_items_attributes: %i[id description quantity rate position _destroy])

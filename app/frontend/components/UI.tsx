@@ -1,5 +1,6 @@
+import Link from "./AppLink";
 import type { ReactNode, ChangeEvent, HTMLInputTypeAttribute } from "react";
-import type { InvoiceStatus } from "../types";
+import type { InvoiceStatus, Pagination } from "../types";
 import * as stylex from "@stylexjs/stylex";
 import { ui } from "../styles/ui.stylex";
 import { router } from "@inertiajs/react";
@@ -146,7 +147,9 @@ export function Search({
   url,
   query,
   label,
+  only,
 }: {
+  only?: string[];
   url: string;
   query: string;
   label: string;
@@ -163,6 +166,7 @@ export function Search({
             q: value,
           },
           {
+            only,
             preserveState: true,
             replace: true,
           },
@@ -213,5 +217,54 @@ export function Stat({
         {children}
       </small>
     </div>
+  );
+}
+
+export function PaginationControls({
+  pagination,
+  url,
+  query,
+  only,
+}: {
+  pagination: Pagination;
+  url: string;
+  query: string;
+  only: string[];
+}) {
+  return (
+    <nav {...stylex.props(ui.tableBottom)} aria-label="Pagination">
+      <span>
+        {pagination.from}–{pagination.to} of {pagination.total}
+      </span>
+      <div {...stylex.props(ui.actions)}>
+        {pagination.page > 1 && (
+          <Link
+            {...stylex.props(ui.link, ui.button)}
+            href={url}
+            data={{ q: query, page: pagination.page - 1 }}
+            only={only}
+            preserveState
+            preserveScroll
+          >
+            ← Previous
+          </Link>
+        )}
+        <span>
+          Page {pagination.page} of {pagination.pages}
+        </span>
+        {pagination.page < pagination.pages && (
+          <Link
+            {...stylex.props(ui.link, ui.button)}
+            href={url}
+            data={{ q: query, page: pagination.page + 1 }}
+            only={only}
+            preserveState
+            preserveScroll
+          >
+            Next →
+          </Link>
+        )}
+      </div>
+    </nav>
   );
 }

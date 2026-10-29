@@ -1,9 +1,12 @@
 class GamesController < ApplicationController
   before_action :need_season
   def index
-    @games = current_season.games.includes(:invoices).order(date: :desc, external_id: :asc)
-    @games = @games.where("code LIKE :q OR external_id LIKE :q OR home_team LIKE :q OR away_team LIKE :q", q: "%#{Game.sanitize_sql_like(params[:q].to_s)}%") if params[:q].present?
-    render inertia: "games/Index", props: { games: @games.map { |game| game_props(game, detail: true) }, total_count: current_season.games.count, query: params[:q].to_s }
+    page = -> { @game_page ||= WorkspacePage.new(current_season.games.matching(params[:q]).order(date: :desc, external_id: :asc), params[:page]) }
+    render inertia: "games/Index", props: {
+      games: -> { page.call.records.summaries.includes(:invoices).map { |game| game_props(game) } },
+      pagination: -> { page.call.props }, total_count: -> { current_season.games.count }, query: params[:q].to_s,
+      game_detail: InertiaRails.optional { game_props(current_season.games.includes(:invoices).find(params[:detail_id]), detail: true) }
+    }
   end
   def new
     render inertia: "games/Upload"

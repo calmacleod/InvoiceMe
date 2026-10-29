@@ -1,7 +1,8 @@
+import Link from "./AppLink";
 import { layout } from "./Layout.stylex";
 import * as stylex from "@stylexjs/stylex";
 import { ui } from "../styles/ui.stylex";
-import { Link, router, usePage } from "@inertiajs/react";
+import { router, usePage } from "@inertiajs/react";
 import type { PropsWithChildren } from "react";
 import DevStyleX from "./DevStyleX";
 
@@ -17,7 +18,11 @@ export default function Layout({ children }: PropsWithChildren) {
     <div {...stylex.props(ui.app)}>
       <DevStyleX />
       <aside {...stylex.props(layout.sidebar)}>
-        <Link {...stylex.props(ui.link, layout.brand)} href="/">
+        <Link
+          navigateOnMouseDown
+          {...stylex.props(ui.link, layout.brand)}
+          href="/"
+        >
           <span {...stylex.props(layout.brandSymbol)}>
             i<span {...stylex.props(layout.brandM)}>m</span>
           </span>
@@ -42,6 +47,7 @@ export default function Layout({ children }: PropsWithChildren) {
             <p {...stylex.props(ui.paragraph, layout.navCaption)}>WORKSPACE</p>
             <nav {...stylex.props(layout.nav)} aria-label="Main navigation">
               <Link
+                navigateOnMouseDown
                 {...stylex.props(
                   ui.link,
                   layout.navLink,
@@ -52,6 +58,7 @@ export default function Layout({ children }: PropsWithChildren) {
                 ▤ Invoices
               </Link>
               <Link
+                navigateOnMouseDown
                 {...stylex.props(
                   ui.link,
                   layout.navLink,
@@ -62,6 +69,7 @@ export default function Layout({ children }: PropsWithChildren) {
                 ▦ Games & officials
               </Link>
               <Link
+                navigateOnMouseDown
                 {...stylex.props(
                   ui.link,
                   layout.navLink,
@@ -84,6 +92,7 @@ export default function Layout({ children }: PropsWithChildren) {
                 </button>
               ))}
               <Link
+                navigateOnMouseDown
                 {...stylex.props(ui.link, ui.smallLink, layout.yearLink)}
                 href="/seasons/new"
               >
@@ -101,6 +110,7 @@ export default function Layout({ children }: PropsWithChildren) {
               <Link
                 {...stylex.props(ui.link, ui.textButton)}
                 href="/session"
+                navigateOnMouseDown={false}
                 method="delete"
                 as="button"
               >

@@ -1,7 +1,8 @@
+import Link from "../../components/AppLink";
 import type { SavedInvoice } from "../../types";
 import * as stylex from "@stylexjs/stylex";
 import { ui } from "../../styles/ui.stylex";
-import { Head, Link, useForm, usePage } from "@inertiajs/react";
+import { Head, useForm, usePage } from "@inertiajs/react";
 import { Badge, Errors, Field, Heading } from "../../components/UI";
 import { money } from "../../lib/format";
 import InvoiceDocument from "../../components/InvoiceDocument";

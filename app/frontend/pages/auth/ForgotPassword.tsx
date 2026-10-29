@@ -1,6 +1,7 @@
+import Link from "../../components/AppLink";
 import * as stylex from "@stylexjs/stylex";
 import { ui } from "../../styles/ui.stylex";
-import { Head, Link, useForm } from "@inertiajs/react";
+import { Head, useForm } from "@inertiajs/react";
 import { Field, Errors } from "../../components/UI";
 export default function ForgotPassword() {
   const form = useForm({

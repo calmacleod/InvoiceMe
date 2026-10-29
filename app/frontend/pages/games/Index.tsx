@@ -1,18 +1,27 @@
-import type { GameDetail } from "../../types";
+import Link from "../../components/AppLink";
+import type { GameDetail, GameSummary, Pagination } from "../../types";
 import * as stylex from "@stylexjs/stylex";
 import { ui } from "../../styles/ui.stylex";
-import { Head, Link } from "@inertiajs/react";
-import { Heading, Search } from "../../components/UI";
+import { Head, router } from "@inertiajs/react";
+import { Heading, Search, PaginationControls } from "../../components/UI";
 import { date, money } from "../../lib/format";
+import { useState } from "react";
+import GameDetails from "../../components/GameDetails";
 export default function Index({
   games,
   total_count,
   query,
+  pagination,
+  game_detail,
 }: {
-  games: GameDetail[];
+  games: GameSummary[];
+  game_detail?: GameDetail;
+  pagination: Pagination;
   total_count: number;
   query: string;
 }) {
+  const [expanded, setExpanded] = useState<number | null>(null);
+  const [loading, setLoading] = useState(false);
   return (
     <>
       <Head title="Games & officials" />
@@ -42,7 +51,12 @@ export default function Index({
               set.
             </p>
           </div>
-          <Search url="/games" query={query} label="Search games" />
+          <Search
+            url="/games"
+            query={query}
+            label="Search games"
+            only={["games", "pagination", "query"]}
+          />
         </div>
         <div {...stylex.props(ui.tableScroll)}>
           <table {...stylex.props(ui.table)}>
@@ -64,9 +78,9 @@ export default function Index({
                       #{game.external_id}
                     </strong>
                     <small {...stylex.props(ui.small)}>{game.code}</small>
-                    {game.source[0]?.["Paid By Team"] && (
+                    {game.paid_by_team && (
                       <small {...stylex.props(ui.small)}>
-                        Paid by team: {game.source[0]["Paid By Team"]}
+                        Paid by team: {game.paid_by_team}
                       </small>
                     )}
                   </td>
@@ -79,37 +93,37 @@ export default function Index({
                     <small {...stylex.props(ui.small)}>{game.location}</small>
                   </td>
                   <td {...stylex.props(ui.td)}>
-                    <details {...stylex.props(ui.details)}>
-                      <summary {...stylex.props(ui.summary)}>
-                        {game.official_count} officials
-                      </summary>
-                      {game.officials.map((official, i) => (
-                        <small {...stylex.props(ui.small)} key={i}>
-                          {official.name} · {official.position}{" "}
-                          {official.fee_cents != null ||
-                          official.paid_cents != null
-                            ? money(official.fee_cents ?? official.paid_cents)
-                            : ""}
-                        </small>
+                    <button
+                      type="button"
+                      {...stylex.props(ui.nativeButton, ui.link, ui.smallLink)}
+                      aria-expanded={expanded === game.id}
+                      onClick={() => {
+                        if (expanded === game.id) {
+                          setExpanded(null);
+                          return;
+                        }
+                        setExpanded(game.id);
+                        setLoading(true);
+                        router.reload({
+                          only: ["game_detail"],
+                          data: { detail_id: game.id },
+                          preserveUrl: true,
+                          onFinish: () => setLoading(false),
+                        });
+                      }}
+                    >
+                      {game.official_count} officials · View details
+                    </button>
+                    {expanded === game.id &&
+                      (game_detail?.id === game.id ? (
+                        <GameDetails game={game_detail} />
+                      ) : (
+                        <p role="status">
+                          {loading
+                            ? "Loading details…"
+                            : "Couldn't load details. Close and try again."}
+                        </p>
                       ))}
-                    </details>
-                    <details {...stylex.props(ui.details)}>
-                      <summary {...stylex.props(ui.summary)}>
-                        Source details
-                      </summary>
-                      {game.source.map((source, index) => (
-                        <dl {...stylex.props(ui.sourceDetails)} key={index}>
-                          {Object.entries(source).map(([key, value]) => (
-                            <div key={key}>
-                              <dt>{key}</dt>
-                              <dd {...stylex.props(ui.sourceValue)}>
-                                {String(value ?? "")}
-                              </dd>
-                            </div>
-                          ))}
-                        </dl>
-                      ))}
-                    </details>
                   </td>
                   <td {...stylex.props(ui.td, ui.numeric)}>
                     {money(game.fees_cents)}
@@ -133,6 +147,12 @@ export default function Index({
             </tbody>
           </table>
         </div>
+        <PaginationControls
+          pagination={pagination}
+          url="/games"
+          query={query}
+          only={["games", "pagination", "query"]}
+        />
         {!games.length && (
           <div {...stylex.props(ui.empty)}>
             <span {...stylex.props(ui.emptyIcon)}>▦</span>

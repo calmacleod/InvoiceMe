@@ -7,17 +7,20 @@ module WorkspaceProps
     return props unless detail
 
     props.merge!(invoice.as_json(only: %i[contact recipient_address public_notes private_notes publish_error google_doc_id google_pdf_id ledger_row]))
+    games = invoice.persisted? ? invoice.games.merge(Game.summaries).includes(:invoices).to_a : []
     props.merge!(
       issuer: invoice.issuer, year: invoice.season.year,
       line_items: invoice.line_items.map { |item| item.as_json(only: %i[id description position quantity rate_cents]).merge(rate: item.rate, total_cents: item.total_cents) },
-      game_ids: invoice.game_ids, games: invoice.games.map { |game| game_props(game) },
+      game_ids: games.map(&:id), games: games.map { |game| game_props(game) },
       payments: invoice.payments.as_json(only: %i[id amount_cents received_on method notes])
     )
   end
 
   def game_props(game, detail: false)
     props = game.as_json(only: %i[id external_id code date time home_team away_team location fees_cents])
-    props.merge!(matchup: game.matchup, official_count: game.officials.size, invoices: game.invoices.as_json(only: %i[id number]))
+    props.merge!(matchup: game.matchup, official_count: game.has_attribute?(:summary_official_count) ? game[:summary_official_count] : game.officials.size,
+      paid_by_team: game.has_attribute?(:paid_by_team) ? game[:paid_by_team] : game.source.first&.fetch("Paid By Team", nil),
+      invoices: game.invoices.as_json(only: %i[id number]))
     props.merge!(officials: game.officials, source: game.source) if detail
     props
   end

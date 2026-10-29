@@ -1,3 +1,4 @@
+import Link from "../../components/AppLink";
 import type {
   ImportField,
   ImportMapping,
@@ -6,7 +7,7 @@ import type {
 } from "../../types";
 import * as stylex from "@stylexjs/stylex";
 import { ui } from "../../styles/ui.stylex";
-import { Head, Link, useForm } from "@inertiajs/react";
+import { Head, useForm } from "@inertiajs/react";
 import { Errors, Heading } from "../../components/UI";
 const names = {
   external_id: "Game number",
