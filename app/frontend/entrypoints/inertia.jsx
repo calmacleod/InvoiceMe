@@ -5,6 +5,7 @@ import Layout from "../components/Layout";
 
 const pages = import.meta.glob("../pages/**/*.jsx", { eager: true });
 createInertiaApp({
+  nonce: document.querySelector('meta[name="csp-nonce"]')?.content,
   serverHead: true,
   title: (title) => (title ? `${title} · InvoiceMe` : "InvoiceMe · EOTFOA"),
   resolve: (name) => {
