@@ -3,8 +3,11 @@ class GamesController < ApplicationController
   def index
     @games = current_season.games.includes(:invoices).order(date: :desc, external_id: :asc)
     @games = @games.where("code LIKE :q OR external_id LIKE :q OR home_team LIKE :q OR away_team LIKE :q", q: "%#{Game.sanitize_sql_like(params[:q].to_s)}%") if params[:q].present?
+    render inertia: "games/Index", props: { games: @games.map { |game| game_props(game, detail: true) }, total_count: current_season.games.count, query: params[:q].to_s }
   end
-  def new; end
+  def new
+    render inertia: "games/Upload"
+  end
   def upload
     headers, rows, info = GameImport.read(params[:file])
     session[:import_id] = SecureRandom.hex(16)
@@ -18,6 +21,7 @@ class GamesController < ApplicationController
     data = import_data
     @headers, @rows, @import_info = data.fetch("headers"), data.fetch("rows"), data.fetch("info", {})
     @mapping = GameImport.guess(@headers).merge(current_season.import_mapping.slice(*GameImport::FIELDS).select { |_, v| @headers.include?(v) })
+    render inertia: "games/Map", props: { headers: @headers, rows: @rows.first(5), row_count: @rows.size, info: @import_info, mapping: @mapping, fields: GameImport::FIELDS, required: GameImport::REQUIRED }
   rescue ArgumentError => e
     redirect_to new_game_path, alert: e.message
   end
@@ -35,7 +39,7 @@ class GamesController < ApplicationController
     data = import_data
     @import_info = data.fetch("info", {})
     @import = GameImport.new(data.fetch("headers"), data.fetch("rows"), data.fetch("mapping"), date_format: data.fetch("date_format")).parse
-    render :preview
+    render inertia: "games/Review", props: { games: @import.games.values.first(100), total_count: @import.games.size, errors_list: @import.errors.first(30), totals: { officials: @import.games.values.sum { |game| game[:officials].size }, fees: @import.games.values.sum { |game| game[:fees_cents] } } }
   rescue ArgumentError, KeyError => e
     redirect_to new_game_path, alert: e.message
   end

@@ -5,30 +5,37 @@ class InvoicesController < ApplicationController
     @invoices = current_season.invoices.includes(:line_items, :payments).order(issued_on: :desc, id: :desc)
     @all_invoices = @invoices.to_a
     @invoices = @invoices.where("number LIKE :q OR recipient LIKE :q OR description LIKE :q", q: "%#{Invoice.sanitize_sql_like(params[:q].to_s)}%") if params[:q].present?
+    finalized = @all_invoices.select(&:finalized_at)
+    render inertia: "invoices/Index", props: {
+      invoices: @invoices.map { |invoice| invoice_props(invoice) },
+      total_count: @all_invoices.size, query: params[:q].to_s,
+      totals: { invoiced: finalized.sum(&:total_cents), received: finalized.sum(&:received_cents), owed: finalized.sum(&:owed_cents), outstanding: finalized.count { |invoice| invoice.owed_cents > 0 }, drafts: @all_invoices.count { |invoice| !invoice.finalized_at } }
+    }
   end
   def new
     @invoice = current_season.invoices.new(number: "#{current_season.year}_", issued_on: Date.current)
     @invoice.line_items.build(quantity: 1)
     load_games
+    render_editor
   end
   def create
     @invoice = current_season.invoices.new(invoice_params)
     if @invoice.save
       redirect_to @invoice, notice: "Draft saved. Preview it before publishing."
     else
-      load_games
-      render :new, status: :unprocessable_entity
+      redirect_to new_invoice_path, inertia: { errors: @invoice.errors }
     end
   end
   def show
     respond_to do |format|
-      format.html
+      format.html { render inertia: "invoices/Show", props: { invoice: invoice_props(@invoice, detail: true) } }
       format.pdf { send_data InvoiceDocument.new(@invoice).pdf, filename: "#{@invoice.number}.pdf", type: "application/pdf", disposition: "inline" }
     end
   end
   def edit
     return redirect_to @invoice, alert: "This invoice is finalized" if @invoice.finalized_at
     load_games
+    render_editor
   end
   def update
     saved = @invoice.with_lock do
@@ -42,8 +49,7 @@ class InvoicesController < ApplicationController
     if saved
       redirect_to @invoice, notice: "Draft updated"
     else
-      load_games
-      render :edit, status: :unprocessable_entity
+      redirect_to edit_invoice_path(@invoice), inertia: { errors: @invoice.errors }
     end
   end
   def destroy
@@ -78,6 +84,9 @@ class InvoicesController < ApplicationController
     session[:season_id] = @current_season.id
   end
   def load_games = @games = current_season.games.includes(:invoices).order(date: :desc)
+  def render_editor
+    render inertia: "invoices/Edit", props: { invoice: invoice_props(@invoice, detail: true), games: @games.map { |game| game_props(game) } }
+  end
   def invoice_params
     attrs = params.require(:invoice).permit(:number, :recipient, :contact, :recipient_address, :description, :issued_on, :due_on, :public_notes, :private_notes, game_ids: [], line_items_attributes: %i[id description quantity rate position _destroy])
     if attrs[:game_ids]

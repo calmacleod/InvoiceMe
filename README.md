@@ -10,7 +10,7 @@ A private EOTFOA treasurer workspace for Horizon game imports, invoice preparati
 4. Choose **Finalize & save to Google**. The app validates the destination and checks for an existing invoice number, freezes the issuer/address/payment details and destination, creates a native Google Doc and PDF, and records the ledger row. After finalization, invoice details cannot be edited. Make corrections using a new invoice number. Private notes remain editable.
 5. Record payments against finalized invoices. **Sync to Google** updates the received amount, balance, last payment method, and deposit date. Payment recording is local; syncing is a separate explicit action.
 
-The register contains invoices created in InvoiceMe. Historical invoices already in Drive/Sheets are not automatically migrated. No emails are sent by this app.
+The register contains invoices created in InvoiceMe. Historical invoices already in Drive/Sheets are not automatically migrated. Invoice emails are not sent by this app. Password resets use Action Mailer.
 
 ## Invoice appearance
 
@@ -66,13 +66,13 @@ Follow Google's [web-server OAuth guide](https://developers.google.com/identity/
 
 ## Local development
 
-This is a standard Rails 8.1 application using Ruby 4.0.9, SQLite, Importmap, Turbo, Stimulus, Bootsnap, and the default Solid Queue/Cache/Cable adapters. The production Dockerfile is the Rails-generated template, including Thruster on port 80.
+This is a standard Rails 8.1 application using Ruby 4.0.9, SQLite, React 19, Inertia Rails, Vite, Bootsnap, and the default Solid Queue/Cache/Cable adapters. The production Dockerfile extends the Rails template with a Node build stage for Vite and retains Thruster on port 80. Node is not needed in the runtime container.
 
 ```sh
 bin/setup
 ```
 
-The setup script installs dependencies, prepares the database, and starts `bin/dev` at **http://localhost:3000**. Use `bin/setup --skip-server` to prepare without starting the server, and `bin/dev` or `bin/rails server` for subsequent runs. Production assets are compiled during the Docker build; local development uses the Rails asset pipeline.
+The setup script installs dependencies, prepares the database, and starts `bin/dev` at **http://localhost:3000**. Node.js 24 is required alongside Ruby. `bin/dev` runs Rails and Vite together using the generated `Procfile.dev`. Use `bin/setup --skip-server` to prepare without starting the server, and `bin/dev` or `bin/rails server` for subsequent runs. Production assets are compiled during the Docker build; local development uses the Rails asset pipeline.
 
 ## Authentication
 
@@ -121,7 +121,7 @@ Production migrations run through the generated Docker entrypoint's `db:prepare`
 bin/ci
 ```
 
-This is Rails' default CI runner: setup, Omakase RuboCop, Bundler audit, Importmap audit, Brakeman, Rails tests, and seed verification. The tests cover generated authentication/password-reset behavior, session revocation, invoice calculations and locking, PDF/ODT rendering and privacy, Horizon imports, and resumable Google writes against a fake API. Live Google publishing still needs an OAuth connection and first-publish verification.
+This is Rails' default CI runner: setup, Omakase RuboCop, Bundler and npm audits, the React production build, exact-decimal JavaScript tests, Brakeman, Rails/Inertia tests, and seed verification. The tests cover generated authentication/password-reset behavior, session revocation, invoice calculations and locking, PDF/ODT rendering and privacy, Horizon imports, and resumable Google writes against a fake API. Live Google publishing still needs an OAuth connection and first-publish verification.
 
 ## Backups and recovery
 
@@ -134,3 +134,9 @@ Restore only while the InvoiceMe service is stopped, with a backup of the curren
 This version imports downloaded CSV/XLSX files. The native master-fees export is detected automatically, including its repeated name/position/fee groups after the fixed game fields. Every official and position is retained, the fees are summed exactly, the Paid By Team field is retained, and meeting entries are excluded with a visible count. These are fee amounts, not evidence that an official has actually been paid. It does not scrape the signed-in website and does not assume access to Horizon's Developer API. Export the complete filtered schedule/payroll report yourself and use the upload/review workflow. CSV layouts vary; explicit mapping and separate position-name/fee pairs are supported. API synchronization can be added once EOTFOA's API access and the actual API contract are available.
 
 Horizon exports contain private information. Keep downloaded exports outside Git. Automated fixtures use fictional names, teams, locations, game IDs, dates, and fees; the normal `HorizonWebRef_Master_Fees_*.csv` export filename pattern is ignored.
+
+## Frontend
+
+All application screens are React pages in `app/frontend/pages`, rendered by the existing Rails controllers through [Inertia Rails](https://inertia-rails.dev/). Navigation and forms use Inertia rather than a separate JSON API or browser router. Rails owns authentication, sessions, CSRF protection, validation, and authorization. Validation redirects use the adapter’s error props, preserving entered form values. The generated Rails password-reset flow remains on the server.
+
+Vite builds the frontend under `public/assets/vite`, inside Kamal’s existing asset bridge so old tabs retain their versioned assets during releases. `bin/dev` runs the Rails and Vite servers with React hot reload; production uses only compiled assets. PDF and Google Docs/ODT generation remain server-side. The React document preview retains the supplied invoice design.

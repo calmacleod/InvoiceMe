@@ -9,10 +9,11 @@ class WorkspaceTest < ActionDispatch::IntegrationTest
     post session_path, params: { email_address: users(:one).email_address, password: "password" }
     get root_path
     assert_response :success
-    assert_select "h1", "Invoices."
+    assert_inertia_component "invoices/Index"
+    assert_inertia_props auth: { email: users(:one).email_address }, invoices: []
     get new_invoice_path
     assert_response :success
-    assert_select "template#line-item-template"
+    assert_inertia_component "invoices/Edit"
     get games_path
     assert_response :success
     get edit_season_path(@season)
@@ -29,7 +30,8 @@ class WorkspaceTest < ActionDispatch::IntegrationTest
     assert_redirected_to invoice_path(invoice)
     get invoice_path(invoice)
     assert_response :success
-    assert_select ".doc-total strong", "$500.00"
+    assert_inertia_component "invoices/Show"
+    assert_equal 50_000, inertia.props[:invoice]["total_cents"]
     get invoice_path(invoice, format: :pdf)
     assert_response :success
     assert_equal "application/pdf", response.media_type

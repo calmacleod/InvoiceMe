@@ -3,6 +3,7 @@ class SeasonsController < ApplicationController
     previous = Season.order(year: :desc).first
     year = previous ? previous.year + 1 : Date.current.year
     @season = Season.new(year: year, issuer: previous&.issuer || Season::DEFAULT_ISSUER, sheet_name: "#{year} invoices")
+    render_settings
   end
   def create
     @season = Season.new(season_params)
@@ -10,10 +11,13 @@ class SeasonsController < ApplicationController
       session[:season_id] = @season.id
       redirect_to edit_season_path(@season), notice: "Invoice year created"
     else
-      render :new, status: :unprocessable_entity
+      redirect_to new_season_path, inertia: { errors: @season.errors }
     end
   end
-  def edit = @season = Season.find(params[:id])
+  def edit
+    @season = Season.find(params[:id])
+    render_settings
+  end
   def preview
     season = Season.find(params[:id])
     invoice = season.invoices.new(number: "#{season.year}_PREVIEW", recipient: "Example organization", contact: "Example contact", description: "Invoice design preview", issued_on: Date.current)
@@ -26,7 +30,7 @@ class SeasonsController < ApplicationController
     if @season.update(season_params)
       redirect_to edit_season_path(@season), notice: "Settings saved. Finalized invoices keep their original details."
     else
-      render :edit, status: :unprocessable_entity
+      redirect_to edit_season_path(@season), inertia: { errors: @season.errors }
     end
   end
   def select
@@ -34,6 +38,9 @@ class SeasonsController < ApplicationController
     redirect_to root_path
   end
   private
+  def render_settings
+    render inertia: "seasons/Edit", props: { season: @season.as_json(only: %i[id year issuer drive_folder_id pdf_folder_id spreadsheet_id sheet_name ledger_start_row]), google: { configured: GoogleApi.configured?, email: GoogleConnection.first&.email } }
+  end
   def season_params
     params.require(:season).permit(:year, :drive_folder_id, :pdf_folder_id, :spreadsheet_id, :sheet_name, :ledger_start_row, issuer: %i[name payable_to treasurer email address payment_instructions])
   end

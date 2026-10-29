@@ -3,7 +3,7 @@ class GoogleController < ApplicationController
     raise GoogleApi::Error, "Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET on the server first" unless GoogleApi.configured?
     session[:oauth_state] = SecureRandom.hex(32)
     query = { client_id: ENV.fetch("GOOGLE_CLIENT_ID"), redirect_uri: GoogleApi.redirect_uri, response_type: "code", scope: GoogleApi::SCOPES, access_type: "offline", prompt: "consent", state: session[:oauth_state], login_hint: ENV.fetch("GOOGLE_ALLOWED_EMAIL", "treasurer@eotfoa.ca") }
-    redirect_to "https://accounts.google.com/o/oauth2/v2/auth?#{URI.encode_www_form(query)}", allow_other_host: true
+    redirect_to "https://accounts.google.com/o/oauth2/v2/auth?#{URI.encode_www_form(query)}", allow_other_host: true, inertia: { full_page: true }
   end
   def callback
     state = session.delete(:oauth_state)
