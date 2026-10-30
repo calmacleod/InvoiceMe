@@ -11,7 +11,13 @@ class Invoice < ApplicationRecord
   validates :number, uniqueness: { scope: :season_id }, format: { with: /\A[\p{L}\p{N}_. -]+\z/, message: "may contain letters, numbers, spaces, underscores, periods, and hyphens" }, length: { maximum: 120 }
   validate :has_items
   validate :same_season_games
+  validate :valid_contacts
   validate :immutable_when_finalized, on: :update
+  before_validation :normalize_contacts
+  def contacts = super || InvoiceContacts.from_legacy(contact)
+  def contact_names = contacts.filter_map { |contact| contact["name"].presence }.join(", ")
+  def contact_email = contacts.filter_map { |contact| contact["email"].presence }.first.to_s
+  def attention = contact_names.presence || recipient
   def total_cents = line_items.reject(&:marked_for_destruction?).sum(&:total_cents)
   def received_cents = payments.loaded? ? payments.select(&:persisted?).sum(&:amount_cents) : payments.sum(:amount_cents)
   def owed_cents = total_cents - received_cents
@@ -38,6 +44,25 @@ class Invoice < ApplicationRecord
     end
   end
   private
+  def normalize_contacts
+    return unless self[:contacts] && InvoiceContacts.valid_format?(self[:contacts])
+
+    self.contacts = self[:contacts].map do |contact|
+      { "name" => contact["name"].strip, "email" => contact["email"].strip.downcase }
+    end.reject { |contact| contact.values.all?(&:blank?) }
+  end
+  def valid_contacts
+    return if self[:contacts].nil?
+
+    unless InvoiceContacts.valid_format?(contacts)
+      errors.add(:contacts, "must contain names and emails")
+      return
+    end
+    contacts.each_with_index do |contact, index|
+      errors.add(:contacts, "contact #{index + 1} needs a valid email") if contact["email"].present? && !URI::MailTo::EMAIL_REGEXP.match?(contact["email"])
+      errors.add(:contacts, "contact #{index + 1} name must not include an email") if contact["name"].include?("@")
+    end
+  end
   def has_items
     errors.add(:base, "Add at least one line item") if line_items.reject(&:marked_for_destruction?).empty?
   end

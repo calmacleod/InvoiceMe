@@ -95,4 +95,39 @@ class InvoiceTest < ActiveSupport::TestCase
       assert_includes content, 'text:anchor-type="as-char"'
     end
   end
+
+  test "contact names and emails are normalized validated and locked on finalization" do
+    @invoice.update!(contacts: [ { name: " Fictional Avery ", email: " AVERY@EXAMPLE.TEST " }, { name: "", email: "" }, { name: "Fictional Rowan", email: "" } ])
+    assert_equal [ { "name" => "Fictional Avery", "email" => "avery@example.test" }, { "name" => "Fictional Rowan", "email" => "" } ], @invoice.reload.contacts
+    assert_equal "Fictional Avery, Fictional Rowan", @invoice.attention
+    assert_equal "avery@example.test", @invoice.contact_email
+    invalid = [ "invalid", [ "invalid" ], [ { name: "Example" } ], [ { name: "Example", email: "not-an-email" } ], [ { name: "avery@example.test", email: "" } ], [ { name: "x" * 201, email: "" } ] ]
+    invalid.each { |contacts| assert_not @invoice.update(contacts: contacts), contacts.inspect }
+    @invoice.reload.finalize!
+    assert_not @invoice.update(contacts: [])
+    assert_equal "avery@example.test", @invoice.reload.contact_email
+  end
+
+  test "legacy name email and combined contacts remain readable and explicit removal does not revive them" do
+    {
+      "Fictional Avery" => [ "Fictional Avery", "" ],
+      "Fictional Avery <AVERY@EXAMPLE.TEST>" => [ "Fictional Avery", "avery@example.test" ],
+      "avery@example.test" => [ @invoice.recipient, "avery@example.test" ]
+    }.each do |legacy, (attention, email)|
+      @invoice.update!(contact: legacy)
+      assert_equal attention, @invoice.reload.attention
+      assert_equal email, @invoice.contact_email
+    end
+    @invoice.update!(contacts: [])
+    assert_empty @invoice.reload.contacts
+    assert_equal @invoice.recipient, @invoice.attention
+    assert_equal "", @invoice.contact_email
+  end
+
+  test "legacy contact lengths do not prevent finalized invoice bookkeeping" do
+    @invoice.update!(contact: "Fictional Coordinator " * 12)
+    @invoice.finalize!
+    assert @invoice.update(private_notes: "Example reminder")
+    assert_equal "", @invoice.contact_email
+  end
 end

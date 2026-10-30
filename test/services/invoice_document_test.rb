@@ -26,6 +26,32 @@ class InvoiceDocumentTest < ActiveSupport::TestCase
     assert_not_includes text, "INTERNAL ONLY"
   end
 
+  test "HTML PDF and Google document include every contact name and no contact emails" do
+    @invoice.contacts = [ { name: "Fictional Avery & Coordinator", email: "avery@example.test" }, { name: "Fictional Rowan", email: "rowan@example.test" } ]
+    document = InvoiceDocument.new(@invoice)
+    texts = [ Nokogiri::HTML(document.html).text, pdf_reader.pages.map(&:text).join(" ") ]
+    Zip::File.open_buffer(document.odt) do |zip|
+      texts << Nokogiri::XML(zip.read("content.xml")) { |config| config.strict }.text
+    end
+    texts.each do |text|
+      assert_includes text.gsub(/\s+/, " "), "ATTENTION: Fictional Avery & Coordinator, Fictional Rowan"
+      assert_not_includes text, "avery@example.test"
+      assert_not_includes text, "rowan@example.test"
+    end
+    assert_printable_layout pdf_reader
+  end
+
+  test "legacy combined contact emails are excluded from all invoice documents" do
+    @invoice.contact = "Fictional Avery <avery@example.test>"
+    document = InvoiceDocument.new(@invoice)
+    texts = [ Nokogiri::HTML(document.html).text, pdf_reader.pages.map(&:text).join(" ") ]
+    Zip::File.open_buffer(document.odt) { |zip| texts << zip.read("content.xml") }
+    texts.each do |text|
+      assert_includes text, "ATTENTION: Fictional Avery"
+      assert_not_includes text, "avery@example.test"
+    end
+  end
+
   test "amount-only rows omit quantity and rate in HTML PDF and Google document content" do
     @invoice.line_items.last.amount_only = true
     html = Nokogiri::HTML(InvoiceDocument.new(@invoice).html)

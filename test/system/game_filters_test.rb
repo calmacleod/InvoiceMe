@@ -80,7 +80,7 @@ class GameFiltersSystemTest < ActionDispatch::SystemTestCase
       assert_selector :select, "Per page", selected: "50"
     end
     assert_selector "tbody tr", count: 10
-    click_button "Choose a saved recipient"
+    click_button "Add saved contacts"
     within('nav[aria-label="Saved contact pagination"]') do
       select "10", from: "Per page"
       assert_text "1–10 of 32"

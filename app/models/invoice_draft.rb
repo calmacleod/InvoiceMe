@@ -14,6 +14,12 @@ class InvoiceDraft < ApplicationRecord
     as_json(only: %i[id title updated_at invoice_id season_id lock_version client_key])
   end
 
+  def invoice_data
+    return data unless data.key?("contact")
+
+    data.except("contact").reverse_merge("contacts" => InvoiceContacts.from_legacy(data["contact"]))
+  end
+
   private
   def set_title
     return unless data.is_a?(Hash)
@@ -27,8 +33,9 @@ class InvoiceDraft < ApplicationRecord
     errors.add(:invoice, "is finalized") if invoice&.finalized_at
     errors.add(:invoice, "is being exported") if invoice && !invoice.finalized_at && invoice.exporting?
     unless data.is_a?(Hash) && data.to_json.bytesize <= 512_000 &&
-        (data.keys - FIELDS - %w[game_ids line_items_attributes]).empty? &&
+        (data.keys - FIELDS - %w[contacts game_ids line_items_attributes]).empty? &&
         FIELDS.all? { |field| !data.key?(field) || data[field].is_a?(String) } &&
+        (!data.key?("contacts") || InvoiceContacts.valid_format?(data["contacts"])) &&
         (!data.key?("game_ids") || data["game_ids"].is_a?(Array)) &&
         (!data.key?("line_items_attributes") || (data["line_items_attributes"].is_a?(Array) && data["line_items_attributes"].all? { |item| item.is_a?(Hash) && (!item.key?("amount_only") || [ true, false ].include?(item["amount_only"])) }))
       errors.add(:data, "is too large or has an invalid format")

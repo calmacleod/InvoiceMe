@@ -4,7 +4,7 @@ class InvoiceDraftsTest < ActionDispatch::IntegrationTest
   setup do
     sign_in_as(users(:one))
     @season = seasons(:current)
-    @data = { number: "", recipient: "Fictional Club", description: "", contact: "", recipient_address: "", issued_on: "", due_on: "", public_notes: "", private_notes: "Fictional private reminder",
+    @data = { number: "", recipient: "Fictional Club", description: "", contacts: [], recipient_address: "", issued_on: "", due_on: "", public_notes: "", private_notes: "Fictional private reminder",
       game_ids: [], line_items_attributes: [ { key: "example-line", description: "", quantity: "", rate: "", position: 0, _destroy: false } ] }
   end
 
@@ -196,6 +196,56 @@ class InvoiceDraftsTest < ActionDispatch::IntegrationTest
     invoice.finalize!
     post invoice_drafts_path, params: { invoice_id: invoice.id }
     assert_redirected_to invoice_path(invoice)
+  end
+
+  test "contacts autosave incomplete emails but preview validates them and retains order through reopening and removal" do
+    contacts = [ { name: "Fictional Avery", email: "not-yet-valid" }, { name: "Fictional Rowan", email: "rowan@example.test" } ]
+    @data.merge!(number: "EXAMPLE-CONTACTS", description: "Example fees", issued_on: "2031-09-15", contacts: contacts,
+      line_items_attributes: [ { key: "example", description: "Example services", quantity: "1", rate: "13.37", position: 0, _destroy: false } ])
+    create_json
+    assert_response :success
+    draft = InvoiceDraft.last
+    assert_equal contacts.map(&:stringify_keys), draft.data["contacts"]
+    assert_no_difference "Invoice.count" do
+      post preview_invoice_draft_path(draft), params: { lock_version: draft.lock_version }
+      assert_redirected_to edit_invoice_draft_path(draft)
+    end
+    get edit_invoice_draft_path(draft)
+    assert inertia.props[:errors].key?("contacts")
+    assert_equal contacts.map(&:stringify_keys), inertia.props[:draft_data]["contacts"]
+    contacts.first[:email] = "avery@example.test"
+    patch invoice_draft_path(draft), params: { lock_version: draft.lock_version, data: @data }, as: :json
+    assert_response :success
+    post preview_invoice_draft_path(draft), params: { lock_version: response.parsed_body["lock_version"] }
+    invoice = draft.reload.invoice
+    assert_redirected_to invoice_path(invoice)
+    get edit_invoice_draft_path(draft)
+    assert_equal contacts.map(&:stringify_keys), inertia.props[:invoice][:contacts]
+    line = invoice.line_items.first
+    @data[:line_items_attributes][0].merge!(id: line.id, key: line.id)
+    [ contacts.reverse, [ contacts.last ], [] ].each do |selection|
+      patch invoice_draft_path(draft), params: { lock_version: draft.reload.lock_version, data: @data.merge(contacts: selection) }, as: :json
+      assert_response :success
+      post preview_invoice_draft_path(draft), params: { lock_version: response.parsed_body["lock_version"] }
+      assert_redirected_to invoice_path(invoice)
+      assert_equal selection.map(&:stringify_keys), invoice.reload.contacts
+    end
+  end
+
+  test "legacy combined contacts open as separate fields and preview without losing their email" do
+    @data.delete(:contacts)
+    @data.merge!(number: "EXAMPLE-LEGACY-CONTACT", description: "Example fees", issued_on: "2031-09-15", contact: "Fictional Avery <avery@example.test>",
+      line_items_attributes: [ { key: "example", description: "Example services", quantity: "1", rate: "13.37", position: 0, _destroy: false } ])
+    create_json
+    draft = InvoiceDraft.last
+    get edit_invoice_draft_path(draft)
+    assert_equal [ { "name" => "Fictional Avery", "email" => "avery@example.test" } ], inertia.props[:draft_data]["contacts"]
+    refute inertia.props[:draft_data].key?("contact")
+    post preview_invoice_draft_path(draft), params: { lock_version: draft.lock_version }
+    invoice = draft.reload.invoice
+    assert_redirected_to invoice_path(invoice)
+    assert_equal "Fictional Avery", invoice.attention
+    assert_equal "avery@example.test", invoice.contact_email
   end
 
   private

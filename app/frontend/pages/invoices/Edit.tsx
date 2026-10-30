@@ -19,6 +19,7 @@ import { Errors, Field, Heading, Section } from "../../components/UI";
 import GamePicker from "../../components/GamePicker";
 import InvoiceLineItems from "../../components/InvoiceLineItems";
 import ContactPicker from "../../components/ContactPicker";
+import InvoiceContacts from "../../components/InvoiceContacts";
 import { money } from "../../lib/format";
 import { invoiceTotal } from "../../lib/money";
 import useDraftAutosave from "../../lib/useDraftAutosave";
@@ -60,7 +61,6 @@ function InvoiceEditor({
     number: invoice.number ?? "",
     recipient: invoice.recipient ?? "",
     description: invoice.description ?? "",
-    contact: invoice.contact ?? "",
     recipient_address: invoice.recipient_address ?? "",
     issued_on: invoice.issued_on ?? "",
     due_on: invoice.due_on ?? "",
@@ -69,6 +69,7 @@ function InvoiceEditor({
   };
   const form = useForm<InvoiceForm>({
     ...initial,
+    contacts: invoice.contacts,
     game_ids: invoice.game_ids,
     line_items_attributes: invoice.line_items.map((item, index) => ({
       id: item.id,
@@ -94,12 +95,28 @@ function InvoiceEditor({
   );
   const chooseContact = useCallback(
     (contact: RecipientContact) =>
-      form.setData((previous) => ({
-        ...previous,
-        recipient: contact.recipient,
-        contact: contact.contact,
-        recipient_address: contact.address,
-      })),
+      form.setData((previous) => {
+        const contacts = previous.contacts.filter(
+          (item) => item.name.trim() || item.email.trim(),
+        );
+        if (
+          contacts.some(
+            (item) =>
+              item.name === contact.name && item.email === contact.email,
+          )
+        )
+          return previous;
+        return {
+          ...previous,
+          ...(contacts.length === 0
+            ? {
+                recipient: contact.recipient,
+                recipient_address: contact.address,
+              }
+            : {}),
+          contacts: [...contacts, { name: contact.name, email: contact.email }],
+        };
+      }),
     [form.setData],
   );
   const field = (
@@ -206,6 +223,7 @@ function InvoiceEditor({
             >
               <ContactPicker
                 options={contact_options}
+                selected={form.data.contacts}
                 onChoose={chooseContact}
               />
               <div {...stylex.props(ui.formGrid)}>
@@ -218,7 +236,6 @@ function InvoiceEditor({
                 {field("description", "Description for master ledger", {
                   required: true,
                 })}
-                {field("contact", "Contact name or email")}
                 {field("recipient_address", "Recipient address (optional)", {
                   multiline: true,
                   rows: 2,
@@ -231,6 +248,10 @@ function InvoiceEditor({
                   type: "date",
                 })}
               </div>
+              <InvoiceContacts
+                contacts={form.data.contacts}
+                onChange={(contacts) => form.setData("contacts", contacts)}
+              />
             </Section>
             <Section
               step="02"

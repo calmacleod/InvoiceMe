@@ -11,7 +11,7 @@ module InvoiceWorkbench
   def render_invoice_editor(invoice, draft: nil)
     render inertia: "invoices/Edit", props: {
       invoice: -> { invoice_props(invoice, detail: true) },
-      draft: draft&.metadata, draft_data: draft&.data.presence,
+      draft: draft&.metadata, draft_data: draft&.invoice_data.presence,
       workbenches: -> { open_workbenches.summaries.limit(20).map(&:metadata) },
       selected_games: -> {
         ids = draft&.data&.fetch("game_ids", nil) || invoice.game_ids

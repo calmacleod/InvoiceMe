@@ -94,7 +94,7 @@ class InvoicesController < ApplicationController
     session[:season_id] = @current_season.id
   end
   def invoice_params
-    attrs = params.require(:invoice).permit(:number, :recipient, :contact, :recipient_address, :description, :issued_on, :due_on, :public_notes, :private_notes, game_ids: [], line_items_attributes: %i[id description quantity rate position amount_only _destroy])
+    attrs = params.require(:invoice).permit(:number, :recipient, :contact, :recipient_address, :description, :issued_on, :due_on, :public_notes, :private_notes, contacts: InvoiceContacts::FIELDS, game_ids: [], line_items_attributes: %i[id description quantity rate position amount_only _destroy])
     if attrs[:game_ids]
       ids = attrs[:game_ids].reject(&:blank?)
       raise ActiveRecord::RecordNotFound unless current_season.games.where(id: ids).count == ids.uniq.size

@@ -1,6 +1,10 @@
 import { memo, useState } from "react";
 import { router } from "@inertiajs/react";
-import type { ContactOptions, RecipientContact } from "../types";
+import type {
+  ContactOptions,
+  InvoiceContact,
+  RecipientContact,
+} from "../types";
 import * as stylex from "@stylexjs/stylex";
 import { ui } from "../styles/ui.stylex";
 import { browserStyles as styles } from "./GameBrowser.stylex";
@@ -8,9 +12,11 @@ import { PageSizeSelect } from "./UI";
 
 export default memo(function ContactPicker({
   options,
+  selected,
   onChoose,
 }: {
   options?: ContactOptions;
+  selected: InvoiceContact[];
   onChoose: (contact: RecipientContact) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -41,7 +47,7 @@ export default memo(function ContactPicker({
             if (!open) load();
           }}
         >
-          {open ? "Close saved contacts" : "Choose a saved recipient"}
+          {open ? "Close saved contacts" : "Add saved contacts"}
         </button>
         <a
           {...stylex.props(ui.link, ui.smallLink)}
@@ -89,7 +95,7 @@ export default memo(function ContactPicker({
           <p {...stylex.props(ui.paragraph, ui.hint)} role="status">
             {loading
               ? "Loading contacts…"
-              : "Choosing a contact copies its recipient, contact and address fields into this draft. You can edit them afterward."}
+              : "The first contact fills in Bill to and the address. Add more contacts below; their details stay editable in this draft."}
           </p>
           {failed && (
             <p role="alert">Couldn't load contacts. Search again to retry.</p>
@@ -112,12 +118,13 @@ export default memo(function ContactPicker({
                 type="button"
                 {...stylex.props(ui.nativeButton, ui.button)}
                 aria-label={`Use contact ${contact.name}`}
-                onClick={() => {
-                  onChoose(contact);
-                  setOpen(false);
-                }}
+                disabled={selected.some(
+                  (item) =>
+                    item.name === contact.name && item.email === contact.email,
+                )}
+                onClick={() => onChoose(contact)}
               >
-                Use recipient
+                Add contact
               </button>
             </div>
           ))}

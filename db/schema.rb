@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_30_200000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_30_210000) do
   create_table "contacts", force: :cascade do |t|
     t.integer "user_id", null: false
     t.string "name", null: false
@@ -115,6 +115,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_30_200000) do
     t.string "publish_error"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.json "contacts"
     t.index ["season_id", "issued_on", "id"], name: "index_invoices_on_season_id_and_issued_on_and_id", order: { issued_on: :desc, id: :desc }
     t.index ["season_id", "number"], name: "index_invoices_on_season_id_and_number", unique: true
     t.index ["season_id"], name: "index_invoices_on_season_id"

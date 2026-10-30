@@ -15,7 +15,7 @@ class Contact < ApplicationRecord
 
   def recipient_props
     as_json(only: %i[id name organization email phone address]).merge(
-      recipient: organization.presence || name, contact: email.present? ? "#{name} <#{email}>" : name
+      recipient: organization.presence || name
     )
   end
 end

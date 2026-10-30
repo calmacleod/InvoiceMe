@@ -66,7 +66,7 @@ class InvoiceDraftsController < ApplicationController
       raise ActiveRecord::StaleObjectError.new(@draft, "preview") unless @draft.lock_version == params.require(:lock_version).to_i
       return redirect_to invoice, alert: "This invoice is finalized or exporting" if invoice.editing_blocked?
       if @draft.data.present?
-        attrs = @draft.data.except("line_items_attributes")
+        attrs = @draft.invoice_data.except("line_items_attributes")
         attrs["line_items_attributes"] = Array(@draft.data["line_items_attributes"]).map { |item| item.except("key") }
         invoice.assign_attributes(attrs)
       end
@@ -87,7 +87,7 @@ class InvoiceDraftsController < ApplicationController
   def persist_data
     @draft.reload if @draft.persisted?
     return conflict if @draft.invoice&.editing_blocked?
-    data = params.require(:data).permit(*InvoiceDraft::FIELDS, game_ids: [], line_items_attributes: %i[id key description quantity rate position amount_only _destroy]).to_h
+    data = params.require(:data).permit(*InvoiceDraft::FIELDS, contacts: InvoiceContacts::FIELDS, game_ids: [], line_items_attributes: %i[id key description quantity rate position amount_only _destroy]).to_h
     # Retrying an acknowledged-lost request is harmless. A different payload
     # must carry the current revision; another tab's work is never overwritten.
     if @draft.persisted? && @draft.data == data

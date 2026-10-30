@@ -42,7 +42,7 @@ The master ledger must have these columns in A–I, in order:
 | H | Payment Method |
 | I | Date Deposited |
 
-The default first data row is 3, with headers in row 2, matching the existing workbook. The tab name is configurable. Publishing checks the headers, preserves existing records, and refuses ambiguous or already-used invoice numbers. Values are written as raw data, so descriptions and invoice numbers cannot become spreadsheet formulas. Amount Owed is a numeric snapshot from InvoiceMe, updated on each sync. Edit payment records in InvoiceMe to keep the two systems aligned.
+The default first data row is 3, with headers in row 2, matching the existing workbook. The tab name is configurable. Publishing checks the headers, preserves existing records, and refuses ambiguous or already-used invoice numbers. Column D receives only the first nonblank contact email, or stays empty when no email is available, so it works with a People column. Values are written as raw data, so descriptions and invoice numbers cannot become spreadsheet formulas. Amount Owed is a numeric snapshot from InvoiceMe, updated on each sync. Edit payment records in InvoiceMe to keep the two systems aligned.
 
 ## One-time Google connection
 
@@ -161,7 +161,7 @@ The master game list and invoice game browser share server-side filters for home
 
 Link badges distinguish saved invoices from the signed-in user's autosaved workbench selections. Link filters include those workbenches without exposing another user's private draft titles or notes. Selecting an already-linked game is allowed and its existing links remain visible.
 
-Contacts are private to each user and reusable across years. Save a name, organization, email, phone, mailing address, and private notes in Contacts. The invoice editor's saved-recipient picker searches contacts on demand and copies recipient, contact name/email, and address into the draft. Those fields remain editable and autosave normally. Editing or deleting a contact does not change existing invoices or drafts, and private contact notes are not copied to invoices.
+Contacts are private to each user and reusable across years. Save a name, organization, email, phone, mailing address, and private notes in Contacts. An invoice can have multiple contacts, added from saved contacts or entered manually. The first saved contact fills in the recipient and address; additional contacts are appended without replacing those fields. Names and emails remain separately editable and autosave normally. Reorder or remove contacts in the editor. Invoice previews, PDFs, and Google Docs show only their names, while the master spreadsheet receives the first nonblank email. Editing or deleting a saved contact does not change existing invoices or drafts, and private contact notes are not copied to invoices. Older combined contact fields remain readable and become separate name/email entries when edited.
 
 ## Draft workbench
 

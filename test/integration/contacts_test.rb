@@ -17,14 +17,14 @@ class ContactsTest < ActionDispatch::IntegrationTest
     assert_equal [ contact.id ], inertia.props[:contacts].map { |item| item["id"] }
     refute_includes response.body, "Private fictional contact note"
     copied = contact.recipient_props
-    invoice = @season.invoices.create!(number: "EXAMPLE-CONTACT", recipient: copied[:recipient], contact: copied[:contact], recipient_address: copied["address"], description: "Example", issued_on: "2031-02-17", line_items_attributes: [ { description: "Example", quantity: 1, rate_cents: 1337 } ])
-    snapshot = invoice.attributes.slice("recipient", "contact", "recipient_address")
+    invoice = @season.invoices.create!(number: "EXAMPLE-CONTACT", recipient: copied[:recipient], contacts: [ copied.slice("name", "email") ], recipient_address: copied["address"], description: "Example", issued_on: "2031-02-17", line_items_attributes: [ { description: "Example", quantity: 1, rate_cents: 1337 } ])
+    snapshot = invoice.attributes.slice("recipient", "contacts", "recipient_address")
     draft = InvoiceDraft.create!(user: users(:one), season: @season, client_key: "example-contact-snapshot", data: snapshot)
-    patch contact_path(contact), params: { contact: { organization: "Changed fictional organization", address: "Changed address" } }
+    patch contact_path(contact), params: { contact: { name: "Changed fictional name", email: "changed@example.test", organization: "Changed fictional organization", address: "Changed address" } }
     assert_redirected_to contacts_path
     delete contact_path(contact)
     assert_redirected_to contacts_path
-    assert_equal snapshot, invoice.reload.attributes.slice("recipient", "contact", "recipient_address")
+    assert_equal snapshot, invoice.reload.attributes.slice("recipient", "contacts", "recipient_address")
     assert_equal snapshot, draft.reload.data
   end
 
@@ -39,7 +39,9 @@ class ContactsTest < ActionDispatch::IntegrationTest
     recipient = response.parsed_body.dig("props", "contact_options", "contacts", 0)
     assert_equal contact.id, recipient["id"]
     assert_equal "Example Club", recipient["recipient"]
-    assert_equal "Fictional Avery <avery@example.test>", recipient["contact"]
+    assert_equal "Fictional Avery", recipient["name"]
+    assert_equal "avery@example.test", recipient["email"]
+    refute recipient.key?("contact")
     assert_equal "123 Fictional Lane", recipient["address"]
     refute_includes response.body, "PRIVATE CONTACT NOTE"
     refute_includes response.body, "Private other contact"
@@ -62,6 +64,25 @@ class ContactsTest < ActionDispatch::IntegrationTest
     sign_out
     get contacts_path
     assert_redirected_to new_session_path
+  end
+
+  test "invoice create update and detail props retain ordered separate contact snapshots" do
+    contacts = [ { name: "Fictional Avery", email: "avery@example.test" }, { name: "Fictional Rowan", email: "rowan@example.test" } ]
+    post invoices_path, params: { invoice: { number: "EXAMPLE-MULTIPLE", recipient: "Example Club", contacts: contacts, description: "Example fees", issued_on: "2031-09-15",
+      line_items_attributes: [ { description: "Example services", quantity: 1, rate: "13.37" } ] } }, as: :json
+    invoice = Invoice.last
+    assert_redirected_to invoice_path(invoice)
+    assert_equal contacts.map(&:stringify_keys), invoice.contacts
+    get invoice_path(invoice)
+    assert_equal invoice.contacts, inertia.props[:invoice][:contacts]
+    assert_equal "Fictional Avery, Fictional Rowan", inertia.props[:invoice][:attention]
+    patch invoice_path(invoice), params: { invoice: { contacts: contacts.reverse } }, as: :json
+    assert_redirected_to invoice_path(invoice)
+    assert_equal "rowan@example.test", invoice.reload.contact_email
+    patch invoice_path(invoice), params: { invoice: { contacts: [] } }, as: :json
+    assert_redirected_to invoice_path(invoice)
+    assert_empty invoice.reload.contacts
+    assert_equal "Example Club", invoice.attention
   end
 
   private

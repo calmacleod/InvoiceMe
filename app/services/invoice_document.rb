@@ -55,7 +55,7 @@ class InvoiceDocument
       pdf.text "Invoice number: #{i.number}"
       pdf.text "Due date: #{i.due_on.strftime('%B %-d, %Y')}" if i.due_on
       pdf.text i.recipient_address if i.recipient_address.present?
-      pdf.text "ATTENTION: #{i.contact.presence || i.recipient}", style: :bold
+      pdf.text "ATTENTION: #{i.attention}", style: :bold
       pdf.move_down 16
       rows = [ [ "Item", "Description", "Quantity", "Rate", "Charge" ] ]
       i.line_items.each_with_index { |l, n| rows << [ (n+1).to_s, l.description, l.amount_only? ? "" : quantity(l.quantity), l.amount_only? ? "" : money(l.rate_cents, rate: true), money(l.total_cents) ] }

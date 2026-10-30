@@ -101,7 +101,7 @@ class GoogleLedger
     if method.present? && condition&.fetch("type") == "ONE_OF_LIST" && !condition.fetch("values").any? { |option| option["userEnteredValue"] == method }
       raise GoogleApi::Error, "The ledger's Payment Method column does not allow #{method}. Check its dropdown options before syncing."
     end
-    values = [ invoice.number, date_value(invoice.issued_on, 1, cells), invoice.description, invoice.contact.to_s, invoice.total_cents / 100.0, invoice.received_cents / 100.0, invoice.owed_cents / 100.0, method, date_value(payment&.received_on, 8, cells) ]
+    values = [ invoice.number, date_value(invoice.issued_on, 1, cells), invoice.description, invoice.contact_email, invoice.total_cents / 100.0, invoice.received_cents / 100.0, invoice.owed_cents / 100.0, method, date_value(payment&.received_on, 8, cells) ]
     values.each_with_index.map do |value, index|
       formula = cells.dig(index, "userEnteredValue", "formulaValue") if index == 6
       entered = formula ? { formulaValue: formula } : value.is_a?(Numeric) ? { numberValue: value } : value.present? ? { stringValue: value } : nil

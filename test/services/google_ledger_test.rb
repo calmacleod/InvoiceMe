@@ -36,6 +36,29 @@ class GoogleLedgerTest < ActiveSupport::TestCase
     assert_equal "userEnteredValue", @api.batches.first.first.dig(:updateCells, :fields)
   end
 
+  test "the contact column receives only the first available email in invoice order" do
+    @invoice.update!(contacts: [ { name: "Fictional Coordinator", email: "" }, { name: "Fictional Avery", email: " AVERY@EXAMPLE.TEST " }, { name: "Fictional Rowan", email: "rowan@example.test" } ])
+    ledger.sync(@invoice)
+    assert_equal "avery@example.test", @api.rows[4][3]
+    assert_equal({ stringValue: "avery@example.test" }, @api.batches.last.first.dig(:updateCells, :rows, 0, :values, 3, :userEnteredValue))
+    @invoice.update!(contacts: @invoice.contacts.reverse)
+    ledger.sync(@invoice)
+    assert_equal "rowan@example.test", @api.rows[4][3]
+    @invoice.update!(contacts: [ { name: "Fictional Coordinator", email: "" } ])
+    ledger.sync(@invoice)
+    assert_nil @api.rows[4][3]
+    assert_empty @api.batches.last.first.dig(:updateCells, :rows, 0, :values, 3)
+  end
+
+  test "legacy combined contacts export a bare email and legacy names leave the people column blank" do
+    @invoice.update!(contact: "Fictional Avery <avery@example.test>")
+    ledger.sync(@invoice)
+    assert_equal "avery@example.test", @api.rows[4][3]
+    @invoice.update!(contact: "Fictional Avery")
+    ledger.sync(@invoice)
+    assert_nil @api.rows[4][3]
+  end
+
   test "partially entered rows and notes in extra table columns are retained" do
     @api.rows[4][2] = "Fictional draft in progress"
     @api.rows[5][11] = "Fictional reserved row"

@@ -138,8 +138,8 @@ export type ContactRecord = ContactFields & { id: number | null };
 export type RecipientContact = Omit<ContactFields, "notes"> & {
   id: number;
   recipient: string;
-  contact: string;
 };
+export type InvoiceContact = { name: string; email: string };
 export type ContactOptions = {
   contacts: RecipientContact[];
   pagination: Pagination;
@@ -158,7 +158,8 @@ export type InvoiceDetail = Omit<
   id: number | null;
   year: number;
   issuer: Issuer;
-  contact: string | null;
+  contacts: InvoiceContact[];
+  attention: string;
   recipient_address: string | null;
   public_notes: string | null;
   private_notes: string | null;
@@ -190,7 +191,6 @@ export type InvoiceFields = Record<
   | "number"
   | "recipient"
   | "description"
-  | "contact"
   | "recipient_address"
   | "issued_on"
   | "due_on"
@@ -209,6 +209,7 @@ export type EditableLineItem = {
   _destroy: boolean;
 };
 export type InvoiceForm = InvoiceFields & {
+  contacts: InvoiceContact[];
   game_ids: number[];
   line_items_attributes: EditableLineItem[];
 };

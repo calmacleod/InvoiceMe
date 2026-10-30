@@ -47,7 +47,7 @@ export default function InvoiceDocument({
         {invoice.due_on && <p>Due date: {longDate(invoice.due_on)}</p>}
         {invoice.recipient_address && <p>{lines(invoice.recipient_address)}</p>}
         <p>
-          <strong>ATTENTION: {invoice.contact || invoice.recipient}</strong>
+          <strong>ATTENTION: {invoice.attention}</strong>
         </p>
       </div>
       <table className="doc-items">
