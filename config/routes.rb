@@ -11,6 +11,7 @@ Rails.application.routes.draw do
   end
   resources :invoices do
     post :publish, on: :member
+    post :reopen, on: :member
     post :payment, on: :member
     patch :notes, on: :member
   end

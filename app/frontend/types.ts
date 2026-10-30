@@ -167,6 +167,7 @@ export type InvoiceDetail = Omit<
   google_doc_id: string | null;
   google_pdf_id: string | null;
   ledger_row: number | null;
+  reopened: boolean;
   line_items: {
     id: number | null;
     description: string | null;

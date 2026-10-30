@@ -27,6 +27,7 @@ export default function Show({
   });
   const publish = useForm({});
   const deletion = useForm({});
+  const reopen = useForm({});
   const url = `/invoices/${invoice.id}`;
   const exporting = google_export?.active ?? false;
   const wasExporting = useRef(exporting);
@@ -64,6 +65,24 @@ export default function Show({
                 Edit draft
               </Link>
             )}
+            {invoice.finalized_at && (
+              <button
+                {...stylex.props(ui.nativeButton, ui.button)}
+                disabled={
+                  reopen.processing || exporting || invoice.received_cents > 0
+                }
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      "Return this unsent invoice to draft? After editing, finalize it again to replace the Google Doc and PDF contents and update the existing ledger entry.",
+                    )
+                  )
+                    reopen.post(`${url}/reopen`);
+                }}
+              >
+                Return to draft
+              </button>
+            )}
             <a
               {...stylex.props(ui.link, ui.button)}
               href={`${url}.pdf`}
@@ -77,6 +96,17 @@ export default function Show({
       >
         {invoice.description}
       </Heading>
+      {invoice.finalized_at && invoice.received_cents > 0 && (
+        <p {...stylex.props(ui.paragraph, ui.hint)}>
+          Invoices with recorded payments cannot be returned to draft.
+        </p>
+      )}
+      {invoice.reopened && (
+        <div {...stylex.props(ui.flash)}>
+          This invoice is a draft again. Existing Google files and the ledger
+          still show the previous version until you finalize it again.
+        </div>
+      )}
       {invoice.publish_error && !google_export && (
         <div {...stylex.props(ui.flash, ui.alert)}>
           <strong {...stylex.props(ui.strong)}>
@@ -100,7 +130,10 @@ export default function Show({
                 ? "Sync safely resumes completed steps and updates the ledger."
                 : "Publishing finalizes the invoice, saves a Google Doc and PDF, and records it in your master spreadsheet."}
             </p>
-            {google_export && <GoogleExportStatus progress={google_export} />}
+            {google_export &&
+              (!invoice.reopened || exporting || invoice.publish_error) && (
+                <GoogleExportStatus progress={google_export} />
+              )}
             <button
               {...stylex.props(ui.nativeButton, ui.button, ui.primary, ui.full)}
               disabled={publish.processing || exporting}
@@ -108,7 +141,7 @@ export default function Show({
                 if (
                   invoice.finalized_at ||
                   window.confirm(
-                    "Finalize this invoice and save it to Google Drive and the master spreadsheet? Finalized details cannot be edited.",
+                    "Finalize this invoice and save it to Google Drive and the master spreadsheet? To make more changes before sending it, use Return to draft.",
                   )
                 )
                   publish.post(`${url}/publish`);
@@ -116,7 +149,7 @@ export default function Show({
             >
               {publish.processing || exporting
                 ? "Export in progress…"
-                : google_export?.status === "failed"
+                : google_export?.status === "failed" && invoice.publish_error
                   ? "Retry Google export ↗"
                   : invoice.finalized_at
                     ? "Sync to Google ↗"
@@ -288,7 +321,7 @@ export default function Show({
               ))}
             </section>
           )}
-          {!invoice.finalized_at && !exporting && (
+          {!invoice.finalized_at && !invoice.reopened && !exporting && (
             <button
               {...stylex.props(ui.nativeButton, ui.textButton, ui.danger)}
               disabled={deletion.processing}

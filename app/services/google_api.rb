@@ -44,17 +44,23 @@ class GoogleApi
   rescue *NETWORK_ERRORS
     raise TransientError, "The connection to Google was interrupted while #{operation}. The export can be retried."
   end
-  def upload(name:, folder:, mime:, bytes:, key:, target_mime: mime)
+  def upload(name:, folder:, mime:, bytes:, key:, target_mime: mime, file_id: nil, replace: false)
     # appProperties recover a completed remote write after a dropped response or local failure.
-    query = "trashed = false and '#{folder}' in parents and appProperties has { key='invoice_me' and value='#{key}' }"
-    found = request(:get, "https://www.googleapis.com/drive/v3/files?#{URI.encode_www_form(q: query, fields: 'files(id)', pageSize: 2)}", operation: "finding an existing Drive export").fetch("files")
-    raise Error, "Multiple matching Drive files found; check Drive before retrying" if found.size > 1
-    return found.first.fetch("id") if found.any?
+    unless file_id
+      query = "trashed = false and '#{folder}' in parents and appProperties has { key='invoice_me' and value='#{key}' }"
+      found = request(:get, "https://www.googleapis.com/drive/v3/files?#{URI.encode_www_form(q: query, fields: 'files(id)', pageSize: 2)}", operation: "finding an existing Drive export").fetch("files")
+      raise Error, "Multiple matching Drive files found; check Drive before retrying" if found.size > 1
+      file_id = found.first&.fetch("id")
+    end
+    return file_id if file_id && !replace
     boundary = "invoice_me_#{SecureRandom.hex(16)}"
-    metadata = { name: name, mimeType: target_mime, parents: [ folder ], appProperties: { invoice_me: key } }
+    metadata = { name: name, mimeType: target_mime, appProperties: { invoice_me: key } }
+    metadata[:parents] = [ folder ] unless file_id
     multipart = "--#{boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n#{JSON.generate(metadata)}\r\n--#{boundary}\r\nContent-Type: #{mime}\r\n\r\n".b + bytes.b + "\r\n--#{boundary}--\r\n".b
     operation = target_mime == "application/vnd.google-apps.document" ? "creating the Google Doc" : "uploading the PDF"
-    request(:post, "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id", body: multipart, content_type: "multipart/related; boundary=#{boundary}", operation: operation).fetch("id")
+    operation = target_mime == "application/vnd.google-apps.document" ? "updating the Google Doc" : "updating the PDF" if file_id
+    path = file_id ? "files/#{ERB::Util.url_encode(file_id)}" : "files"
+    request(file_id ? :patch : :post, "https://www.googleapis.com/upload/drive/v3/#{path}?uploadType=multipart&fields=id", body: multipart, content_type: "multipart/related; boundary=#{boundary}", operation: operation).fetch("id")
   end
   def values(spreadsheet, range)
     request(:get, "https://sheets.googleapis.com/v4/spreadsheets/#{spreadsheet}/values/#{ERB::Util.url_encode(range)}?valueRenderOption=UNFORMATTED_VALUE", operation: "reading the Google Sheets ledger").fetch("values", [])

@@ -55,4 +55,29 @@ class InvoiceExportsSystemTest < ActionDispatch::SystemTestCase
     assert_button "Export in progress…", disabled: true
     assert_equal 2, @invoice.invoice_exports.count
   end
+
+  test "return an unsent invoice to draft edit its amount and finalize again" do
+    @invoice.finalize!
+    @invoice.update!(google_doc_id: "example-doc", google_pdf_id: "example-pdf", ledger_row: 3, published_at: Time.current)
+    @invoice.invoice_exports.create!(status: "succeeded", step: "complete", finished_at: Time.current)
+    visit invoice_path(@invoice)
+    accept_confirm { click_button "Return to draft" }
+    assert_selector "h1", text: "Edit invoice"
+    assert_selector "input#number[readonly]"
+    fill_in "recipient", with: "Revised fictional club"
+    fill_in "rate-0", with: "24.75"
+    click_button "Save & preview →"
+    assert_text "This invoice is a draft again"
+    assert_text "Revised fictional club"
+    assert_text "$24.75"
+    assert_no_text "Google export completed"
+    assert_no_button "Delete draft"
+    assert_link "Open Google Doc", href: "https://docs.google.com/document/d/example-doc/edit"
+    assert_equal "Draft", @invoice.reload.status
+    assert_equal 2475, @invoice.total_cents
+    accept_confirm { click_button "Finalize & save to Google" }
+    assert_text "Queued for Google"
+    assert_button "Export in progress…", disabled: true
+    assert_no_button "Return to draft"
+  end
 end

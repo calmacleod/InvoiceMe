@@ -229,6 +229,7 @@ function InvoiceEditor({
               <div {...stylex.props(ui.formGrid)}>
                 {field("number", "Invoice number", {
                   required: true,
+                  readOnly: invoice.reopened,
                 })}
                 {field("recipient", "Bill to", {
                   required: true,
@@ -248,6 +249,13 @@ function InvoiceEditor({
                   type: "date",
                 })}
               </div>
+              {invoice.reopened && (
+                <p {...stylex.props(ui.paragraph, ui.hint)}>
+                  The invoice number stays the same. Finalize again after
+                  editing to update the existing Google Doc, PDF, and ledger
+                  entry.
+                </p>
+              )}
               <InvoiceContacts
                 contacts={form.data.contacts}
                 onChange={(contacts) => form.setData("contacts", contacts)}

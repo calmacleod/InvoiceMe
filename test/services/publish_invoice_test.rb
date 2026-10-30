@@ -57,4 +57,39 @@ class PublishInvoiceTest < ActiveSupport::TestCase
     assert_nil @invoice.reload.finalized_at
     assert_empty @api.uploads
   end
+  test "reopened invoices replace their documents and update the same ledger entry" do
+    PublishInvoice.new(@invoice, api: @api).call
+    original_ids = [ @invoice.google_doc_id, @invoice.google_pdf_id, @invoice.ledger_row ]
+    @invoice.reopen!
+    @invoice.update!(recipient: "Changed fictional club", line_items_attributes: [ { id: @invoice.line_items.first.id, description: "Revised fictional services", quantity: 2, rate: "1000" } ])
+    PublishInvoice.new(@invoice, api: @api).call
+    assert_equal original_ids, [ @invoice.google_doc_id, @invoice.google_pdf_id, @invoice.ledger_row ]
+    assert_equal original_ids.first(2), @api.uploads.last(2).map { |upload| upload[:file_id] }
+    assert @api.uploads.last(2).all? { |upload| upload[:replace] }
+    Zip::File.open_buffer(@api.uploads[-2][:bytes]) do |zip|
+      assert_includes zip.read("content.xml"), "Changed fictional club"
+    end
+    assert_equal 2000.0, @api.rows.fetch(3)[4]
+    assert_equal 1, @api.rows.values.count { |row| row[0] == @invoice.number }
+    assert_not @invoice.reload.google_doc_dirty?
+    assert_not @invoice.google_pdf_dirty?
+    PublishInvoice.new(@invoice, api: @api).call
+    assert_equal 4, @api.uploads.size
+  end
+  test "a failed revised PDF resumes without replacing the completed revised Doc again" do
+    PublishInvoice.new(@invoice, api: @api).call
+    @invoice.reopen!
+    @invoice.update!(description: "Revised fictional fees")
+    @api.upload_error = GoogleApi::TransientError.new("Example PDF interruption")
+    @api.fail_mime = "application/pdf"
+    assert_raises(GoogleApi::TransientError) { PublishInvoice.new(@invoice, api: @api).call }
+    assert_not @invoice.reload.google_doc_dirty?
+    assert @invoice.google_pdf_dirty?
+    assert_nil @invoice.published_at
+    @api.upload_error = nil
+    PublishInvoice.new(@invoice, api: @api).call
+    assert_equal 2, @api.upload_calls.count { |upload| upload[:target_mime] == "application/vnd.google-apps.document" }
+    assert_not @invoice.reload.google_pdf_dirty?
+    assert @invoice.published_at
+  end
 end

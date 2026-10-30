@@ -58,6 +58,43 @@ class InvoiceTest < ActiveSupport::TestCase
     assert_equal 15063, @invoice.owed_cents
     assert_not @invoice.payments.build(amount_cents: 15064, method: "Cheque", received_on: Date.current).valid?
   end
+  test "returning to draft unlocks details and lines while preserving the Google identity" do
+    @invoice.finalize!
+    @invoice.update!(google_doc_id: "example-doc", google_pdf_id: "example-pdf", ledger_row: 3, published_at: Time.current, publish_error: "Old example error")
+    destination = @invoice.destination
+    assert_not @invoice.update(finalized_at: nil)
+    @invoice.reload.reopen!
+    assert @invoice.reopened?
+    assert_equal "Draft", @invoice.status
+    assert_nil @invoice.published_at
+    assert_nil @invoice.publish_error
+    assert_nil @invoice.issuer_snapshot
+    assert @invoice.google_doc_dirty?
+    assert @invoice.google_pdf_dirty?
+    assert_equal [ "example-doc", "example-pdf", 3 ], [ @invoice.google_doc_id, @invoice.google_pdf_id, @invoice.ledger_row ]
+    assert @invoice.update(recipient: "Changed fictional club", line_items_attributes: [ { id: @invoice.line_items.first.id, description: "Revised fictional services", quantity: "3", rate: "100.25" } ])
+    assert_equal 30_075, @invoice.reload.total_cents
+    assert_not @invoice.update(number: "Different-number")
+    @invoice.reload
+    @season.update!(drive_folder_id: "different-folder", spreadsheet_id: "different-sheet", issuer: @season.issuer.merge("address" => "New fictional address"))
+    @invoice.finalize!
+    assert_equal destination, @invoice.destination
+    assert_equal "New fictional address", @invoice.issuer["address"]
+    assert_not @invoice.update(recipient: "Locked again")
+  end
+  test "reopening blocks active exports and recorded payments" do
+    @invoice.finalize!
+    %w[queued running retrying].each do |status|
+      export = @invoice.invoice_exports.create!(status: status)
+      assert_raises(GoogleApi::Error) { @invoice.reopen! }
+      assert @invoice.reload.finalized_at
+      export.destroy!
+    end
+    @invoice.payments.create!(amount_cents: 100, method: "Cheque", received_on: Date.current)
+    error = assert_raises(GoogleApi::Error) { @invoice.reopen! }
+    assert_includes error.message, "recorded payments"
+    assert @invoice.reload.finalized_at
+  end
   test "loaded payment collection does not count an unsaved payment twice" do
     @invoice.finalize!
     @invoice.payments.load

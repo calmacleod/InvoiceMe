@@ -25,11 +25,15 @@ class PublishInvoice
       end
       renderer = InvoiceDocument.new(@invoice)
       @progress&.call("document")
-      doc = @invoice.google_doc_id || @api.upload(name: @invoice.number, folder: destination.fetch("drive_folder_id"), mime: "application/vnd.oasis.opendocument.text", target_mime: "application/vnd.google-apps.document", bytes: renderer.odt, key: key("doc"))
-      @invoice.update!(google_doc_id: doc)
+      if @invoice.google_doc_id.nil? || @invoice.google_doc_dirty?
+        doc = @api.upload(name: @invoice.number, folder: destination.fetch("drive_folder_id"), mime: "application/vnd.oasis.opendocument.text", target_mime: "application/vnd.google-apps.document", bytes: renderer.odt, key: key("doc"), file_id: @invoice.google_doc_id, replace: @invoice.google_doc_dirty?)
+        @invoice.update!(google_doc_id: doc, google_doc_dirty: false)
+      end
       @progress&.call("pdf")
-      pdf = @invoice.google_pdf_id || @api.upload(name: "#{@invoice.number}.pdf", folder: destination["pdf_folder_id"].presence || destination.fetch("drive_folder_id"), mime: "application/pdf", bytes: renderer.pdf, key: key("pdf"))
-      @invoice.update!(google_pdf_id: pdf)
+      if @invoice.google_pdf_id.nil? || @invoice.google_pdf_dirty?
+        pdf = @api.upload(name: "#{@invoice.number}.pdf", folder: destination["pdf_folder_id"].presence || destination.fetch("drive_folder_id"), mime: "application/pdf", bytes: renderer.pdf, key: key("pdf"), file_id: @invoice.google_pdf_id, replace: @invoice.google_pdf_dirty?)
+        @invoice.update!(google_pdf_id: pdf, google_pdf_dirty: false)
+      end
       @progress&.call("ledger")
       GoogleLedger.new(@api, destination).sync(@invoice)
       @invoice.update!(published_at: Time.current, publish_error: nil)

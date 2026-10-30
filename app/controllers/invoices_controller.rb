@@ -1,6 +1,6 @@
 class InvoicesController < ApplicationController
   before_action :need_season
-  before_action :set_invoice, only: %i[show edit update destroy publish payment notes]
+  before_action :set_invoice, only: %i[show edit update destroy publish payment notes reopen]
   def index
     invoices = current_season.invoices.order(issued_on: :desc, id: :desc)
     invoices = invoices.where("number LIKE :q OR recipient LIKE :q OR description LIKE :q", q: "%#{Invoice.sanitize_sql_like(params[:q].to_s)}%") if params[:q].present?
@@ -60,7 +60,7 @@ class InvoicesController < ApplicationController
   end
   def destroy
     @invoice.with_lock do
-      if @invoice.editing_blocked?
+      if @invoice.editing_blocked? || @invoice.ever_finalized?
         redirect_to @invoice, alert: "Finalized invoices and invoices being exported are retained for your records"
       else
         @invoice.destroy!
@@ -71,6 +71,12 @@ class InvoicesController < ApplicationController
   def publish
     InvoiceExport.enqueue_for(@invoice)
     redirect_to @invoice, notice: "Google export queued. You can follow its progress here or return later."
+  end
+  def reopen
+    @invoice.reopen!
+    redirect_to edit_invoice_path(@invoice), notice: "Invoice returned to draft. Finalize it again after editing to update its Google Doc, PDF, and ledger entry."
+  rescue GoogleApi::Error => e
+    redirect_to @invoice, alert: e.message
   end
   def payment
     @invoice.with_lock do

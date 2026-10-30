@@ -115,6 +115,29 @@ class GoogleApiTest < ActiveSupport::TestCase
       assert_empty delays
     end
   end
+  test "revised documents replace the existing Drive file without moving it" do
+    %w[application/vnd.google-apps.document application/pdf].each do |mime|
+      with_responses(response("200", id: "existing-example-file")) do |requests, _|
+        id = @api.upload(name: "2031_Example", folder: "example-folder", mime: "application/vnd.oasis.opendocument.text", target_mime: mime,
+          bytes: "revised-fictional-document", key: "example-key", file_id: "existing-example-file", replace: true)
+        assert_equal "existing-example-file", id
+        assert_equal [ "PATCH" ], requests.map(&:method)
+        assert_equal "/upload/drive/v3/files/existing-example-file", requests.first.uri.path
+        assert_includes requests.first.body, "revised-fictional-document"
+        assert_includes requests.first.body, %Q("mimeType":"#{mime}")
+        assert_not_includes requests.first.body, '"parents"'
+      end
+    end
+  end
+  test "reopening after an ambiguous creation replaces the recovered file contents" do
+    with_responses(response("200", files: [ { id: "recovered-example-doc" } ]), response("200", id: "recovered-example-doc")) do |requests, _|
+      id = @api.upload(name: "2031_Example", folder: "example-folder", mime: "application/vnd.oasis.opendocument.text", target_mime: "application/vnd.google-apps.document",
+        bytes: "revised-fictional-document", key: "example-key", replace: true)
+      assert_equal "recovered-example-doc", id
+      assert_equal %w[GET PATCH], requests.map(&:method)
+      assert_includes requests.last.body, "revised-fictional-document"
+    end
+  end
 
   test "unexpected error payload shapes and unsafe diagnostic codes are ignored" do
     [ [], { error: "unexpected" }, { error: { errors: [ "unexpected" ] } }, { error: { errors: [ { reason: "Private fictional information!" } ] } } ].each do |payload|

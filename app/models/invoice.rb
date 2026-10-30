@@ -13,6 +13,7 @@ class Invoice < ApplicationRecord
   validate :same_season_games
   validate :valid_contacts
   validate :immutable_when_finalized, on: :update
+  validate :retain_invoice_number, on: :update
   before_validation :normalize_contacts
   def contacts = super || InvoiceContacts.from_legacy(contact)
   def contact_names = contacts.filter_map { |contact| contact["name"].presence }.join(", ")
@@ -25,6 +26,20 @@ class Invoice < ApplicationRecord
   def destination = destination_snapshot || season.destination
   def exporting? = persisted? && invoice_exports.active.exists?
   def editing_blocked? = finalized_at.present? || exporting?
+  def ever_finalized? = destination_snapshot.present?
+  def reopened? = !finalized_at && ever_finalized?
+  def reopen!
+    with_lock do
+      raise GoogleApi::Error, "Wait for the Google export to finish before returning this invoice to draft." if exporting?
+      raise GoogleApi::Error, "Invoices with recorded payments cannot be returned to draft." if payments.exists?
+      return unless finalized_at
+
+      @returning_to_draft = true
+      update!(finalized_at: nil, published_at: nil, issuer_snapshot: nil, publish_error: nil, google_doc_dirty: true, google_pdf_dirty: true)
+    ensure
+      @returning_to_draft = false
+    end
+  end
   def ensure_previewed_for_export!
     if !finalized_at && invoice_drafts.where.not(data: {}).exists?
       raise GoogleApi::Error, "This invoice has workbench edits. Resume the draft and use Save & preview before publishing."
@@ -40,7 +55,7 @@ class Invoice < ApplicationRecord
   def finalize!
     with_lock do
       return if finalized_at
-      update!(issuer_snapshot: season.issuer.deep_dup, destination_snapshot: season.destination.deep_dup, finalized_at: Time.current)
+      update!(issuer_snapshot: season.issuer.deep_dup, destination_snapshot: destination.deep_dup, finalized_at: Time.current)
     end
   end
   private
@@ -71,7 +86,11 @@ class Invoice < ApplicationRecord
   end
   def immutable_when_finalized
     return unless finalized_at_in_database
-    allowed = %w[private_notes published_at google_doc_id google_pdf_id ledger_row publish_error updated_at]
-    errors.add(:base, "Finalized invoices cannot be edited; create a new invoice for a correction") if (changed - allowed).any? || line_items.any?(&:changed_for_autosave?)
+    allowed = %w[private_notes published_at google_doc_id google_pdf_id google_doc_dirty google_pdf_dirty ledger_row publish_error updated_at]
+    allowed += %w[finalized_at issuer_snapshot] if @returning_to_draft
+    errors.add(:base, "Return this invoice to draft before editing its details") if (changed - allowed).any? || line_items.any?(&:changed_for_autosave?)
+  end
+  def retain_invoice_number
+    errors.add(:number, "cannot change after finalizing because it identifies the Google records") if destination_snapshot_in_database.present? && will_save_change_to_number?
   end
 end

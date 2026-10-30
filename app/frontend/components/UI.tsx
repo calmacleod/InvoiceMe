@@ -75,6 +75,7 @@ export type FieldProps = {
   max?: string | number;
   step?: string | number;
   disabled?: boolean;
+  readOnly?: boolean;
 };
 export type FieldOptions = Omit<
   Partial<FieldProps>,

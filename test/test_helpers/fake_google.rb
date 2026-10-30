@@ -13,7 +13,7 @@ class FakeGoogle
     @upload_calls << attrs
     raise @upload_error if @upload_error && (!@fail_mime || @fail_mime == attrs[:mime])
     @uploads << attrs
-    "file-#{@uploads.size}"
+    attrs[:file_id] || "file-#{@uploads.size}"
   end
 
   def validate_destination(_) = true
