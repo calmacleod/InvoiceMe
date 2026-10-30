@@ -19,9 +19,11 @@ module InvoiceWorkbench
       },
       game_options: -> {
         search = game_search(picker: true)
-        page = WorkspacePage.new(search.results.order(date: :desc, external_id: :asc), params[:game_page], params[:game_per_page])
-        { games: game_list_props(page.records), pagination: page.props, query: search.filters["q"], filters: search.filters, errors: search.errors, filter_choices: game_filter_choices }
+        order = GameOrder.new(params[:game_sort], params[:game_direction])
+        page = WorkspacePage.new(order.apply(search.results), params[:game_page], params[:game_per_page])
+        { games: game_list_props(page.records), pagination: page.props, query: search.filters["q"], filters: search.filters, errors: search.errors, filter_choices: game_filter_choices, sort: order.props }
       },
+      matching_games: InertiaRails.optional { game_list_props(game_search(picker: true).results.order(:external_id, :id)) },
       game_detail: InertiaRails.optional { game_detail_props },
       contact_options: InertiaRails.optional {
         scope = Current.user.contacts.searching(params[:contact_q]).order(:name, :id)

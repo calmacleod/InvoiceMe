@@ -108,7 +108,12 @@ export default function useDraftAutosave(
         visit.prefetch ||
         (visit.only.length > 0 &&
           visit.only.every((key) =>
-            ["game_options", "game_detail", "contact_options"].includes(key),
+            [
+              "game_options",
+              "game_detail",
+              "contact_options",
+              "matching_games",
+            ].includes(key),
           ))
       )
         return;

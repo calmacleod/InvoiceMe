@@ -122,4 +122,57 @@ class GameFiltersSystemTest < ActionDispatch::SystemTestCase
       assert_selector "dd", text: "6 games"
     end
   end
+
+  test "sort filtered matches link every page and expand a code to all of its linked games" do
+    35.times do |index|
+      seasons(:current).games.create!(external_id: "EXAMPLE-ALL-#{index.to_s.rjust(2, '0')}", code: index < 30 ? "EXAMPLE-ALPHA" : "EXAMPLE-BETA", date: "2031-09-15", fees_cents: index * 100)
+    end
+    visit new_invoice_path
+    find('input[aria-label="Select game EXAMPLE-ALL-00"]').set(true)
+    find('summary[aria-label="Game code options"]').click
+    check "EXAMPLE-BETA"
+    click_button "Apply filters"
+    assert_text "5 matching games"
+    click_button "Link all matching games (5)"
+    assert_button "Linked games (6)"
+    find("summary", text: "Filters ·").click
+    code_options = find('summary[aria-label="Game code options"]')
+    code_options.click unless code_options.find(:xpath, "..")[:open]
+    uncheck "EXAMPLE-BETA"
+    check "EXAMPLE-ALPHA"
+    click_button "Apply filters"
+    assert_text "30 matching games"
+    within('nav[aria-label="Game browser pagination"]') { select "10", from: "Per page" }
+    find('button[aria-label="Sort by total fees"]:not(:disabled)').click
+    assert_selector 'th[aria-sort="ascending"]', text: /total fees/i
+    find('button[aria-label="Sort by total fees"]:not(:disabled)').click
+    assert_selector 'th[aria-sort="descending"]', text: /total fees/i
+    assert_selector "tbody tr:first-child", text: "EXAMPLE-ALL-29"
+    click_button "Next →"
+    assert_text "Page 2 of 3"
+    assert_selector "tbody tr:first-child", text: "EXAMPLE-ALL-19"
+    click_button "Link all matching games (30)"
+    assert_button "Linked games (35)"
+    click_button "Link all matching games (30)"
+    assert_button "Linked games (35)"
+    click_button "EXAMPLE-ALPHA"
+    within('section[aria-label="Linked games for EXAMPLE-ALPHA"]') do
+      assert_selector "tbody tr", count: 30
+      assert_text "EXAMPLE-ALL-00"
+      assert_text "EXAMPLE-ALL-29"
+      assert_no_text "EXAMPLE-ALL-30"
+    end
+    click_button "Close game breakdown"
+    click_button "Linked games (35)"
+    find('button[aria-label="Sort by total fees"]:not(:disabled)').click
+    assert_selector 'th[aria-sort="ascending"]', text: /total fees/i
+    assert_selector "tbody tr:first-child", text: "EXAMPLE-ALL-00"
+    assert_text "All changes saved"
+    draft_path = page.current_path
+    visit games_path
+    visit draft_path
+    assert_button "Linked games (35)"
+    click_button "EXAMPLE-BETA"
+    within('section[aria-label="Linked games for EXAMPLE-BETA"]') { assert_selector "tbody tr", count: 5 }
+  end
 end

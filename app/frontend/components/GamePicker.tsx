@@ -5,6 +5,8 @@ import type {
   GameFilters as Filters,
   GameOptions,
   GameSummary,
+  GameSort,
+  GameSortColumn,
 } from "../types";
 import { ui } from "../styles/ui.stylex";
 import { browserStyles as styles } from "./GameBrowser.stylex";
@@ -13,6 +15,7 @@ import { gameCountsByCode, gameTotals } from "../lib/gameTotals";
 import GameFilters from "./GameFilters";
 import GameResultsTable from "./GameResultsTable";
 import { PageSizeSelect } from "./UI";
+import { sortGames, nextGameSort } from "../lib/gameSort";
 
 export default memo(function GamePicker({
   options,
@@ -40,20 +43,28 @@ export default memo(function GamePicker({
   );
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [linkingAll, setLinkingAll] = useState(false);
+  const [bulkFailed, setBulkFailed] = useState(false);
+  const [linkedSort, setLinkedSort] = useState<GameSort>(options.sort);
+  const [expandedCode, setExpandedCode] = useState<string | null | undefined>(
+    undefined,
+  );
+  const latestSelected = useRef(selectedIds);
+  latestSelected.current = selectedIds;
   // Retain summaries across browser pages so off-page selections contribute
   // to the comparison immediately, before the autosave response returns.
   const known = useRef(new Map(initialSelected.map((game) => [game.id, game])));
   options.games.forEach((game) => known.current.set(game.id, game));
-  const selected = [...new Set(selectedIds)]
-    .flatMap((id) => {
+  const selected = sortGames(
+    [...new Set(selectedIds)].flatMap((id) => {
       const game = known.current.get(id);
       return game ? [game] : [];
-    })
-    .sort(
-      (a, b) =>
-        b.date.localeCompare(a.date) ||
-        a.external_id.localeCompare(b.external_id),
-    );
+    }),
+    linkedSort,
+  );
+  const expandedGames = selected.filter(
+    (game) => (game.code?.trim() || null) === expandedCode,
+  );
   const totals = gameTotals(selectedIds, known.current, invoiceTotal);
   const codeCounts = gameCountsByCode(selectedIds, known.current);
   const linkedPages = Math.max(1, Math.ceil(selected.length / linkedPerPage));
@@ -86,6 +97,7 @@ export default memo(function GamePicker({
     filters: Filters,
     page = 1,
     perPage = options.pagination.per_page,
+    order = options.sort,
   ) => {
     setLoading(true);
     setFailed(false);
@@ -95,6 +107,8 @@ export default memo(function GamePicker({
         game_filters: { ...filters },
         game_page: page,
         game_per_page: perPage,
+        game_sort: order.column,
+        game_direction: order.direction,
       },
       preserveUrl: true,
       onError: () => setFailed(true),
@@ -102,6 +116,43 @@ export default memo(function GamePicker({
       onHttpException: () => setFailed(true),
       onFinish: () => setLoading(false),
     });
+  };
+  const linkAllMatching = () => {
+    setLinkingAll(true);
+    setBulkFailed(false);
+    const failed = () => setBulkFailed(true);
+    router.reload({
+      only: ["matching_games"],
+      data: { game_filters: { ...options.filters } },
+      preserveUrl: true,
+      onSuccess: (page) => {
+        const matches = page.props.matching_games as GameSummary[] | undefined;
+        if (!Array.isArray(matches)) return failed();
+        matches.forEach((game) => known.current.set(game.id, game));
+        onChange([
+          ...new Set([
+            ...latestSelected.current,
+            ...matches.map((game) => game.id),
+          ]),
+        ]);
+      },
+      onError: failed,
+      onNetworkError: failed,
+      onHttpException: failed,
+      onFinish: () => setLinkingAll(false),
+    });
+  };
+  const changeLinkedSort = (column: GameSortColumn) => {
+    setLinkedSort(nextGameSort(linkedSort, column));
+    setLinkedPage(1);
+  };
+  const sort = view === "all" ? options.sort : linkedSort;
+  const changeSort = (column: GameSortColumn) => {
+    const order = nextGameSort(sort, column);
+    setLinkedSort(order);
+    setLinkedPage(1);
+    if (view === "all")
+      load(options.filters, 1, options.pagination.per_page, order);
   };
   const toggle = (id: number, checked: boolean) =>
     onChange(
@@ -113,7 +164,7 @@ export default memo(function GamePicker({
     if (view === "linked") setLinkedPage(page);
     else load(options.filters, page);
   };
-  const busy = view === "all" && loading;
+  const busy = (view === "all" && loading) || linkingAll;
   const difference = totals.differenceCents;
   return (
     <>
@@ -178,7 +229,20 @@ export default memo(function GamePicker({
             {codeCounts.byCode.map(({ code, count }) => (
               <div key={code ?? ""} {...stylex.props(styles.comparisonItem)}>
                 <dt {...stylex.props(ui.small, styles.codeLabel)}>
-                  {code ?? "No game code"}
+                  <button
+                    type="button"
+                    {...stylex.props(ui.nativeButton, styles.codeButton)}
+                    aria-expanded={expandedCode === code}
+                    aria-controls="game-code-breakdown"
+                    onClick={() =>
+                      setExpandedCode(expandedCode === code ? undefined : code)
+                    }
+                  >
+                    {code ?? "No game code"}{" "}
+                    <span aria-hidden="true">
+                      {expandedCode === code ? "▾" : "▸"}
+                    </span>
+                  </button>
                 </dt>
                 <dd {...stylex.props(styles.codeCount)}>
                   {count} {count === 1 ? "game" : "games"}
@@ -194,6 +258,36 @@ export default memo(function GamePicker({
               </div>
             )}
           </dl>
+          {expandedCode !== undefined && (
+            <section
+              id="game-code-breakdown"
+              aria-label={`Linked games for ${expandedCode ?? "No game code"}`}
+            >
+              <div {...stylex.props(ui.tableHeading)}>
+                <h4 {...stylex.props(ui.h3)}>
+                  {expandedCode ?? "No game code"} · {expandedGames.length}{" "}
+                  {expandedGames.length === 1 ? "game" : "games"}
+                </h4>
+                <button
+                  type="button"
+                  {...stylex.props(ui.nativeButton, ui.textButton)}
+                  onClick={() => setExpandedCode(undefined)}
+                >
+                  Close game breakdown
+                </button>
+              </div>
+              <GameResultsTable
+                games={expandedGames}
+                selectedIds={selectedIds}
+                onToggle={toggle}
+                invoiceId={invoiceId}
+                draftId={draftId}
+                sort={linkedSort}
+                onSort={changeLinkedSort}
+                busy={busy}
+              />
+            </section>
+          )}
         </section>
       )}
       <div
@@ -209,6 +303,7 @@ export default memo(function GamePicker({
             view === "linked" && ui.primary,
           )}
           aria-pressed={view === "linked"}
+          disabled={linkingAll}
           onClick={() => setView("linked")}
         >
           Linked games ({totals.count})
@@ -221,6 +316,7 @@ export default memo(function GamePicker({
             view === "all" && ui.primary,
           )}
           aria-pressed={view === "all"}
+          disabled={linkingAll}
           onClick={() => setView("all")}
         >
           Browse all games
@@ -233,7 +329,7 @@ export default memo(function GamePicker({
           applied={options.filters}
           choices={options.filter_choices}
           errors={options.errors}
-          busy={loading}
+          busy={busy}
           onApply={(filters) => load(filters)}
         />
       )}
@@ -244,26 +340,44 @@ export default memo(function GamePicker({
             : `${pagination.total} ${view === "linked" ? "linked" : "matching"} ${pagination.total === 1 ? "game" : "games"}`}
         </span>
         {view === "all" && (
-          <button
-            type="button"
-            {...stylex.props(ui.nativeButton, ui.button)}
-            disabled={loading || !options.games.length}
-            onClick={() =>
-              onChange([
-                ...new Set([
-                  ...selectedIds,
-                  ...options.games.map((game) => game.id),
-                ]),
-              ])
-            }
-          >
-            Link this page
-          </button>
+          <div {...stylex.props(ui.actions)}>
+            <button
+              type="button"
+              {...stylex.props(ui.nativeButton, ui.button)}
+              disabled={busy || !options.games.length}
+              onClick={() =>
+                onChange([
+                  ...new Set([
+                    ...selectedIds,
+                    ...options.games.map((game) => game.id),
+                  ]),
+                ])
+              }
+            >
+              Link this page
+            </button>
+            <button
+              type="button"
+              {...stylex.props(ui.nativeButton, ui.button, ui.primary)}
+              disabled={busy || options.pagination.total === 0}
+              onClick={linkAllMatching}
+            >
+              {linkingAll
+                ? "Linking matching games…"
+                : `Link all matching games (${options.pagination.total})`}
+            </button>
+          </div>
         )}
       </div>
       {view === "all" && failed && (
         <p {...stylex.props(ui.flash, ui.alert)} role="alert">
           Couldn't load games. Apply the filters again to retry.
+        </p>
+      )}
+      {bulkFailed && (
+        <p {...stylex.props(ui.flash, ui.alert)} role="alert">
+          Couldn't link the matching games. Your existing selections are kept.
+          Try linking all matching games again.
         </p>
       )}
       <GameResultsTable
@@ -272,6 +386,9 @@ export default memo(function GamePicker({
         onToggle={toggle}
         invoiceId={invoiceId}
         draftId={draftId}
+        sort={sort}
+        onSort={changeSort}
+        busy={busy}
       />
       {!games.length && (
         <p {...stylex.props(ui.empty)}>

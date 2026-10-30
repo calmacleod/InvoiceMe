@@ -103,6 +103,7 @@ export default function GameResultsTable({
                     type="checkbox"
                     aria-label={`Select game ${game.external_id}`}
                     checked={selected.has(game.id)}
+                    disabled={busy}
                     onChange={(event) =>
                       onToggle(game.id, event.target.checked)
                     }

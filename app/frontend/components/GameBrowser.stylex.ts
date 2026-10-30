@@ -61,6 +61,16 @@ export const browserStyles = stylex.create({
   codeSummary: { marginTop: space.lg, marginBottom: space.lg },
   codeCounts: { margin: 0 },
   codeLabel: { overflowWrap: "anywhere" },
+  codeButton: {
+    backgroundColor: "transparent",
+    borderWidth: 0,
+    padding: 0,
+    color: colors.accent,
+    fontSize: 12,
+    textAlign: "left",
+    textDecoration: "underline",
+    overflowWrap: "anywhere",
+  },
   codeCount: {
     margin: 0,
     marginTop: space.sm,

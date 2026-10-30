@@ -102,6 +102,7 @@ export type GameOptions = {
   filters: GameFilters;
   errors: string[];
   filter_choices: GameFilterChoices;
+  sort: GameSort;
 };
 export type GameFilterChoices = Record<
   "home_team" | "away_team" | "code",
