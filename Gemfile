@@ -51,6 +51,9 @@ group :development do
 end
 
 group :test do
+  # Inspect generated invoice pages for clipping and layout regressions.
+  gem "pdf-reader", "~> 2.15", require: false
+
   # Use system testing [https://guides.rubyonrails.org/testing.html#system-testing]
   gem "capybara"
   gem "selenium-webdriver"

@@ -31,17 +31,19 @@ class InvoiceDocument
   end
   def pdf
     i = @invoice
-    Prawn::Document.new(page_size: "LETTER", margin: [ 36, 12.75, 72, 54 ]) do |pdf|
+    Prawn::Document.new(page_size: "LETTER", margin: [ 36, 54, 72, 54 ]) do |pdf|
       font_dir = Rails.root.join("app/assets/fonts")
       pdf.font_families.update("InvoiceCalibri" => { normal: font_dir.join("regular.ttf").to_s, bold: font_dir.join("bold.ttf").to_s, italic: font_dir.join("italic.ttf").to_s, bold_italic: font_dir.join("bold_italic.ttf").to_s })
       pdf.font "InvoiceCalibri", size: 12
       pdf.fill_color "000000"
       top = pdf.bounds.top
       pdf.image Rails.root.join("app/assets/images/eotfoa-logo.jpg").to_s, at: [ -10.5, top ], width: 72.06, height: 70.1
-      pdf.text_box i.issuer.fetch("name").upcase, at: [ 86.55, top - 17 ], width: 455, height: 40, size: 15, style: :bold
-      pdf.move_cursor_to(top - 81)
+      pdf.bounding_box([ 86.55, top - 17 ], width: pdf.bounds.width - 86.55) do
+        pdf.text i.issuer.fetch("name").upcase, size: 15, style: :bold
+      end
+      pdf.move_cursor_to([ top - 81, pdf.cursor - 11 ].min)
       pdf.formatted_text [ { text: "FINAL INVOICE FOR ", size: 14 }, { text: heading, size: 14, styles: [ :bold ] } ]
-      pdf.move_cursor_to(top - 112)
+      pdf.move_down 14
       pdf.text "Invoice date: #{i.issued_on.strftime('%B %-d, %Y')}"
       pdf.text "Invoice number: #{i.number}"
       pdf.text "Due date: #{i.due_on.strftime('%B %-d, %Y')}" if i.due_on
@@ -52,7 +54,9 @@ class InvoiceDocument
       i.line_items.each_with_index { |l, n| rows << [ (n+1).to_s, l.description, quantity(l.quantity), money(l.rate_cents, rate: true), money(l.total_cents) ] }
       [ 5 - i.line_items.size, 0 ].max.times { rows << [ "", "", "", "", "" ] }
       rows << [ { content: "Total", colspan: 4, font_style: :bold }, money(i.total_cents) ]
-      pdf.table(rows, width: 545.25, column_widths: [ 35.25, 315, 57.75, 64.5, 72.75 ], header: true, cell_style: { size: 10, padding: [ 0, 5 ], borders: [ :top, :bottom, :left, :right ], border_width: 1, border_color: "000000", align: :center, valign: :top }) do |t|
+      # Keep the preview's column proportions inside the PDF's printable area.
+      column_widths = [ 6.46, 57.77, 10.59, 11.83, 13.35 ].map { |percent| pdf.bounds.width * percent / 100 }
+      pdf.table(rows, width: pdf.bounds.width, column_widths: column_widths, header: true, cell_style: { size: 10, padding: [ 0, 5 ], borders: [ :top, :bottom, :left, :right ], border_width: 1, border_color: "000000", align: :center, valign: :top }) do |t|
         (1..rows.size-2).each do |index|
           t.row(index).padding_top = 1
           t.row(index).height = [ 20, t.row(index).map(&:height).max ].max
@@ -64,11 +68,13 @@ class InvoiceDocument
       end
       pdf.start_new_page if pdf.cursor < 80
       pdf.move_down 15
+      total_width = pdf.bounds.width * 0.7446
+      label_width = total_width * 0.7
       pdf.fill_color "FFFF00"
-      pdf.fill_rectangle [ 0, pdf.cursor ], 406, 14.65
+      pdf.fill_rectangle [ 0, pdf.cursor ], total_width, 14.65
       pdf.fill_color "FF0000"
-      pdf.text_box "TOTAL PAYABLE", at: [ 0, pdf.cursor ], width: 288, height: 15, size: 12, style: :bold
-      pdf.text_box money(i.total_cents), at: [ 288, pdf.cursor ], width: 118, height: 15, size: 12, style: :bold, align: :right
+      pdf.text_box "TOTAL PAYABLE", at: [ 0, pdf.cursor ], width: label_width, height: 15, size: 12, style: :bold
+      pdf.text_box money(i.total_cents), at: [ label_width, pdf.cursor ], width: total_width - label_width, height: 15, size: 12, style: :bold, align: :right
       pdf.move_down 29.3
       pdf.fill_color "000000"
       pdf.formatted_text instruction_fragments(i.issuer["payment_instructions"].to_s)
@@ -83,10 +89,13 @@ class InvoiceDocument
         pdf.move_down 14.65
         pdf.text i.public_notes
       end
+      signature = "#{i.issuer['treasurer']}\nTreasurer, EOTFOA"
+      signoff_height = 29.3 + pdf.height_of("Thank you.") + pdf.height_of(signature) + pdf.height_of_formatted([ email_fragment ])
+      pdf.start_new_page if pdf.cursor < signoff_height
       pdf.move_down 14.65
       pdf.text "Thank you."
       pdf.move_down 14.65
-      pdf.text "#{i.issuer['treasurer']}\nTreasurer, EOTFOA"
+      pdf.text signature
       pdf.formatted_text [ email_fragment ]
     end.render
   end
