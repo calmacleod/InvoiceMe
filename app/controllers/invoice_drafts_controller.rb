@@ -25,8 +25,17 @@ class InvoiceDraftsController < ApplicationController
       end
       save_data
     else
-      draft = own_drafts.create!(season: current_season, client_key: SecureRandom.uuid)
-      redirect_to edit_invoice_draft_path(draft)
+      if params[:invoice_id].present?
+        invoice = Invoice.find(params[:invoice_id])
+        invoice.with_lock do
+          return redirect_to invoice, alert: "This invoice is finalized" if invoice.finalized_at
+          draft = own_drafts.find_or_create_by!(invoice: invoice) { |work| work.season = invoice.season; work.client_key = SecureRandom.uuid }
+          redirect_to edit_invoice_draft_path(draft)
+        end
+      else
+        draft = own_drafts.create!(season: current_season, client_key: SecureRandom.uuid)
+        redirect_to edit_invoice_draft_path(draft)
+      end
     end
   end
 

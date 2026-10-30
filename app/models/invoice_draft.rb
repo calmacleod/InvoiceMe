@@ -17,7 +17,8 @@ class InvoiceDraft < ApplicationRecord
   private
   def set_title
     return unless data.is_a?(Hash)
-    self.title = [ data["number"].presence, data["recipient"].presence ].compact.join(" · ").presence || invoice&.number || "Untitled draft"
+    parts = data.present? ? [ data["number"], data["recipient"] ] : [ invoice&.number, invoice&.recipient ]
+    self.title = parts.filter_map(&:presence).join(" · ").presence || "Untitled draft"
     self.title = title.truncate(180)
   end
 

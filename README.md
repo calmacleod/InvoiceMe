@@ -153,6 +153,8 @@ The official StyleX Vite plugin extracts atomic CSS at build time and adds it to
 
 Drafts autosave to the server after a 700 ms pause in typing. Incomplete fields, raw quantities/rates, notes, line additions/removals, and game selections are retained independently of the validated invoice. Create several drafts, switch between them in the editor, or resume them from the register's workbench shelf and the searchable Draft workbench page. Workbenches belong to the signed-in user and invoice year; GET requests and hover prefetch never create drafts.
 
+Existing saved drafts are added to the sole account's workbench during the upgrade. With multiple accounts, Edit draft explicitly opens or creates that account's workbench instead of guessing ownership.
+
 In-app navigation waits for pending saves. The editor shows saving/saved/error feedback, retries interrupted saves, and warns before closing a document with unsaved changes. Saves are serialized so edits made during a request are sent afterward. Revision checks prevent another tab from silently overwriting a draft; conflicting edits can be compared with the saved version or saved as a separate draft. Draft content is not stored in localStorage.
 
 Save & preview applies the workbench to the normal validated invoice in a transaction. Publishing still requires an explicit action, and unpreviewed workbench edits block publishing an older invoice snapshot. Workbench writes and finalization share the invoice lock, including a recheck after Google preflight. Finalized invoices remain immutable. Removing a workbench discards its autosaved edits while retaining any invoice already saved for preview.

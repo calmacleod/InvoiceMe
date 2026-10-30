@@ -29,7 +29,13 @@ export default function Show({ invoice }: { invoice: SavedInvoice }) {
           <div {...stylex.props(ui.actions)}>
             <Badge status={invoice.status} />
             {!invoice.finalized_at && (
-              <Link {...stylex.props(ui.link, ui.button)} href={`${url}/edit`}>
+              <Link
+                {...stylex.props(ui.link, ui.button)}
+                href="/invoice_drafts"
+                method="post"
+                as="button"
+                data={{ invoice_id: invoice.id }}
+              >
                 Edit draft
               </Link>
             )}

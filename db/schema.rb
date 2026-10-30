@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_30_130000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_30_133000) do
   create_table "games", force: :cascade do |t|
     t.integer "season_id", null: false
     t.string "external_id", null: false

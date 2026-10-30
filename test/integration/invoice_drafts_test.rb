@@ -160,6 +160,19 @@ class InvoiceDraftsTest < ActionDispatch::IntegrationTest
     assert_equal 1337, invoice.reload.total_cents
   end
 
+  test "explicitly editing a saved draft opens a workbench once without changing the invoice" do
+    invoice = @season.invoices.create!(number: "EXAMPLE-CLAIM", recipient: "Example", description: "Fictional", issued_on: Date.current,
+      line_items_attributes: [ { description: "Example", quantity: 1, rate_cents: 1337 } ])
+    assert_difference "InvoiceDraft.count", 1 do
+      2.times { post invoice_drafts_path, params: { invoice_id: invoice.id } }
+    end
+    assert_redirected_to edit_invoice_draft_path(InvoiceDraft.find_by!(invoice: invoice))
+    assert_equal 1337, invoice.reload.total_cents
+    invoice.finalize!
+    post invoice_drafts_path, params: { invoice_id: invoice.id }
+    assert_redirected_to invoice_path(invoice)
+  end
+
   private
   def create_json(**extra)
     post invoice_drafts_path, params: { client_key: "fictional-client-key", season_id: @season.id, lock_version: 0, data: @data }.merge(extra), as: :json
