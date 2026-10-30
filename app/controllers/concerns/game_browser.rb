@@ -1,14 +1,17 @@
 module GameBrowser
   private
   def game_search(picker: false)
-    values = if picker
+    GameSearch.new(current_season.games, game_filter_params(picker: picker), user: Current.user)
+  end
+
+  def game_filter_params(picker: false)
+    if picker
       params.fetch(:game_filters, ActionController::Parameters.new).permit(*GameSearch::FIELDS, home_team: [], away_team: [], code: []).to_h.tap do |filters|
         filters["q"] = params[:game_q] if params[:game_q].present? && !filters.key?("q")
       end
     else
       params.permit(*GameSearch::FIELDS, home_team: [], away_team: [], code: []).to_h
     end
-    GameSearch.new(current_season.games, values, user: Current.user)
   end
 
   def game_filter_choices = GameSearch.choices(current_season.games)

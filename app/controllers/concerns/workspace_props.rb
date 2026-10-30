@@ -17,7 +17,7 @@ module WorkspaceProps
   end
 
   def game_props(game, detail: false, workbenches: [])
-    props = game.as_json(only: %i[id external_id code date time home_team away_team location fees_cents])
+    props = game.as_json(only: %i[id external_id code date time home_team away_team location fees_cents already_invoiced])
     props.merge!(matchup: game.matchup, official_count: game.has_attribute?(:summary_official_count) ? game[:summary_official_count] : game.officials.size,
       paid_by_team: game.has_attribute?(:paid_by_team) ? game[:paid_by_team] : game.source.first&.fetch("Paid By Team", nil),
       invoices: game.invoices.as_json(only: %i[id number finalized_at]), workbenches: workbenches)

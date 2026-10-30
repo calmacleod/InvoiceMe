@@ -19,6 +19,8 @@ Rails.application.routes.draw do
   end
   resources :games, only: %i[index new] do
     collection do
+      patch :filters
+      patch :invoicing_status
       post :upload
       post :preview
       get :map

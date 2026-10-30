@@ -175,4 +175,70 @@ class GameFiltersSystemTest < ActionDispatch::SystemTestCase
     click_button "EXAMPLE-BETA"
     within('section[aria-label="Linked games for EXAMPLE-BETA"]') { assert_selector "tbody tr", count: 5 }
   end
+
+  test "master filters survive navigating away and refreshing and clear filters resets the saved view" do
+    2.times do |index|
+      seasons(:current).games.create!(external_id: "EXAMPLE-REMEMBER-#{index}", code: "EXAMPLE-CODE-#{index}", home_team: "Example Home #{index}", date: "2031-09-15")
+    end
+    visit games_path
+    find('summary[aria-label="Game code options"]').click
+    check "EXAMPLE-CODE-0"
+    fill_in "master-q", with: "EXAMPLE-REMEMBER"
+    click_button "Apply filters"
+    assert_text "1 matching game"
+    within('nav[aria-label="Main navigation"]') { click_link "Invoices" }
+    assert_selector "h1", text: "Invoices."
+    within('nav[aria-label="Main navigation"]') { click_link "Games & officials" }
+    assert_text "1 matching game"
+    assert_selector :field, "master-q", with: "EXAMPLE-REMEMBER"
+    assert_selector 'summary[aria-label="Game code options"]', text: "EXAMPLE-CODE-0"
+    page.refresh
+    assert_text "1 matching game"
+    click_button "Clear filters"
+    assert_text "2 matching games"
+    assert_selector :field, "master-q", with: ""
+    within('nav[aria-label="Main navigation"]') { click_link "Invoices" }
+    assert_selector "h1", text: "Invoices."
+    within('nav[aria-label="Main navigation"]') { click_link "Games & officials" }
+    assert_text "2 matching games"
+    assert_selector 'summary[aria-label="Game code options"]', text: "Any game code"
+  end
+
+  test "master bulk invoicing supports selections across pages all filtered games and clearing a mark" do
+    32.times { |index| seasons(:current).games.create!(external_id: "EXAMPLE-MARK-#{index.to_s.rjust(2, '0')}", date: "2031-09-15") }
+    visit games_path
+    select "10", from: "Per page"
+    assert_selector "tbody tr", count: 10
+    find('input[aria-label="Select all games on this page"]:not(:disabled)').set(true)
+    assert_text "10 games selected across pages"
+    click_link "Next →"
+    assert_text "Page 2 of 4"
+    find('input[aria-label="Select game EXAMPLE-MARK-10"]:not(:disabled)').set(true)
+    assert_text "11 games selected across pages"
+    assert_no_text "Selected on this draft"
+    click_button "Mark as already invoiced"
+    assert_text "Marked 11 games as already invoiced."
+    assert_selector "tbody tr:first-child", text: "Already invoiced"
+    select "Invoiced or linked to a saved invoice", from: "master-link-status"
+    click_button "Apply filters"
+    assert_text "11 matching games"
+    click_button "Select all matching games (11)"
+    assert_text "11 games selected across pages"
+    click_button "Clear manual invoiced mark"
+    assert_text "0 matching games"
+    assert_equal 0, seasons(:current).games.where(already_invoiced: true).count
+    click_button "Clear filters"
+    assert_text "32 matching games"
+    click_button "Select all matching games (32)"
+    assert_text "32 games selected across pages"
+    click_button "Mark as already invoiced"
+    assert_text "Marked 32 games as already invoiced."
+    assert_equal 32, seasons(:current).games.where(already_invoiced: true).count
+    assert_equal 0, Invoice.count
+    visit new_invoice_path
+    assert_text "Already invoiced"
+    select "Not invoiced or selected in a workbench", from: "picker-link-status"
+    click_button "Apply filters"
+    assert_text "0 matching games"
+  end
 end

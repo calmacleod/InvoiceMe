@@ -2,6 +2,14 @@ import * as stylex from "@stylexjs/stylex";
 import { colors, space } from "../styles/tokens.stylex";
 
 export const browserStyles = stylex.create({
+  bulkActions: {
+    display: "flex",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: space.md,
+    padding: space.lg,
+    backgroundColor: colors.canvas,
+  },
   filters: { borderWidth: 0, margin: 0, padding: space.lg },
   filterSummary: {
     padding: space.lg,

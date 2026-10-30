@@ -93,6 +93,64 @@ class GameBrowserTest < ActionDispatch::IntegrationTest
     assert_empty response.parsed_body.dig("props", "matching_games")
   end
 
+  test "master filters persist for the account across visits and logins while explicit URLs and the picker stay independent" do
+    filters = { q: "EXAMPLE-FILTER-1", code: [ "EXAMPLE-CODE" ], home_team: [ "Fictional Alpha" ], away_team: [ "Fictional Bravo" ], location: "Field", official: "Rowan", date_from: "2031-02-17", date_to: "2031-02-17", link_status: "workbench" }
+    patch filters_games_path, params: filters.merge(per_page: 10, sort: "fees_cents", direction: "desc")
+    assert_response :see_other
+    get root_path
+    get games_path, headers: inertia_headers
+    props = response.parsed_body.fetch("props")
+    assert_equal [ @game.id ], props["games"].map { |game| game["id"] }
+    assert_equal filters.stringify_keys, props["filters"]
+    assert_equal filters[:q], props["query"]
+    saved = users(:one).reload.game_filters
+    get games_path, params: { code: [ "OTHER" ] }, headers: inertia_headers
+    assert_equal [ "OTHER" ], response.parsed_body.dig("props", "games").map { |game| game["code"] }
+    assert_equal saved, users(:one).reload.game_filters
+    get new_invoice_path, headers: inertia_headers
+    assert_equal 2, response.parsed_body.dig("props", "game_options", "pagination", "total")
+    sign_out
+    sign_in_as(users(:two))
+    get games_path, headers: inertia_headers
+    assert_equal 2, response.parsed_body.dig("props", "pagination", "total")
+    sign_out
+    sign_in_as(users(:one))
+    get games_path, headers: inertia_headers
+    assert_equal [ @game.id ], response.parsed_body.dig("props", "games").map { |game| game["id"] }
+  end
+
+  test "saved master filters stay within their year and clearing removes the saved selection" do
+    patch filters_games_path, params: { code: [ "EXAMPLE-CODE" ] }
+    other = Season.create!(year: 2032, sheet_name: "Example", issuer: @season.issuer)
+    other.games.create!(external_id: "EXAMPLE-PREF-YEAR", code: "EXAMPLE-YEAR", date: "2032-02-17")
+    post select_year_path, params: { id: other.id }
+    get games_path, headers: inertia_headers
+    assert_empty response.parsed_body.dig("props", "filters", "code")
+    patch filters_games_path, params: { code: [ "EXAMPLE-YEAR" ], season_id: other.id }
+    post select_year_path, params: { id: @season.id }
+    get games_path, headers: inertia_headers
+    assert_equal [ "EXAMPLE-CODE" ], response.parsed_body.dig("props", "filters", "code")
+    patch filters_games_path, params: { q: "", code: [], home_team: [], away_team: [] }
+    assert_response :see_other
+    get root_path
+    get games_path, headers: inertia_headers
+    assert_equal 2, response.parsed_body.dig("props", "pagination", "total")
+    assert_not users(:one).reload.game_filters.key?(@season.id.to_s)
+    assert_equal [ "EXAMPLE-YEAR" ], users(:one).game_filters.dig(other.id.to_s, "code")
+  end
+
+  test "invalid applied filters show their errors without replacing the saved filters" do
+    patch filters_games_path, params: { code: [ "EXAMPLE-CODE" ] }
+    saved = users(:one).reload.game_filters
+    patch filters_games_path, params: { date_from: "invalid" }
+    assert_response :see_other
+    follow_redirect!(headers: inertia_headers)
+    assert response.parsed_body.dig("props", "filter_errors").present?
+    assert_equal saved, users(:one).reload.game_filters
+    get games_path, headers: inertia_headers
+    assert_equal [ "EXAMPLE-CODE" ], response.parsed_body.dig("props", "filters", "code")
+  end
+
   private
   def inertia_headers = { "X-Inertia" => "true", "X-Inertia-Version" => ViteRuby.digest }
 end

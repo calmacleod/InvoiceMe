@@ -1,17 +1,44 @@
 class GamesController < ApplicationController
   before_action :need_season
   def index
-    search = -> { @game_search ||= game_search }
+    search = -> { @game_search ||= GameSearch.new(current_season.games, game_filter_params.presence || Current.user.game_filters.fetch(current_season.id.to_s, {}), user: Current.user) }
     order = GameOrder.new(params[:sort], params[:direction])
     page = -> { @game_page ||= WorkspacePage.new(order.apply(search.call.results), params[:page], params[:per_page]) }
     render inertia: "games/Index", props: {
       games: -> { game_list_props(page.call.records) },
-      pagination: -> { page.call.props }, total_count: -> { current_season.games.count }, query: params[:q].to_s,
+      pagination: -> { page.call.props }, total_count: -> { current_season.games.count }, query: -> { search.call.filters["q"] },
       filters: -> { search.call.filters }, filter_errors: -> { page.call; search.call.errors },
       filter_choices: -> { game_filter_choices },
       sort: order.props,
+      matching_game_ids: InertiaRails.optional { search.call.results.reorder(nil).ids },
       game_detail: InertiaRails.optional { game_detail_props }
     }
+  end
+  def filters
+    search = game_search
+    search.results
+    view = params.permit(:sort, :direction, :per_page, :season_id).to_h
+    return redirect_to games_path(view.merge(search.filters)), status: :see_other if search.errors.any?
+
+    Current.user.with_lock do
+      saved = Current.user.game_filters.except(current_season.id.to_s)
+      saved[current_season.id.to_s] = search.filters unless search.filters.values.all?(&:blank?)
+      Current.user.update!(game_filters: saved)
+    end
+    redirect_to games_path(view), status: :see_other
+  end
+  def invoicing_status
+    ids = Array(params.permit(game_ids: [])[:game_ids]).map(&:to_s).uniq
+    value = params[:already_invoiced].to_s
+    raise ActionController::BadRequest, "Select games and an invoicing status" if ids.empty? || ids.any? { |id| !id.match?(/\A[1-9]\d*\z/) } || !%w[true false].include?(value)
+
+    games = current_season.games.where(id: ids)
+    count = Game.transaction do
+      raise ActiveRecord::RecordNotFound unless games.count == ids.size
+      games.update_all(already_invoiced: value == "true", updated_at: Time.current)
+    end
+    message = value == "true" ? "Marked #{count} games as already invoiced." : "Cleared the already-invoiced mark on #{count} games."
+    redirect_to games_path(game_filter_params.merge(params.permit(:sort, :direction, :per_page, :page, :season_id).to_h)), status: :see_other, notice: message
   end
   def new
     render inertia: "games/Upload"

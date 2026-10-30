@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_30_180000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_30_200000) do
   create_table "contacts", force: :cascade do |t|
     t.integer "user_id", null: false
     t.string "name", null: false
@@ -39,6 +39,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_30_180000) do
     t.json "source", default: [], null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.boolean "already_invoiced", default: false, null: false
     t.index ["season_id", "date", "external_id"], name: "index_games_on_season_id_and_date_and_external_id", order: { date: :desc }
     t.index ["season_id", "external_id"], name: "index_games_on_season_id_and_external_id", unique: true
     t.index ["season_id"], name: "index_games_on_season_id"
@@ -170,6 +171,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_30_180000) do
     t.string "password_digest", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.json "game_filters", default: {}, null: false
     t.index ["email_address"], name: "index_users_on_email_address", unique: true
   end
 

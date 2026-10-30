@@ -123,6 +123,7 @@ export type GameSummary = {
   away_team: string | null;
   location: string | null;
   fees_cents: number;
+  already_invoiced: boolean;
   matchup: string;
   official_count: number;
   paid_by_team: string | null;

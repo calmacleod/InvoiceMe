@@ -34,10 +34,10 @@ class GameSearch
     invoice_ids = InvoiceGame.select(:game_id)
     draft_ids = self.class.workbench_games(@user).select(Arel.sql("CAST(selected_games.value AS INTEGER)"))
     case filters["link_status"]
-    when "invoiced" then scope.where(id: invoice_ids)
+    when "invoiced" then scope.where(id: invoice_ids).or(scope.where(already_invoiced: true))
     when "workbench" then scope.where(id: draft_ids)
-    when "linked" then scope.where(id: invoice_ids).or(scope.where(id: draft_ids))
-    when "unlinked" then scope.where.not(id: invoice_ids).where.not(id: draft_ids)
+    when "linked" then scope.where(id: invoice_ids).or(scope.where(id: draft_ids)).or(scope.where(already_invoiced: true))
+    when "unlinked" then scope.where(already_invoiced: false).where.not(id: invoice_ids).where.not(id: draft_ids)
     else scope
     end
   end

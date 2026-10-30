@@ -10,6 +10,8 @@ export default function GameResultsTable({
   games,
   selectedIds = [],
   onToggle,
+  onTogglePage,
+  selectionContext = "draft",
   invoiceId,
   draftId,
   sort,
@@ -19,6 +21,8 @@ export default function GameResultsTable({
   games: GameSummary[];
   selectedIds?: number[];
   onToggle?: (id: number, checked: boolean) => void;
+  onTogglePage?: (checked: boolean) => void;
+  selectionContext?: "draft" | "bulk";
   invoiceId?: number | null;
   draftId?: number | null;
   sort?: GameSort;
@@ -52,7 +56,31 @@ export default function GameResultsTable({
       <table {...stylex.props(ui.table)}>
         <thead>
           <tr>
-            {onToggle && <th {...stylex.props(ui.th)}>Select</th>}
+            {onToggle && (
+              <th {...stylex.props(ui.th)}>
+                {onTogglePage ? (
+                  <input
+                    {...stylex.props(ui.checkbox)}
+                    type="checkbox"
+                    aria-label="Select all games on this page"
+                    disabled={busy || !games.length}
+                    checked={
+                      games.length > 0 &&
+                      games.every((game) => selected.has(game.id))
+                    }
+                    ref={(input) => {
+                      if (input)
+                        input.indeterminate =
+                          games.some((game) => selected.has(game.id)) &&
+                          !games.every((game) => selected.has(game.id));
+                    }}
+                    onChange={(event) => onTogglePage(event.target.checked)}
+                  />
+                ) : (
+                  "Select"
+                )}
+              </th>
+            )}
             <th
               {...stylex.props(ui.th)}
               aria-sort={direction("external_id", "code")}
@@ -140,7 +168,9 @@ export default function GameResultsTable({
                   game={game}
                   invoiceId={invoiceId}
                   draftId={draftId}
-                  selected={selected.has(game.id)}
+                  selected={
+                    selectionContext === "draft" && selected.has(game.id)
+                  }
                 />
               </td>
             </tr>

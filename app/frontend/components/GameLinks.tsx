@@ -17,14 +17,20 @@ export default function GameLinks({
   const workbenches = game.workbenches.filter((draft) => draft.id !== draftId);
   return (
     <div>
+      {game.already_invoiced && (
+        <span {...stylex.props(styles.linkStatus)}>Already invoiced</span>
+      )}
       {selected && (
         <span {...stylex.props(styles.linkStatus)}>Selected on this draft</span>
       )}
-      {!selected && !game.invoices.length && !workbenches.length && (
-        <span {...stylex.props(styles.linkStatus, styles.unlinked)}>
-          Not linked
-        </span>
-      )}
+      {!selected &&
+        !game.already_invoiced &&
+        !game.invoices.length &&
+        !workbenches.length && (
+          <span {...stylex.props(styles.linkStatus, styles.unlinked)}>
+            Not linked
+          </span>
+        )}
       {game.invoices.map((invoice) => (
         <div key={invoice.id}>
           <Link

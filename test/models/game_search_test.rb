@@ -55,6 +55,16 @@ class GameSearchTest < ActiveSupport::TestCase
     assert_equal [ @literal.id, @unrelated.id ].sort, ids(link_status: "unlinked").sort
   end
 
+  test "manual invoicing marks count as invoiced and stay out of uninvoiced results" do
+    @literal.update!(already_invoiced: true)
+    assert_equal [ @alpha.id, @literal.id ].sort, ids(link_status: "invoiced").sort
+    assert_equal [ @alpha.id, @bravo.id, @literal.id ].sort, ids(link_status: "linked").sort
+    assert_equal [ @unrelated.id ], ids(link_status: "unlinked")
+    assert_empty ids(code: [ "EXAMPLE-SENIOR" ], link_status: "invoiced")
+    @literal.update!(already_invoiced: false)
+    assert_equal [ @alpha.id ], ids(link_status: "invoiced")
+  end
+
   test "bad or reversed dates return an explanation and no unbounded results" do
     [ { date_from: "not-a-date" }, { date_to: "2031-02-30" }, { date_from: "2031-03-01", date_to: "2031-02-01" } ].each do |values|
       search = GameSearch.new(@season.games, values.stringify_keys, user: users(:one))

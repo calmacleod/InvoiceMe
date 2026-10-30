@@ -239,12 +239,18 @@ export function PaginationControls({
   query,
   only,
   filters = {},
+  busy = false,
+  onStart,
+  onFinish,
 }: {
   pagination: Pagination;
   url: string;
   query: string;
   only: string[];
   filters?: Record<string, string | string[]>;
+  busy?: boolean;
+  onStart?: () => void;
+  onFinish?: () => void;
 }) {
   return (
     <nav {...stylex.props(ui.tableBottom)} aria-label="Pagination">
@@ -254,6 +260,7 @@ export function PaginationControls({
       <div {...stylex.props(ui.actions)}>
         <PageSizeSelect
           pagination={pagination}
+          disabled={busy}
           onChange={(perPage) =>
             router.get(
               url,
@@ -263,6 +270,8 @@ export function PaginationControls({
                 preserveState: true,
                 preserveScroll: true,
                 replace: true,
+                onStart,
+                onFinish,
               },
             )
           }
@@ -280,6 +289,12 @@ export function PaginationControls({
             only={only}
             preserveState
             preserveScroll
+            aria-disabled={busy}
+            onClick={(event) => {
+              if (busy) event.preventDefault();
+            }}
+            onStart={onStart}
+            onFinish={onFinish}
           >
             ← Previous
           </Link>
@@ -300,6 +315,12 @@ export function PaginationControls({
             only={only}
             preserveState
             preserveScroll
+            aria-disabled={busy}
+            onClick={(event) => {
+              if (busy) event.preventDefault();
+            }}
+            onStart={onStart}
+            onFinish={onFinish}
           >
             Next →
           </Link>

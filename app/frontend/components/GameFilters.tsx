@@ -118,9 +118,13 @@ export default function GameFilters({
             }
           >
             <option value="">All games</option>
-            <option value="unlinked">Not linked anywhere</option>
-            <option value="linked">Linked to an invoice or workbench</option>
-            <option value="invoiced">Linked to a saved invoice</option>
+            <option value="unlinked">
+              Not invoiced or selected in a workbench
+            </option>
+            <option value="linked">Invoiced or selected in a workbench</option>
+            <option value="invoiced">
+              Invoiced or linked to a saved invoice
+            </option>
             <option value="workbench">Selected in a workbench</option>
           </select>
         </div>
