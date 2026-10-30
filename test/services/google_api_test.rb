@@ -126,6 +126,34 @@ class GoogleApiTest < ActiveSupport::TestCase
     end
   end
 
+  test "ledger metadata and cell reads retain native table boundaries formulas and date formats" do
+    sheet = { properties: { sheetId: 123, title: "Example ledger", gridProperties: { rowCount: 100 } }, tables: [ { tableId: "example-table", range: { startRowIndex: 1, endRowIndex: 20 } } ] }
+    cell = { userEnteredValue: { formulaValue: "=E4-F4" }, effectiveValue: { numberValue: 0 }, userEnteredFormat: { numberFormat: { type: "CURRENCY" } } }
+    with_responses(response("200", sheets: [ sheet ]), response("200", sheets: [ { data: [ { rowData: [ { values: [ cell ] } ] } ] } ])) do |requests, _|
+      assert_equal "example-table", @api.sheet_metadata("example-sheet", "Example ledger").dig("tables", 0, "tableId")
+      assert_equal "=E4-F4", @api.ledger_cells("example-sheet", "'Example ledger'!A4:L4").first.dig("userEnteredValue", "formulaValue")
+      query = URI.decode_www_form(requests.last.uri.query).to_h
+      assert_equal "'Example ledger'!A4:L4", query["ranges"]
+      assert_includes query["fields"], "userEnteredFormat(numberFormat)"
+    end
+  end
+
+  test "ledger relocation sends both value-only edits in one batch" do
+    range = { sheetId: 123, startRowIndex: 3, endRowIndex: 4, startColumnIndex: 0, endColumnIndex: 9 }
+    requests = [
+      { updateCells: { range: range, rows: [ { values: [ { userEnteredValue: { stringValue: "2031_Example" } } ] } ], fields: "userEnteredValue" } },
+      { updateCells: { range: range.merge(startRowIndex: 30, endRowIndex: 31), rows: [ { values: Array.new(9) { {} } } ], fields: "userEnteredValue" } }
+    ]
+    with_responses(response("200", replies: [ {}, {} ])) do |sent, _|
+      @api.batch_update("example-sheet", requests)
+      assert_equal [ "POST" ], sent.map(&:method)
+      assert_equal "/v4/spreadsheets/example-sheet:batchUpdate", sent.first.uri.path
+      body = JSON.parse(sent.first.body)
+      assert_equal 2, body.fetch("requests").size
+      assert body.fetch("requests").all? { |request| request.dig("updateCells", "fields") == "userEnteredValue" }
+    end
+  end
+
   private
 
   def response(code, payload = {})

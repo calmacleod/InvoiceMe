@@ -62,6 +62,19 @@ class GoogleApi
   def write_values(spreadsheet, range, values)
     request(:put, "https://sheets.googleapis.com/v4/spreadsheets/#{spreadsheet}/values/#{ERB::Util.url_encode(range)}?valueInputOption=RAW", json: { range: range, values: values }, operation: "updating the Google Sheets ledger")
   end
+  def sheet_metadata(spreadsheet, title)
+    fields = "sheets(properties(sheetId,title,gridProperties),tables)"
+    result = request(:get, "https://sheets.googleapis.com/v4/spreadsheets/#{spreadsheet}?#{URI.encode_www_form(fields: fields)}", operation: "checking the ledger table")
+    result.fetch("sheets").find { |sheet| sheet.dig("properties", "title") == title } || raise(Error, "The configured ledger tab was not found. Check Settings.")
+  end
+  def ledger_cells(spreadsheet, range)
+    query = { ranges: range, includeGridData: true, fields: "sheets(data(rowData(values(userEnteredValue,effectiveValue,userEnteredFormat(numberFormat),dataValidation,chipRuns))))" }
+    result = request(:get, "https://sheets.googleapis.com/v4/spreadsheets/#{spreadsheet}?#{URI.encode_www_form(query)}", operation: "checking the target ledger row")
+    result.fetch("sheets").first.fetch("data").first.fetch("rowData", []).first&.fetch("values", []) || []
+  end
+  def batch_update(spreadsheet, requests)
+    request(:post, "https://sheets.googleapis.com/v4/spreadsheets/#{spreadsheet}:batchUpdate", json: { requests: requests }, operation: "updating the Google Sheets ledger")
+  end
   def validate_destination(destination)
     %w[drive_folder_id pdf_folder_id].each do |field|
       next if destination[field].blank?

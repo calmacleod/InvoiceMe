@@ -14,7 +14,8 @@ class PublishInvoice
       raise GoogleApi::Error, "Set this year's Drive folder and master spreadsheet in Settings" unless destination["drive_folder_id"].present? && destination["spreadsheet_id"].present?
       @api ||= GoogleApi.new
       @api.validate_destination(destination)
-      check_number_available(destination) unless @invoice.ledger_row
+      ledger = GoogleLedger.new(@api, destination)
+      ledger.check_number_available!(@invoice) unless @invoice.ledger_row
       # Remote preflight can take time. Recheck under the same invoice lock used
       # by autosave before freezing the document, so late edits cannot disappear.
       @invoice.with_lock do
@@ -30,7 +31,7 @@ class PublishInvoice
       pdf = @invoice.google_pdf_id || @api.upload(name: "#{@invoice.number}.pdf", folder: destination["pdf_folder_id"].presence || destination.fetch("drive_folder_id"), mime: "application/pdf", bytes: renderer.pdf, key: key("pdf"))
       @invoice.update!(google_pdf_id: pdf)
       @progress&.call("ledger")
-      sync_ledger(destination)
+      GoogleLedger.new(@api, destination).sync(@invoice)
       @invoice.update!(published_at: Time.current, publish_error: nil)
     end
     @invoice
@@ -39,36 +40,7 @@ class PublishInvoice
     raise
   end
   private
-  def check_number_available(destination)
-    tab = "'#{destination.fetch('sheet_name').gsub("'", "''")}'"
-    rows = @api.values(destination.fetch("spreadsheet_id"), "#{tab}!A#{destination.fetch('ledger_start_row')}:I100000")
-    raise GoogleApi::Error, "Invoice number already exists in the master sheet. Choose a different invoice number before publishing." if rows.any? { |r| r[0].to_s == @invoice.number }
-  end
   def key(kind)
     Digest::SHA256.hexdigest("#{@invoice.season_id}/#{@invoice.id}/#{@invoice.number}/#{kind}")
-  end
-  def sync_ledger(destination)
-    tab = "'#{destination.fetch('sheet_name').gsub("'", "''")}'"
-    spreadsheet = destination.fetch("spreadsheet_id")
-    start = destination.fetch("ledger_start_row").to_i
-    # Scan only the invoice ledger. Refuse ambiguous existing invoice numbers instead of overwriting them.
-    rows = @api.values(spreadsheet, "#{tab}!A#{start}:I100000")
-    matches = rows.each_index.select { |i| rows[i][0].to_s == @invoice.number }
-    raise GoogleApi::Error, "Invoice number appears more than once in the master sheet" if matches.size > 1
-    row = matches.first && matches.first + start
-    if row && !@invoice.ledger_row
-      raise GoogleApi::Error, "Invoice number already exists in the master sheet. Resolve it before publishing."
-    end
-    if @invoice.ledger_row && !row && @invoice.published_at
-      raise GoogleApi::Error, "The invoice's ledger row was removed or renamed. Check the master sheet."
-    end
-    row ||= @invoice.ledger_row || start + (rows.rindex { |r| r.first(5).any?(&:present?) } || -1) + 1
-    # Persist intent before PUT; retry verifies the number and writes the same row.
-    @invoice.update!(ledger_row: row)
-    current = @api.values(spreadsheet, "#{tab}!A#{row}:I#{row}").first || []
-    raise GoogleApi::Error, "The target ledger row is occupied" if current[0].present? && current[0] != @invoice.number
-    payment = @invoice.payments.order(:received_on, :id).last
-    values = [ @invoice.number, @invoice.issued_on.iso8601, @invoice.description, @invoice.contact.to_s, @invoice.total_cents / 100.0, @invoice.received_cents / 100.0, @invoice.owed_cents / 100.0, payment&.method.to_s, payment&.received_on&.iso8601.to_s ]
-    @api.write_values(spreadsheet, "#{tab}!A#{row}:I#{row}", [ values ])
   end
 end
