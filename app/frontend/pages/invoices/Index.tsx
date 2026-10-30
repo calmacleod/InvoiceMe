@@ -83,6 +83,7 @@ export default function Index({
             url="/"
             query={query}
             label="Search invoices"
+            perPage={pagination.per_page}
             only={["invoices", "pagination", "query"]}
           />
         </div>

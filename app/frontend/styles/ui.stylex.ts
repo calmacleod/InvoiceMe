@@ -83,6 +83,7 @@ export const ui = stylex.create({
     padding: 0,
   },
   danger: { color: colors.danger },
+  pageSize: { width: "auto", minWidth: 75 },
   submit: { marginTop: 18 },
   smallLink: { fontSize: 12, color: "#658357" },
   input: {

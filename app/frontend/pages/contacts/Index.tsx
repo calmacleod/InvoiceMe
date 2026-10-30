@@ -42,6 +42,7 @@ export default function Index({
             url="/contacts"
             query={query}
             label="Search contacts"
+            perPage={pagination.per_page}
             only={["contacts", "pagination", "query"]}
           />
         </div>

@@ -2,12 +2,14 @@ class GamesController < ApplicationController
   before_action :need_season
   def index
     search = -> { @game_search ||= game_search }
-    page = -> { @game_page ||= WorkspacePage.new(search.call.results.order(date: :desc, external_id: :asc), params[:page]) }
+    order = GameOrder.new(params[:sort], params[:direction])
+    page = -> { @game_page ||= WorkspacePage.new(order.apply(search.call.results), params[:page], params[:per_page]) }
     render inertia: "games/Index", props: {
       games: -> { game_list_props(page.call.records) },
       pagination: -> { page.call.props }, total_count: -> { current_season.games.count }, query: params[:q].to_s,
       filters: -> { search.call.filters }, filter_errors: -> { page.call; search.call.errors },
       filter_choices: -> { game_filter_choices },
+      sort: order.props,
       game_detail: InertiaRails.optional { game_detail_props }
     }
   end

@@ -4,6 +4,7 @@ import type { ContactOptions, RecipientContact } from "../types";
 import * as stylex from "@stylexjs/stylex";
 import { ui } from "../styles/ui.stylex";
 import { browserStyles as styles } from "./GameBrowser.stylex";
+import { PageSizeSelect } from "./UI";
 
 export default memo(function ContactPicker({
   options,
@@ -16,12 +17,12 @@ export default memo(function ContactPicker({
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
-  const load = (page = 1) => {
+  const load = (page = 1, perPage = options?.pagination.per_page ?? 25) => {
     setLoading(true);
     setFailed(false);
     router.reload({
       only: ["contact_options"],
-      data: { contact_q: query, contact_page: page },
+      data: { contact_q: query, contact_page: page, contact_per_page: perPage },
       preserveUrl: true,
       onError: () => setFailed(true),
       onNetworkError: () => setFailed(true),
@@ -126,7 +127,15 @@ export default memo(function ContactPicker({
             </p>
           )}
           {options && (
-            <div {...stylex.props(ui.tableBottom)}>
+            <nav
+              {...stylex.props(ui.tableBottom)}
+              aria-label="Saved contact pagination"
+            >
+              <PageSizeSelect
+                pagination={options.pagination}
+                disabled={loading}
+                onChange={(size) => load(1, size)}
+              />
               <button
                 type="button"
                 {...stylex.props(ui.nativeButton, ui.button)}
@@ -157,7 +166,7 @@ export default memo(function ContactPicker({
               >
                 Next contacts →
               </button>
-            </div>
+            </nav>
           )}
         </>
       )}

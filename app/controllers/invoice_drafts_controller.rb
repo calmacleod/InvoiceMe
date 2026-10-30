@@ -6,7 +6,7 @@ class InvoiceDraftsController < ApplicationController
   def index
     scope = own_drafts.where(season: current_season).open_work
     scope = scope.where("invoice_drafts.title LIKE ?", "%#{InvoiceDraft.sanitize_sql_like(params[:q].to_s)}%") if params[:q].present?
-    page = WorkspacePage.new(scope, params[:page])
+    page = WorkspacePage.new(scope, params[:page], params[:per_page])
     render inertia: "drafts/Index", props: { drafts: -> { page.records.summaries.map(&:metadata) }, pagination: page.props, query: params[:q].to_s }
   end
 

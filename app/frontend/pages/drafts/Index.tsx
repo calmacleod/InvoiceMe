@@ -45,6 +45,7 @@ export default function Index({
             url="/invoice_drafts"
             query={query}
             label="Search drafts"
+            perPage={pagination.per_page}
             only={["drafts", "pagination", "query"]}
           />
         </div>

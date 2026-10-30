@@ -2,7 +2,7 @@ class ContactsController < ApplicationController
   before_action :set_contact, only: %i[edit update destroy]
 
   def index
-    page = WorkspacePage.new(Current.user.contacts.searching(params[:q]).order(:name, :id), params[:page])
+    page = WorkspacePage.new(Current.user.contacts.searching(params[:q]).order(:name, :id), params[:page], params[:per_page])
     render inertia: "contacts/Index", props: { contacts: -> { page.records.map(&:recipient_props) }, pagination: page.props, query: params[:q].to_s }
   end
   def new

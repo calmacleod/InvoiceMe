@@ -90,6 +90,22 @@ export const browserStyles = stylex.create({
     textAlign: "left",
   },
   gameCell: { verticalAlign: "top" },
+  sortHeading: {
+    display: "flex",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: space.sm,
+  },
+  sortButton: {
+    color: "inherit",
+    backgroundColor: "transparent",
+    borderWidth: 0,
+    padding: 0,
+    fontSize: "inherit",
+    fontWeight: "inherit",
+    textTransform: "inherit",
+    whiteSpace: "nowrap",
+  },
   linkStatus: {
     display: "inline-block",
     borderRadius: 4,

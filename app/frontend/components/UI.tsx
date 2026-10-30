@@ -158,11 +158,13 @@ export function Search({
   query,
   label,
   only,
+  perPage,
 }: {
   only?: string[];
   url: string;
   query: string;
   label: string;
+  perPage?: number;
 }) {
   const [value, setValue] = useState(query);
   return (
@@ -174,6 +176,7 @@ export function Search({
           url,
           {
             q: value,
+            per_page: perPage,
           },
           {
             only,
@@ -249,11 +252,31 @@ export function PaginationControls({
         {pagination.from}–{pagination.to} of {pagination.total}
       </span>
       <div {...stylex.props(ui.actions)}>
+        <PageSizeSelect
+          pagination={pagination}
+          onChange={(perPage) =>
+            router.get(
+              url,
+              { ...filters, q: query, page: 1, per_page: perPage },
+              {
+                only,
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+              },
+            )
+          }
+        />
         {pagination.page > 1 && (
           <Link
             {...stylex.props(ui.link, ui.button)}
             href={url}
-            data={{ ...filters, q: query, page: pagination.page - 1 }}
+            data={{
+              ...filters,
+              q: query,
+              page: pagination.page - 1,
+              per_page: pagination.per_page,
+            }}
             only={only}
             preserveState
             preserveScroll
@@ -268,7 +291,12 @@ export function PaginationControls({
           <Link
             {...stylex.props(ui.link, ui.button)}
             href={url}
-            data={{ ...filters, q: query, page: pagination.page + 1 }}
+            data={{
+              ...filters,
+              q: query,
+              page: pagination.page + 1,
+              per_page: pagination.per_page,
+            }}
             only={only}
             preserveState
             preserveScroll
@@ -278,5 +306,33 @@ export function PaginationControls({
         )}
       </div>
     </nav>
+  );
+}
+
+export function PageSizeSelect({
+  pagination,
+  onChange,
+  disabled = false,
+}: {
+  pagination: Pick<Pagination, "per_page" | "per_page_options">;
+  onChange: (value: number) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <label {...stylex.props(ui.actions)}>
+      Per page
+      <select
+        {...stylex.props(ui.input, ui.pageSize)}
+        value={pagination.per_page}
+        disabled={disabled}
+        onChange={(event) => onChange(Number(event.target.value))}
+      >
+        {pagination.per_page_options.map((size) => (
+          <option key={size} value={size}>
+            {size}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }

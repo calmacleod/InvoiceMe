@@ -12,8 +12,7 @@ import { money } from "../lib/format";
 import { gameTotals } from "../lib/gameTotals";
 import GameFilters from "./GameFilters";
 import GameResultsTable from "./GameResultsTable";
-
-const linkedPerPage = 25;
+import { PageSizeSelect } from "./UI";
 
 export default memo(function GamePicker({
   options,
@@ -36,6 +35,9 @@ export default memo(function GamePicker({
     selectedIds.length ? "linked" : "all",
   );
   const [linkedPage, setLinkedPage] = useState(1);
+  const [linkedPerPage, setLinkedPerPage] = useState(
+    options.pagination.per_page,
+  );
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
   // Retain summaries across browser pages so off-page selections contribute
@@ -65,6 +67,8 @@ export default memo(function GamePicker({
           page: currentLinkedPage,
           pages: linkedPages,
           total: selected.length,
+          per_page: linkedPerPage,
+          per_page_options: options.pagination.per_page_options,
           from: selected.length
             ? (currentLinkedPage - 1) * linkedPerPage + 1
             : 0,
@@ -77,12 +81,20 @@ export default memo(function GamePicker({
           (currentLinkedPage - 1) * linkedPerPage,
           currentLinkedPage * linkedPerPage,
         );
-  const load = (filters: Filters, page = 1) => {
+  const load = (
+    filters: Filters,
+    page = 1,
+    perPage = options.pagination.per_page,
+  ) => {
     setLoading(true);
     setFailed(false);
     router.reload({
       only: ["game_options"],
-      data: { game_filters: { ...filters }, game_page: page },
+      data: {
+        game_filters: { ...filters },
+        game_page: page,
+        game_per_page: perPage,
+      },
       preserveUrl: true,
       onError: () => setFailed(true),
       onNetworkError: () => setFailed(true),
@@ -250,6 +262,16 @@ export default memo(function GamePicker({
           {pagination.from}–{pagination.to} of {pagination.total}
         </span>
         <div {...stylex.props(ui.actions)}>
+          <PageSizeSelect
+            pagination={pagination}
+            disabled={busy}
+            onChange={(size) => {
+              if (view === "linked") {
+                setLinkedPerPage(size);
+                setLinkedPage(1);
+              } else load(options.filters, 1, size);
+            }}
+          />
           <button
             type="button"
             {...stylex.props(ui.nativeButton, ui.button)}

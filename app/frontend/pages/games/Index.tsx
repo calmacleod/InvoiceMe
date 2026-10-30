@@ -4,6 +4,7 @@ import type {
   Pagination,
   GameFilters as Filters,
   GameFilterChoices,
+  GameSort,
 } from "../../types";
 import * as stylex from "@stylexjs/stylex";
 import { ui } from "../../styles/ui.stylex";
@@ -13,7 +14,14 @@ import { useState } from "react";
 import GameFilters from "../../components/GameFilters";
 import GameResultsTable from "../../components/GameResultsTable";
 
-const only = ["games", "pagination", "query", "filters", "filter_errors"];
+const only = [
+  "games",
+  "pagination",
+  "query",
+  "filters",
+  "filter_errors",
+  "sort",
+];
 export default function Index({
   games,
   total_count,
@@ -22,6 +30,7 @@ export default function Index({
   filters,
   filter_choices,
   filter_errors,
+  sort,
 }: {
   games: GameSummary[];
   pagination: Pagination;
@@ -30,8 +39,29 @@ export default function Index({
   filters: Filters;
   filter_choices: GameFilterChoices;
   filter_errors: string[];
+  sort: GameSort;
 }) {
   const [loading, setLoading] = useState(false);
+  const load = (values: Filters, order = sort) => {
+    setLoading(true);
+    router.get(
+      "/games",
+      {
+        ...values,
+        sort: order.column,
+        direction: order.direction,
+        per_page: pagination.per_page,
+        page: 1,
+      },
+      {
+        only,
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+        onFinish: () => setLoading(false),
+      },
+    );
+  };
   return (
     <>
       <Head title="Games & officials" />
@@ -74,22 +104,22 @@ export default function Index({
           choices={filter_choices}
           errors={filter_errors}
           busy={loading}
-          onApply={(values) => {
-            setLoading(true);
-            router.get(
-              "/games",
-              { ...values, page: 1 },
-              {
-                only,
-                preserveState: true,
-                preserveScroll: true,
-                replace: true,
-                onFinish: () => setLoading(false),
-              },
-            );
-          }}
+          onApply={(values) => load(values)}
         />
-        <GameResultsTable games={games} />
+        <GameResultsTable
+          games={games}
+          sort={sort}
+          busy={loading}
+          onSort={(column) =>
+            load(filters, {
+              column,
+              direction:
+                sort.column === column && sort.direction === "asc"
+                  ? "desc"
+                  : "asc",
+            })
+          }
+        />
         {!games.length && (
           <div {...stylex.props(ui.empty)}>
             <h2 {...stylex.props(ui.h2)}>No matching games</h2>
@@ -103,7 +133,7 @@ export default function Index({
           pagination={pagination}
           url="/games"
           query={query}
-          filters={filters}
+          filters={{ ...filters, sort: sort.column, direction: sort.direction }}
           only={only}
         />
       </section>

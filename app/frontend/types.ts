@@ -82,7 +82,19 @@ export type Pagination = {
   total: number;
   from: number;
   to: number;
+  per_page: number;
+  per_page_options: number[];
 };
+export type GameSortColumn =
+  | "external_id"
+  | "code"
+  | "date"
+  | "home_team"
+  | "away_team"
+  | "location"
+  | "official_count"
+  | "fees_cents";
+export type GameSort = { column: GameSortColumn; direction: "asc" | "desc" };
 export type GameOptions = {
   games: GameSummary[];
   pagination: Pagination;

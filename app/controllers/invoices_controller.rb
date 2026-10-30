@@ -4,7 +4,7 @@ class InvoicesController < ApplicationController
   def index
     invoices = current_season.invoices.order(issued_on: :desc, id: :desc)
     invoices = invoices.where("number LIKE :q OR recipient LIKE :q OR description LIKE :q", q: "%#{Invoice.sanitize_sql_like(params[:q].to_s)}%") if params[:q].present?
-    page = WorkspacePage.new(invoices, params[:page])
+    page = WorkspacePage.new(invoices, params[:page], params[:per_page])
     render inertia: "invoices/Index", props: {
       invoices: -> { page.records.includes(:line_items, :payments).map { |invoice| invoice_props(invoice) } },
       pagination: page.props, total_count: -> { current_season.invoices.count }, query: params[:q].to_s,

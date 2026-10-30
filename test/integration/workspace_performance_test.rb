@@ -45,6 +45,46 @@ class WorkspacePerformanceTest < ActionDispatch::IntegrationTest
     refute_includes response.body, "Private fictional official"
   end
 
+  test "all server paginated lists and pickers honor bounded page sizes" do
+    30.times do |index|
+      users(:one).contacts.create!(name: "Example Contact #{index}")
+      InvoiceDraft.create!(user: users(:one), season: @season, client_key: "example-size-#{index}")
+      @season.invoices.create!(number: "EXAMPLE-SIZE-#{index}", recipient: "Example Club", description: "Fictional", issued_on: "2031-02-17", line_items_attributes: [ { description: "Example", quantity: 1, rate_cents: 1337 } ])
+    end
+    [ [ games_path, "games" ], [ root_path, "invoices" ], [ contacts_path, "contacts" ], [ invoice_drafts_path, "drafts" ] ].each do |path, key|
+      get path, params: { per_page: 10, page: 2 }, headers: inertia_headers
+      assert_response :success
+      assert_equal 10, response.parsed_body.dig("props", key).size, key
+      assert_equal 10, response.parsed_body.dig("props", "pagination", "per_page"), key
+      assert_equal 11, response.parsed_body.dig("props", "pagination", "from"), key
+    end
+    %w[game contact].each do |kind|
+      key = "#{kind}_options"
+      get new_invoice_path, params: { "#{kind}_per_page" => 10, "#{kind}_page" => 2 }, headers: inertia_headers.merge("X-Inertia-Partial-Component" => "invoices/Edit", "X-Inertia-Partial-Data" => key)
+      assert_equal 10, response.parsed_body.dig("props", key, "pagination", "per_page")
+      assert_equal 11, response.parsed_body.dig("props", key, "pagination", "from")
+      assert_equal 10, response.parsed_body.dig("props", key, kind == "game" ? "games" : "contacts").size
+    end
+    [ 0, -1, "bad", 100_000 ].each do |size|
+      get games_path(per_page: size), headers: inertia_headers
+      assert_equal 25, response.parsed_body.dig("props", "pagination", "per_page")
+    end
+    get games_path(per_page: 50, page: 999), headers: inertia_headers
+    assert_equal 2, response.parsed_body.dig("props", "pagination", "page")
+    assert_equal 10, response.parsed_body.dig("props", "games").size
+    get games_path(per_page: 100), headers: inertia_headers
+    assert_equal 60, response.parsed_body.dig("props", "games").size
+  end
+
+  test "master sorting applies before pagination and combines with filters" do
+    @season.games.order(:external_id).each_with_index { |game, index| game.update!(fees_cents: index * 100) }
+    get games_path(sort: "fees_cents", direction: "desc", per_page: 10, page: 2, code: [ "EXAMPLE" ]), headers: inertia_headers
+    props = response.parsed_body.fetch("props")
+    assert_equal({ "column" => "fees_cents", "direction" => "desc" }, props["sort"])
+    assert_equal [ "EXAMPLE" ], props.dig("filters", "code")
+    assert_equal (40..49).to_a.reverse.map { |index| index * 100 }, props["games"].map { |game| game["fees_cents"] }
+  end
+
   test "invoice details preload linked invoice references instead of querying once per game" do
     invoice = @season.invoices.create!(number: "EXAMPLE-LINKS", recipient: "Example", description: "Fictional", issued_on: Date.current,
       line_items_attributes: [ { description: "Example", quantity: 1, rate_cents: 1337 } ], game_ids: @season.games.limit(20).pluck(:id))

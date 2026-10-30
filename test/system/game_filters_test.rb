@@ -3,16 +3,19 @@ require "test_helper"
 class GameFiltersSystemTest < ActionDispatch::SystemTestCase
   driven_by :selenium, using: :headless_chrome, screen_size: [ 1400, 1100 ]
 
-  test "searchable multi-selects use master options and combine selections in both browsers" do
-    season = seasons(:current)
-    3.times do |index|
-      season.games.create!(external_id: "EXAMPLE-MULTI-#{index}", code: "Example Code #{index}", home_team: "Example Home #{index}", away_team: "Example Away #{index}", date: "2031-09-15")
-    end
+  setup do
     visit new_session_path
     fill_in "Email address", with: users(:one).email_address
     fill_in "Password", with: "password"
     click_button "Sign in"
     assert_selector "h1", text: "Invoices."
+  end
+
+  test "searchable multi-selects use master options and combine selections in both browsers" do
+    season = seasons(:current)
+    3.times do |index|
+      season.games.create!(external_id: "EXAMPLE-MULTI-#{index}", code: "Example Code #{index}", home_team: "Example Home #{index}", away_team: "Example Away #{index}", date: "2031-09-15")
+    end
     [ games_path, new_invoice_path ].each do |path|
       visit path
       prefix = path == games_path ? "master" : "picker"
@@ -33,6 +36,58 @@ class GameFiltersSystemTest < ActionDispatch::SystemTestCase
       end
       click_button "Clear filters"
       assert_text "3 matching games"
+    end
+  end
+
+  test "sorting and page sizes persist across pages and filters including both pickers" do
+    32.times do |index|
+      seasons(:current).games.create!(external_id: "EXAMPLE-PAGE-#{index.to_s.rjust(2, '0')}", date: "2031-09-15", fees_cents: index * 100)
+      users(:one).contacts.create!(name: "Example Contact #{index}")
+    end
+    visit games_path
+    select "10", from: "Per page"
+    assert_selector "tbody tr", count: 10
+    find('button[aria-label="Sort by total fees"]:not(:disabled)').click
+    assert_selector 'th[aria-sort="ascending"]', text: /total fees/i
+    find('button[aria-label="Sort by total fees"]:not(:disabled)').click
+    assert_selector 'th[aria-sort="descending"]', text: /total fees/i
+    assert_selector "tbody tr:first-child", text: "EXAMPLE-PAGE-31"
+    click_link "Next →"
+    assert_text "Page 2 of 4"
+    assert_selector "tbody tr:first-child", text: "EXAMPLE-PAGE-21"
+    select "50", from: "Per page"
+    assert_text "Page 1 of 1"
+    assert_selector "tbody tr", count: 32
+    fill_in "master-q", with: "EXAMPLE-PAGE-0"
+    click_button "Apply filters"
+    assert_text "10 matching games"
+    assert_selector :select, "Per page", selected: "50"
+    assert_selector "tbody tr:first-child", text: "EXAMPLE-PAGE-09"
+
+    [ root_path, contacts_path, invoice_drafts_path ].each do |path|
+      visit path
+      select "50", from: "Per page"
+      assert_selector :select, "Per page", selected: "50"
+    end
+
+    visit new_invoice_path
+    within('nav[aria-label="Game browser pagination"]') { select "10", from: "Per page" }
+    assert_selector "tbody tr", count: 10
+    click_button "Link this page"
+    click_button "Linked games (10)"
+    within('nav[aria-label="Linked games pagination"]') do
+      select "50", from: "Per page"
+      assert_selector :select, "Per page", selected: "50"
+    end
+    assert_selector "tbody tr", count: 10
+    click_button "Choose a saved recipient"
+    within('nav[aria-label="Saved contact pagination"]') do
+      select "10", from: "Per page"
+      assert_text "1–10 of 32"
+      click_button "Next contacts →"
+      assert_text "11–20 of 32"
+      select "50", from: "Per page"
+      assert_text "1–32 of 32"
     end
   end
 end

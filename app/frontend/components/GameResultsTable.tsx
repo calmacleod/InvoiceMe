@@ -1,4 +1,4 @@
-import type { GameSummary } from "../types";
+import type { GameSummary, GameSort, GameSortColumn } from "../types";
 import * as stylex from "@stylexjs/stylex";
 import { ui } from "../styles/ui.stylex";
 import { date, money } from "../lib/format";
@@ -12,25 +12,84 @@ export default function GameResultsTable({
   onToggle,
   invoiceId,
   draftId,
+  sort,
+  onSort,
+  busy = false,
 }: {
   games: GameSummary[];
   selectedIds?: number[];
   onToggle?: (id: number, checked: boolean) => void;
   invoiceId?: number | null;
   draftId?: number | null;
+  sort?: GameSort;
+  onSort?: (column: GameSortColumn) => void;
+  busy?: boolean;
 }) {
   const selected = new Set(selectedIds);
+  const direction = (...columns: GameSortColumn[]) =>
+    sort && columns.includes(sort.column)
+      ? sort.direction === "asc"
+        ? "ascending"
+        : "descending"
+      : undefined;
+  const heading = (label: string, column: GameSortColumn) =>
+    onSort ? (
+      <button
+        type="button"
+        {...stylex.props(ui.nativeButton, styles.sortButton)}
+        aria-label={`Sort by ${label.toLowerCase()}`}
+        disabled={busy}
+        onClick={() => onSort(column)}
+      >
+        {label}{" "}
+        {sort?.column === column ? (sort.direction === "asc" ? "↑" : "↓") : "↕"}
+      </button>
+    ) : (
+      label
+    );
   return (
     <div {...stylex.props(ui.tableScroll)}>
       <table {...stylex.props(ui.table)}>
         <thead>
           <tr>
             {onToggle && <th {...stylex.props(ui.th)}>Select</th>}
-            <th {...stylex.props(ui.th)}>Game / code</th>
-            <th {...stylex.props(ui.th)}>Date</th>
-            <th {...stylex.props(ui.th)}>Matchup / venue</th>
-            <th {...stylex.props(ui.th)}>Officials & fees</th>
-            <th {...stylex.props(ui.th, ui.numeric)}>Total fees</th>
+            <th
+              {...stylex.props(ui.th)}
+              aria-sort={direction("external_id", "code")}
+            >
+              <div {...stylex.props(styles.sortHeading)}>
+                {heading("Game", "external_id")} / {heading("Code", "code")}
+              </div>
+            </th>
+            <th {...stylex.props(ui.th)} aria-sort={direction("date")}>
+              {heading("Date", "date")}
+            </th>
+            <th
+              {...stylex.props(ui.th)}
+              aria-sort={direction("away_team", "home_team", "location")}
+            >
+              {onSort ? (
+                <div {...stylex.props(styles.sortHeading)}>
+                  {heading("Away team", "away_team")} /{" "}
+                  {heading("Home team", "home_team")} /{" "}
+                  {heading("Venue", "location")}
+                </div>
+              ) : (
+                "Matchup / venue"
+              )}
+            </th>
+            <th
+              {...stylex.props(ui.th)}
+              aria-sort={direction("official_count")}
+            >
+              {heading("Officials", "official_count")} & fees
+            </th>
+            <th
+              {...stylex.props(ui.th, ui.numeric)}
+              aria-sort={direction("fees_cents")}
+            >
+              {heading("Total fees", "fees_cents")}
+            </th>
             <th {...stylex.props(ui.th)}>Invoice links</th>
           </tr>
         </thead>
