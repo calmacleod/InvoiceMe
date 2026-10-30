@@ -38,7 +38,8 @@ export default function Index({
       <section {...stylex.props(ui.card)}>
         <div {...stylex.props(ui.tableHeading)}>
           <h2 {...stylex.props(ui.h2)}>
-            {pagination.total} drafts in progress
+            {pagination.total} {pagination.total === 1 ? "draft" : "drafts"} in
+            progress
           </h2>
           <Search
             url="/invoice_drafts"
