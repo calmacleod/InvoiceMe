@@ -52,7 +52,14 @@ class InvoiceDraftsController < ApplicationController
 
   def preview
     invoice = @draft.invoice || @draft.season.invoices.new
-    invoice.persisted? ? invoice.with_lock { preview_locked(invoice) } : preview_locked(invoice)
+    numbering = InvoiceNumbering.new(invoice)
+    unless invoice.persisted?
+      assign_draft_data(invoice)
+      numbering.prepare
+    end
+    invoice.persisted? ? invoice.with_lock { preview_locked(invoice, numbering) } : preview_locked(invoice, numbering)
+  rescue GoogleApi::Error => e
+    redirect_to edit_invoice_draft_path(@draft), alert: e.message
   end
 
   def destroy
@@ -61,22 +68,28 @@ class InvoiceDraftsController < ApplicationController
   end
 
   private
-  def preview_locked(invoice)
+  def assign_draft_data(invoice)
+    return if @draft.data.blank?
+
+    attrs = @draft.invoice_data.except("line_items_attributes")
+    attrs["line_items_attributes"] = Array(@draft.data["line_items_attributes"]).map { |item| item.except("key") }
+    invoice.assign_attributes(attrs)
+  end
+
+  def preview_locked(invoice, numbering)
     @draft.with_lock do
       raise ActiveRecord::StaleObjectError.new(@draft, "preview") unless @draft.lock_version == params.require(:lock_version).to_i
       return redirect_to invoice, alert: "This invoice is finalized or exporting" if invoice.editing_blocked?
-      if @draft.data.present?
-        attrs = @draft.invoice_data.except("line_items_attributes")
-        attrs["line_items_attributes"] = Array(@draft.data["line_items_attributes"]).map { |item| item.except("key") }
-        invoice.assign_attributes(attrs)
-      end
-      if invoice.save
+      assign_draft_data(invoice) if invoice.persisted?
+      if numbering.save
         @draft.update!(invoice: invoice, data: {})
         redirect_to invoice, notice: "Draft saved. Preview it before publishing."
       else
         redirect_to edit_invoice_draft_path(@draft), inertia: { errors: invoice.errors }
       end
     end
+  rescue GoogleApi::Error => e
+    redirect_to edit_invoice_draft_path(@draft), alert: e.message
   end
 
   def own_drafts = InvoiceDraft.where(user: Current.user)

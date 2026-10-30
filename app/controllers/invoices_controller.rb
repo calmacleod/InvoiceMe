@@ -20,11 +20,14 @@ class InvoicesController < ApplicationController
   end
   def create
     @invoice = current_season.invoices.new(invoice_params)
-    if @invoice.save
+    @invoice.number_suffix ||= InvoiceNumbering.suffix(@invoice.number, current_season.year)
+    if InvoiceNumbering.new(@invoice).save
       redirect_to @invoice, notice: "Draft saved. Preview it before publishing."
     else
       redirect_to new_invoice_path, inertia: { errors: @invoice.errors }
     end
+  rescue GoogleApi::Error => e
+    redirect_to new_invoice_path, alert: e.message
   end
   def show
     respond_to do |format|
@@ -100,7 +103,7 @@ class InvoicesController < ApplicationController
     session[:season_id] = @current_season.id
   end
   def invoice_params
-    attrs = params.require(:invoice).permit(:number, :recipient, :contact, :recipient_address, :description, :issued_on, :due_on, :public_notes, :private_notes, contacts: InvoiceContacts::FIELDS, game_ids: [], line_items_attributes: %i[id description quantity rate position amount_only _destroy])
+    attrs = params.require(:invoice).permit(:number, :number_suffix, :recipient, :contact, :recipient_address, :description, :issued_on, :due_on, :public_notes, :private_notes, contacts: InvoiceContacts::FIELDS, game_ids: [], line_items_attributes: %i[id description quantity rate position amount_only _destroy])
     if attrs[:game_ids]
       ids = attrs[:game_ids].reject(&:blank?)
       raise ActiveRecord::RecordNotFound unless current_season.games.where(id: ids).count == ids.uniq.size

@@ -9,12 +9,17 @@ class Invoice < ApplicationRecord
   accepts_nested_attributes_for :line_items, allow_destroy: true, reject_if: ->(a) { a["description"].blank? && a["rate"].blank? }
   validates :number, :recipient, :description, :issued_on, presence: true
   validates :number, uniqueness: { scope: :season_id }, format: { with: /\A[\p{L}\p{N}_. -]+\z/, message: "may contain letters, numbers, spaces, underscores, periods, and hyphens" }, length: { maximum: 120 }
+  validates :number_suffix, presence: true, if: -> { !@number_suffix.nil? && (new_record? || number_prefix.present?) }
   validate :has_items
   validate :same_season_games
   validate :valid_contacts
   validate :immutable_when_finalized, on: :update
   validate :retain_invoice_number, on: :update
   before_validation :normalize_contacts
+  before_validation :apply_number_suffix
+  attr_writer :number_suffix
+  def number_prefix = number.to_s[/\A#{season.year}_\d+_/]
+  def number_suffix = @number_suffix || (number_prefix && number.delete_prefix(number_prefix))
   def contacts = super || InvoiceContacts.from_legacy(contact)
   def contact_names = contacts.filter_map { |contact| contact["name"].presence }.join(", ")
   def contact_email = contacts.filter_map { |contact| contact["email"].presence }.first.to_s
@@ -59,6 +64,11 @@ class Invoice < ApplicationRecord
     end
   end
   private
+  def apply_number_suffix
+    return unless persisted? && number_prefix && !@number_suffix.nil?
+
+    self.number = "#{number_prefix}#{@number_suffix.strip}"
+  end
   def normalize_contacts
     return unless self[:contacts] && InvoiceContacts.valid_format?(self[:contacts])
 
@@ -92,5 +102,8 @@ class Invoice < ApplicationRecord
   end
   def retain_invoice_number
     errors.add(:number, "cannot change after finalizing because it identifies the Google records") if destination_snapshot_in_database.present? && will_save_change_to_number?
+    if will_save_change_to_number? && (prefix = number_in_database.to_s[/\A#{season.year}_\d+_/]) && number_prefix != prefix
+      errors.add(:number, "year and sequence cannot change after assignment")
+    end
   end
 end

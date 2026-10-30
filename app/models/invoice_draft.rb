@@ -1,5 +1,5 @@
 class InvoiceDraft < ApplicationRecord
-  FIELDS = %w[number recipient description contact recipient_address issued_on due_on public_notes private_notes].freeze
+  FIELDS = %w[number number_suffix recipient description contact recipient_address issued_on due_on public_notes private_notes].freeze
   belongs_to :user
   belongs_to :season
   belongs_to :invoice, optional: true
@@ -15,15 +15,21 @@ class InvoiceDraft < ApplicationRecord
   end
 
   def invoice_data
-    return data unless data.key?("contact")
-
-    data.except("contact").reverse_merge("contacts" => InvoiceContacts.from_legacy(data["contact"]))
+    attrs = data.deep_dup
+    if attrs.key?("contact")
+      attrs = attrs.except("contact").reverse_merge("contacts" => InvoiceContacts.from_legacy(data["contact"]))
+    end
+    if attrs.key?("number") && (!invoice || invoice.number_prefix)
+      number = attrs.delete("number")
+      attrs["number_suffix"] ||= InvoiceNumbering.suffix(number, season.year)
+    end
+    attrs
   end
 
   private
   def set_title
     return unless data.is_a?(Hash)
-    parts = data.present? ? [ data["number"], data["recipient"] ] : [ invoice&.number, invoice&.recipient ]
+    parts = data.present? ? [ data["number_suffix"].presence || data["number"], data["recipient"] ] : [ invoice&.number, invoice&.recipient ]
     self.title = parts.filter_map(&:presence).join(" · ").presence || "Untitled draft"
     self.title = title.truncate(180)
   end

@@ -168,6 +168,8 @@ export type InvoiceDetail = Omit<
   google_pdf_id: string | null;
   ledger_row: number | null;
   reopened: boolean;
+  number_prefix: string | null;
+  number_suffix: string | null;
   line_items: {
     id: number | null;
     description: string | null;
@@ -189,7 +191,7 @@ export type InvoiceDetail = Omit<
   }[];
 };
 export type InvoiceFields = Record<
-  | "number"
+  | "number_suffix"
   | "recipient"
   | "description"
   | "recipient_address"

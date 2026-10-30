@@ -7,7 +7,7 @@ module WorkspaceProps
     return props unless detail
 
     props.merge!(invoice.as_json(only: %i[recipient_address public_notes private_notes publish_error google_doc_id google_pdf_id ledger_row]))
-    props.merge!(contacts: invoice.contacts, attention: invoice.attention, reopened: invoice.reopened?)
+    props.merge!(contacts: invoice.contacts, attention: invoice.attention, reopened: invoice.reopened?, number_suffix: invoice.number_suffix, number_prefix: invoice.number_prefix)
     games = invoice.persisted? ? invoice.games.merge(Game.summaries).includes(:invoices).to_a : []
     props.merge!(
       issuer: invoice.issuer, year: invoice.season.year,

@@ -1,6 +1,8 @@
 require "test_helper"
+require_relative "../test_helpers/invoice_numbering_google"
 
 class ContactsTest < ActionDispatch::IntegrationTest
+  include InvoiceNumberingGoogle
   setup do
     sign_in_as(users(:one))
     @season = seasons(:current)

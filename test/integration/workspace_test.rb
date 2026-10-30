@@ -1,5 +1,7 @@
 require "test_helper"
+require_relative "../test_helpers/invoice_numbering_google"
 class WorkspaceTest < ActionDispatch::IntegrationTest
+  include InvoiceNumberingGoogle
   def setup
     @season = seasons(:current)
   end

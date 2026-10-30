@@ -1,7 +1,7 @@
 module InvoiceWorkbench
   private
   def fresh_invoice
-    current_season.invoices.new(number: "#{current_season.year}_", issued_on: Date.current).tap { |invoice| invoice.line_items.build(quantity: 1) }
+    current_season.invoices.new(issued_on: Date.current).tap { |invoice| invoice.line_items.build(quantity: 1) }
   end
 
   def open_workbenches

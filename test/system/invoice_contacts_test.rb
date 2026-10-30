@@ -1,6 +1,8 @@
 require "test_helper"
+require_relative "../test_helpers/invoice_numbering_google"
 
 class InvoiceContactsSystemTest < ActionDispatch::SystemTestCase
+  include InvoiceNumberingGoogle
   driven_by :selenium, using: :headless_chrome, screen_size: [ 1400, 1100 ]
 
   test "add saved and manual contacts reorder remove autosave and preview names only" do
@@ -12,7 +14,7 @@ class InvoiceContactsSystemTest < ActionDispatch::SystemTestCase
     click_button "Sign in"
     assert_selector "h1", text: "Invoices."
     visit new_invoice_path
-    fill_in "number", with: "EXAMPLE-CONTACTS"
+    fill_in "Identifying info", with: "EXAMPLE-CONTACTS"
     fill_in "description", with: "Example fees"
     fill_in "issued_on", with: Date.new(2031, 9, 15)
     fill_in "description-0", with: "Example services"
@@ -46,7 +48,7 @@ class InvoiceContactsSystemTest < ActionDispatch::SystemTestCase
       assert_no_text "rowan@example.test"
       assert_no_text "avery@example.test"
     end
-    invoice = Invoice.find_by!(number: "EXAMPLE-CONTACTS")
+    invoice = Invoice.find_by!(number: "2026_05_EXAMPLE-CONTACTS")
     assert_equal "rowan@example.test", invoice.contact_email
     visit edit_invoice_path(invoice)
     3.times { find('button[aria-label="Remove contact 1"]').click }

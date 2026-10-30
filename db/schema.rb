@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_30_220000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_30_230000) do
   create_table "contacts", force: :cascade do |t|
     t.integer "user_id", null: false
     t.string "name", null: false
@@ -157,6 +157,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_30_220000) do
     t.json "import_mapping", default: {}, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "last_invoice_sequence", default: 0, null: false
     t.index ["year"], name: "index_seasons_on_year", unique: true
   end
 

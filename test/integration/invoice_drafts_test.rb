@@ -1,6 +1,8 @@
 require "test_helper"
+require_relative "../test_helpers/invoice_numbering_google"
 
 class InvoiceDraftsTest < ActionDispatch::IntegrationTest
+  include InvoiceNumberingGoogle
   setup do
     sign_in_as(users(:one))
     @season = seasons(:current)
@@ -22,7 +24,7 @@ class InvoiceDraftsTest < ActionDispatch::IntegrationTest
     assert_equal "Fictional private reminder", draft.data["private_notes"]
     get edit_invoice_draft_path(draft)
     assert_inertia_component "invoices/Edit"
-    assert_equal draft.data, inertia.props[:draft_data]
+    assert_equal draft.data.except("number").merge("number_suffix" => ""), inertia.props[:draft_data]
     assert_equal draft.id, inertia.props[:draft]["id"]
     assert_equal 0, LineItem.count
   end
@@ -246,6 +248,35 @@ class InvoiceDraftsTest < ActionDispatch::IntegrationTest
     assert_redirected_to invoice_path(invoice)
     assert_equal "Fictional Avery", invoice.attention
     assert_equal "avery@example.test", invoice.contact_email
+  end
+
+  test "suffix-only workbenches allocate on preview retain the prefix on edits and preserve data when Google fails" do
+    @data = @data.except(:number).merge(number_suffix: "Fictional_Club", description: "Example fees", issued_on: "2031-09-15",
+      line_items_attributes: [ { key: "example", description: "Fictional services", quantity: "1", rate: "13.37", position: 0, _destroy: false } ])
+    create_json
+    draft = InvoiceDraft.last
+    assert_equal 0, @season.reload.last_invoice_sequence
+    get edit_invoice_draft_path(draft)
+    assert_equal "Fictional_Club", inertia.props[:draft_data]["number_suffix"]
+    assert_nil inertia.props[:invoice][:number_prefix]
+    @numbering_api.define_singleton_method(:values) { |*| raise GoogleApi::TransientError, "Example Google outage" }
+    assert_no_difference "Invoice.count" do
+      post preview_invoice_draft_path(draft), params: { lock_version: draft.lock_version }
+    end
+    assert_redirected_to edit_invoice_draft_path(draft)
+    assert_equal "Example Google outage", flash[:alert]
+    assert_equal "Fictional_Club", draft.reload.data["number_suffix"]
+    @numbering_api.singleton_class.remove_method(:values)
+    post preview_invoice_draft_path(draft), params: { lock_version: draft.lock_version }
+    invoice = draft.reload.invoice
+    assert_redirected_to invoice_path(invoice)
+    assert_equal "2026_05_Fictional_Club", invoice.number
+    patch invoice_path(invoice), params: { invoice: { number_suffix: "Updated_Info" } }
+    assert_equal "2026_05_Updated_Info", invoice.reload.number
+    assert_equal 5, @season.reload.last_invoice_sequence
+    get edit_invoice_draft_path(draft)
+    assert_equal "2026_05_", inertia.props[:invoice][:number_prefix]
+    assert_equal "Updated_Info", inertia.props[:invoice][:number_suffix]
   end
 
   private

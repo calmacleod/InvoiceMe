@@ -58,7 +58,7 @@ function InvoiceEditor({
   contact_options,
 }: EditorProps) {
   const initial: InvoiceFields = {
-    number: invoice.number ?? "",
+    number_suffix: invoice.number_suffix ?? "",
     recipient: invoice.recipient ?? "",
     description: invoice.description ?? "",
     recipient_address: invoice.recipient_address ?? "",
@@ -85,6 +85,8 @@ function InvoiceEditor({
   });
   const { current_season: season } = usePage().props;
   const autosave = useDraftAutosave(form.data, draft, season!.id, invoice.id);
+  const savedInvoice = autosave.identity.invoice_id !== null;
+  const numberPrefix = savedInvoice ? invoice.number_prefix : null;
   const activeDraft = autosave.state.metadata;
   const draftOptions = activeDraft
     ? [activeDraft, ...workbenches.filter((item) => item.id !== activeDraft.id)]
@@ -227,10 +229,39 @@ function InvoiceEditor({
                 onChoose={chooseContact}
               />
               <div {...stylex.props(ui.formGrid)}>
-                {field("number", "Invoice number", {
-                  required: true,
-                  readOnly: invoice.reopened,
-                })}
+                <div>
+                  {savedInvoice && !numberPrefix ? (
+                    <Field
+                      name="number"
+                      label="Invoice number"
+                      value={invoice.number}
+                      onChange={() => {}}
+                      readOnly
+                    />
+                  ) : (
+                    <>
+                      {field("number_suffix", "Identifying info", {
+                        required: true,
+                        readOnly: savedInvoice && invoice.reopened,
+                        placeholder: "Club or other reference",
+                      })}
+                      <p
+                        {...stylex.props(ui.paragraph, ui.hint)}
+                        aria-live="polite"
+                      >
+                        Invoice number:{" "}
+                        {numberPrefix ?? `${invoice.year}_[next number]_`}
+                        {form.data.number_suffix || "[identifying info]"}
+                      </p>
+                      {!savedInvoice && (
+                        <p {...stylex.props(ui.paragraph, ui.hint)}>
+                          The next number is assigned from your master
+                          spreadsheet when you save &amp; preview.
+                        </p>
+                      )}
+                    </>
+                  )}
+                </div>
                 {field("recipient", "Bill to", {
                   required: true,
                 })}

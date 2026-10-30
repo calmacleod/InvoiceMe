@@ -21,7 +21,9 @@ class FakeGoogle
   def sheet_metadata(_, _) = @sheet
 
   def values(_, range)
-    start, finish = range.match(/![A-Z]+(\d+):[A-Z]+(\d+)/).captures.map(&:to_i)
+    start, finish = range.match(/![A-Z]+(\d+):[A-Z]+(\d*)/).captures
+    start = start.to_i
+    finish = finish.present? ? finish.to_i : [ start, @rows.keys.max || start ].max
     result = (start..finish).map { |row| @rows.fetch(row, []).dup }
     result.pop while result.last&.all?(&:nil?)
     result

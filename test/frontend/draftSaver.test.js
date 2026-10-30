@@ -12,7 +12,7 @@ const identity = {
   invoice_id: null,
   lock_version: 0,
 };
-const initial = { number: "", recipient: "", line_items_attributes: [] };
+const initial = { number_suffix: "", recipient: "", line_items_attributes: [] };
 const metadata = (revision) => ({
   ...identity,
   lock_version: revision,

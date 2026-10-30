@@ -1,6 +1,8 @@
 require "test_helper"
+require_relative "../test_helpers/invoice_numbering_google"
 
 class InvoiceLineItemsSystemTest < ActionDispatch::SystemTestCase
+  include InvoiceNumberingGoogle
   driven_by :selenium, using: :headless_chrome, screen_size: [ 1400, 1100 ]
 
   test "reorder mixed pricing lines and retain amounts and order through autosave and preview" do
@@ -10,7 +12,7 @@ class InvoiceLineItemsSystemTest < ActionDispatch::SystemTestCase
     click_button "Sign in"
     assert_selector "h1", text: "Invoices."
     visit new_invoice_path
-    fill_in "number", with: "EXAMPLE-LINE-ITEMS"
+    fill_in "Identifying info", with: "EXAMPLE-LINE-ITEMS"
     fill_in "recipient", with: "Example Club"
     fill_in "description", with: "Example fees"
     fill_in "issued_on", with: Date.new(2031, 9, 15)
@@ -48,7 +50,7 @@ class InvoiceLineItemsSystemTest < ActionDispatch::SystemTestCase
     assert_selector ".doc-items tbody tr:nth-child(1)", text: "Example services"
     assert_selector ".doc-items tbody tr:nth-child(2)", text: "Example parking"
     assert_equal [ "3", "Example travel", "", "", "$24.75" ], all(".doc-items tbody tr:nth-child(3) td").map(&:text)
-    invoice = Invoice.find_by!(number: "EXAMPLE-LINE-ITEMS")
+    invoice = Invoice.find_by!(number: "2026_05_EXAMPLE-LINE-ITEMS")
     visit edit_invoice_path(invoice)
     find('button[aria-label="Move line item 3 up"]').click
     find('button[aria-label="Remove line item 3"]').click
