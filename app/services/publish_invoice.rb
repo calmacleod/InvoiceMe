@@ -8,12 +8,18 @@ class PublishInvoice
     File.open(Rails.root.join("storage/locks/google-publish.lock"), "w") do |lock|
       lock.flock(File::LOCK_EX)
       @invoice.reload
+      ensure_previewed!
       destination = @invoice.destination
       raise GoogleApi::Error, "Set this year's Drive folder and master spreadsheet in Settings" unless destination["drive_folder_id"].present? && destination["spreadsheet_id"].present?
       @api ||= GoogleApi.new
       @api.validate_destination(destination)
       check_number_available(destination) unless @invoice.ledger_row
-      @invoice.finalize!
+      # Remote preflight can take time. Recheck under the same invoice lock used
+      # by autosave before freezing the document, so late edits cannot disappear.
+      @invoice.with_lock do
+        ensure_previewed!
+        @invoice.finalize!
+      end
       renderer = InvoiceDocument.new(@invoice)
       doc = @invoice.google_doc_id || @api.upload(name: @invoice.number, folder: destination.fetch("drive_folder_id"), mime: "application/vnd.oasis.opendocument.text", target_mime: "application/vnd.google-apps.document", bytes: renderer.odt, key: key("doc"))
       @invoice.update!(google_doc_id: doc)
@@ -28,6 +34,11 @@ class PublishInvoice
     raise GoogleApi::Error, e.message
   end
   private
+  def ensure_previewed!
+    if !@invoice.finalized_at && InvoiceDraft.where(invoice: @invoice).where.not(data: {}).exists?
+      raise GoogleApi::Error, "This invoice has workbench edits. Resume the draft and use Save & preview before publishing."
+    end
+  end
   def check_number_available(destination)
     tab = "'#{destination.fetch('sheet_name').gsub("'", "''")}'"
     rows = @api.values(destination.fetch("spreadsheet_id"), "#{tab}!A#{destination.fetch('ledger_start_row')}:I100000")

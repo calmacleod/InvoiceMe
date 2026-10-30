@@ -4,6 +4,7 @@ class Invoice < ApplicationRecord
   has_many :invoice_games, dependent: :destroy
   has_many :games, through: :invoice_games
   has_many :payments, dependent: :restrict_with_error
+  has_many :invoice_drafts, dependent: :destroy
   accepts_nested_attributes_for :line_items, allow_destroy: true, reject_if: ->(a) { a["description"].blank? && a["rate"].blank? }
   validates :number, :recipient, :description, :issued_on, presence: true
   validates :number, uniqueness: { scope: :season_id }, format: { with: /\A[\p{L}\p{N}_. -]+\z/, message: "may contain letters, numbers, spaces, underscores, periods, and hyphens" }, length: { maximum: 120 }

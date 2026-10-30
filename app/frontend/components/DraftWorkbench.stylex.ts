@@ -1,0 +1,70 @@
+import * as stylex from "@stylexjs/stylex";
+import { colors, space } from "../styles/tokens.stylex";
+
+export const workbench = stylex.create({
+  fields: { borderWidth: 0, margin: 0, padding: 0, minWidth: 0 },
+  bar: {
+    display: "flex",
+    flexWrap: "wrap",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: space.lg,
+    backgroundColor: colors.accentSoft,
+    borderRadius: 8,
+    padding: space.lg,
+    marginBottom: space.xl,
+  },
+  switcher: {
+    width: { default: 360, "@media (max-width: 560px)": "100%" },
+    maxWidth: "100%",
+  },
+  heading: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: space.lg,
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  shelf: { marginBottom: space.xl },
+  grid: {
+    display: "grid",
+    gridTemplateColumns: {
+      default: "repeat(auto-fit, minmax(220px, 1fr))",
+      "@media (max-width: 560px)": "1fr",
+    },
+    gap: space.md,
+  },
+  draft: {
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    textAlign: "left",
+    gap: space.sm,
+    overflowWrap: "anywhere",
+    backgroundColor: { default: colors.canvas, ":hover": colors.accentSoft },
+    padding: space.lg,
+    borderWidth: 1,
+    borderStyle: "solid",
+    borderColor: colors.border,
+    borderRadius: 6,
+    fontFamily: "inherit",
+    cursor: "pointer",
+    textDecoration: "none",
+  },
+  caption: { fontSize: 9, letterSpacing: 1.5, color: colors.secondary },
+  newDraft: {
+    color: colors.accent,
+    fontWeight: 600,
+    fontSize: 13,
+    borderStyle: "dashed",
+  },
+  status: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: space.md,
+    alignItems: "center",
+    marginBottom: space.lg,
+    color: colors.secondary,
+    fontSize: 12,
+  },
+});

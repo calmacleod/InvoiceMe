@@ -10,7 +10,7 @@ CI.run do
   step "Style: React", "npm run format:check"
   step "Types: TypeScript", "npm run typecheck"
   step "Build: React", "npm run build"
-  step "Tests: React money calculations", "npm test"
+  step "Tests: React state and money calculations", "npm test"
   step "Security: Brakeman code analysis", "bin/brakeman --quiet --no-pager --exit-on-warn --exit-on-error"
   step "Tests: Rails", "bin/rails test"
   step "Tests: Seeds", "env RAILS_ENV=test bin/rails db:seed:replant"

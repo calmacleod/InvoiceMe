@@ -168,6 +168,15 @@ export type InvoiceForm = InvoiceFields & {
   game_ids: number[];
   line_items_attributes: EditableLineItem[];
 };
+export type DraftMetadata = {
+  id: number;
+  title: string;
+  client_key: string;
+  lock_version: number;
+  updated_at: string;
+  invoice_id: number | null;
+  season_id: number;
+};
 export type InvoiceTotals = {
   invoiced: number;
   received: number;

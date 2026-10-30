@@ -13,6 +13,9 @@ Rails.application.routes.draw do
     post :payment, on: :member
     patch :notes, on: :member
   end
+  resources :invoice_drafts, only: %i[index create edit update destroy] do
+    post :preview, on: :member
+  end
   resources :games, only: %i[index new] do
     collection do
       post :upload

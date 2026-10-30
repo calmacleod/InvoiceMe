@@ -62,6 +62,17 @@ export default function Layout({ children }: PropsWithChildren) {
                 {...stylex.props(
                   ui.link,
                   layout.navLink,
+                  section === "invoice_drafts" && layout.navActive,
+                )}
+                href="/invoice_drafts"
+              >
+                ◫ Draft workbench
+              </Link>
+              <Link
+                navigateOnMouseDown
+                {...stylex.props(
+                  ui.link,
+                  layout.navLink,
                   section === "games" && layout.navActive,
                 )}
                 href="/games"

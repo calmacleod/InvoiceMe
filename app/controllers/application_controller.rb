@@ -1,6 +1,7 @@
 class ApplicationController < ActionController::Base
   include Authentication
   include WorkspaceProps
+  include InvoiceWorkbench
 
   inertia_share do
     signed_in = authenticated?

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_30_020000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_30_130000) do
   create_table "games", force: :cascade do |t|
     t.integer "season_id", null: false
     t.string "external_id", null: false
@@ -35,6 +35,24 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_30_020000) do
     t.text "refresh_token", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+  end
+
+  create_table "invoice_drafts", force: :cascade do |t|
+    t.integer "user_id", null: false
+    t.integer "season_id", null: false
+    t.integer "invoice_id"
+    t.string "client_key", null: false
+    t.string "title", default: "Untitled draft", null: false
+    t.json "data", default: {}, null: false
+    t.integer "lock_version", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["invoice_id"], name: "index_invoice_drafts_on_invoice_id"
+    t.index ["season_id"], name: "index_invoice_drafts_on_season_id"
+    t.index ["user_id", "client_key"], name: "index_invoice_drafts_on_user_id_and_client_key", unique: true
+    t.index ["user_id", "invoice_id"], name: "index_invoice_drafts_on_user_id_and_invoice_id", unique: true, where: "invoice_id IS NOT NULL"
+    t.index ["user_id", "season_id", "updated_at", "id"], name: "index_invoice_drafts_for_workbench", order: { updated_at: :desc, id: :desc }
+    t.index ["user_id"], name: "index_invoice_drafts_on_user_id"
   end
 
   create_table "invoice_games", force: :cascade do |t|
@@ -127,6 +145,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_30_020000) do
   end
 
   add_foreign_key "games", "seasons"
+  add_foreign_key "invoice_drafts", "invoices"
+  add_foreign_key "invoice_drafts", "seasons"
+  add_foreign_key "invoice_drafts", "users"
   add_foreign_key "invoice_games", "games"
   add_foreign_key "invoice_games", "invoices"
   add_foreign_key "invoices", "seasons"

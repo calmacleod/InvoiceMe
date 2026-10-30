@@ -40,6 +40,25 @@ class PublishInvoiceTest < ActiveSupport::TestCase
     assert_equal 2, @api.uploads.size
     assert_equal 2, @api.writes.size
   end
+  test "unpreviewed workbench changes cannot publish a stale invoice" do
+    InvoiceDraft.create!(user: users(:one), season: @season, invoice: @invoice, client_key: "example-publish-guard", data: { "recipient" => "Changed fictional club" })
+    error = assert_raises(GoogleApi::Error) { PublishInvoice.new(@invoice, api: @api).call }
+    assert_includes error.message, "Save & preview"
+    assert_nil @invoice.reload.finalized_at
+    assert_empty @api.uploads
+    assert_empty @api.writes
+  end
+  test "edits saved during Google preflight are checked again before finalization" do
+    invoice, season, user = @invoice, @season, users(:one)
+    @api.define_singleton_method(:validate_destination) do |_|
+      InvoiceDraft.create!(user: user, season: season, invoice: invoice, client_key: "example-late-edit", data: { "recipient" => "Late fictional edit" })
+      true
+    end
+    assert_raises(GoogleApi::Error) { PublishInvoice.new(@invoice, api: @api).call }
+    assert_nil @invoice.reload.finalized_at
+    assert_empty @api.uploads
+    assert_empty @api.writes
+  end
   test "retry after ledger failure reuses files and pending row" do
     @api.fail_write = true
     assert_raises(GoogleApi::Error) { PublishInvoice.new(@invoice, api: @api).call }

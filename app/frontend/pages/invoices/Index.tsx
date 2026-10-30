@@ -1,5 +1,10 @@
 import Link from "../../components/AppLink";
-import type { InvoiceSummary, InvoiceTotals, Pagination } from "../../types";
+import type {
+  InvoiceSummary,
+  InvoiceTotals,
+  Pagination,
+  DraftMetadata,
+} from "../../types";
 import * as stylex from "@stylexjs/stylex";
 import { ui } from "../../styles/ui.stylex";
 import { Head, usePage } from "@inertiajs/react";
@@ -11,18 +16,21 @@ import {
   PaginationControls,
 } from "../../components/UI";
 import { date, money } from "../../lib/format";
+import { DraftShelf } from "../../components/DraftWorkbench";
 export default function Index({
   invoices,
   total_count,
   query,
   totals,
   pagination,
+  workbenches,
 }: {
   invoices: InvoiceSummary[];
   total_count: number;
   query: string;
   totals: InvoiceTotals;
   pagination: Pagination;
+  workbenches: DraftMetadata[];
 }) {
   const { current_season: season } = usePage().props;
   if (!season) return null;
@@ -35,7 +43,9 @@ export default function Index({
         actions={
           <Link
             {...stylex.props(ui.link, ui.button, ui.primary)}
-            href="/invoices/new"
+            href="/invoice_drafts"
+            method="post"
+            as="button"
           >
             + Create invoice
           </Link>
@@ -57,6 +67,7 @@ export default function Index({
           Drafts ready when you are
         </Stat>
       </div>
+      <DraftShelf drafts={workbenches} />
       <section {...stylex.props(ui.card, ui.tableCard)}>
         <div {...stylex.props(ui.tableHeading)}>
           <div>
@@ -148,7 +159,9 @@ export default function Index({
               </Link>
               <Link
                 {...stylex.props(ui.link, ui.button, ui.primary)}
-                href="/invoices/new"
+                href="/invoice_drafts"
+                method="post"
+                as="button"
               >
                 + Create invoice
               </Link>

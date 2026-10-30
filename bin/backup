@@ -3,5 +3,5 @@ set -eu
 # Uses the active release selected by Kamal, never a hard-coded container name.
 stamp=$(date -u +%Y%m%dT%H%M%SZ)
 backup_path="/rails/storage/backups/invoice-me-$stamp.sqlite3"
-bin/kamal app exec --reuse --primary "mkdir -p /rails/storage/backups && sqlite3 /rails/storage/production.sqlite3 '.backup $backup_path' && chmod 600 $backup_path"
+bin/kamal app exec --reuse --primary "sh -c 'mkdir -p /rails/storage/backups && sqlite3 /rails/storage/production.sqlite3 \".backup $backup_path\" && chmod 600 $backup_path'"
 echo "Snapshot saved in invoice_me_storage at $backup_path. Copy it off the VM with your encrypted secret backup."

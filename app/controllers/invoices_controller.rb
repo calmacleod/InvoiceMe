@@ -8,13 +8,15 @@ class InvoicesController < ApplicationController
     render inertia: "invoices/Index", props: {
       invoices: -> { page.records.includes(:line_items, :payments).map { |invoice| invoice_props(invoice) } },
       pagination: page.props, total_count: -> { current_season.invoices.count }, query: params[:q].to_s,
-      totals: -> { InvoiceTotals.new(current_season.invoices).call }
+      totals: -> {
+        totals = InvoiceTotals.new(current_season.invoices).call
+        totals.merge(drafts: totals[:drafts] + open_workbenches.where(invoice_id: nil).count)
+      },
+      workbenches: -> { open_workbenches.summaries.limit(6).map(&:metadata) }
     }
   end
   def new
-    @invoice = current_season.invoices.new(number: "#{current_season.year}_", issued_on: Date.current)
-    @invoice.line_items.build(quantity: 1)
-    render_editor
+    render_invoice_editor(fresh_invoice)
   end
   def create
     @invoice = current_season.invoices.new(invoice_params)
@@ -32,7 +34,9 @@ class InvoicesController < ApplicationController
   end
   def edit
     return redirect_to @invoice, alert: "This invoice is finalized" if @invoice.finalized_at
-    render_editor
+    draft = InvoiceDraft.find_by(user: Current.user, invoice: @invoice)
+    return redirect_to edit_invoice_draft_path(draft) if draft
+    render_invoice_editor(@invoice)
   end
   def update
     saved = @invoice.with_lock do
@@ -80,15 +84,6 @@ class InvoicesController < ApplicationController
     @invoice = scope.find(params[:id])
     @current_season = @invoice.season
     session[:season_id] = @current_season.id
-  end
-  def render_editor
-    render inertia: "invoices/Edit", props: {
-      invoice: -> { invoice_props(@invoice, detail: true) },
-      game_options: -> {
-        page = WorkspacePage.new(current_season.games.matching(params[:game_q]).order(date: :desc, external_id: :asc), params[:game_page])
-        { games: page.records.summaries.includes(:invoices).map { |game| game_props(game) }, pagination: page.props, query: params[:game_q].to_s }
-      }
-    }
   end
   def invoice_params
     attrs = params.require(:invoice).permit(:number, :recipient, :contact, :recipient_address, :description, :issued_on, :due_on, :public_notes, :private_notes, game_ids: [], line_items_attributes: %i[id description quantity rate position _destroy])
