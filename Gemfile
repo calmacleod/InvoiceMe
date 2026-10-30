@@ -29,7 +29,8 @@ gem "kamal", require: false
 gem "thruster", require: false
 
 # Use Active Storage variants [https://guides.rubyonrails.org/active_storage_overview.html#transforming-images]
-gem "image_processing", "~> 1.2"
+gem "image_processing", "~> 2.2"
+gem "ruby-vips", "~> 2.3", require: false
 
 group :development, :test do
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem
@@ -62,7 +63,7 @@ end
 # Invoice generation and Horizon exports.
 gem "prawn", "~> 2.5"
 gem "prawn-table", "~> 0.2"
-gem "roo", "~> 3.0"
+gem "roo", "~> 4.0"
 gem "csv", "~> 3.3"
 
 gem "inertia_rails", "~> 3.23"

@@ -78,7 +78,7 @@ This is a standard Rails 8.1 application using Ruby 4.0.9, SQLite, React 19, Ine
 bin/setup
 ```
 
-The setup script installs dependencies, prepares the database, and starts `bin/dev` at **http://localhost:3000**. Node.js 24 is required alongside Ruby. `bin/dev` runs Rails and Vite together using the generated `Procfile.dev`. Use `bin/setup --skip-server` to prepare without starting the server, and `bin/dev` or `bin/rails server` for subsequent runs. Production assets are compiled during the Docker build; local development uses the Rails asset pipeline.
+The setup script installs dependencies, prepares the database, and starts `bin/dev` at **http://localhost:3000**. Node.js 26 LTS is required alongside Ruby. `bin/dev` runs Rails and Vite together using the generated `Procfile.dev`. Use `bin/setup --skip-server` to prepare without starting the server, and `bin/dev` or `bin/rails server` for subsequent runs. Production assets are compiled during the Docker build; local development uses the Rails asset pipeline.
 
 ## Authentication
 
@@ -149,7 +149,7 @@ Vite builds the frontend under `public/assets/vite`, inside Kamal’s existing a
 
 ## UI styling and TypeScript
 
-Application components and page props use strict TypeScript in `app/frontend` (`npm run typecheck`). Shared types describe the Rails response props, invoice forms, games, and import mappings. Inertia’s shared props and validation error types are augmented centrally. The money tests run the typed calculation module using Node 24’s native TypeScript support.
+Application components and page props use strict TypeScript in `app/frontend` (`npm run typecheck`). Shared types describe the Rails response props, invoice forms, games, and import mappings. Inertia’s shared props and validation error types are augmented centrally. The money tests run the typed calculation module using Node 26’s native TypeScript support.
 
 The application UI uses [StyleX](https://stylexjs.com/docs/learn/installation/vite/vite-react). Design tokens live in `styles/tokens.stylex.ts`, shared UI styles in `styles/ui.stylex.ts`, and shell styles alongside the Layout component. Apply styles with `stylex.props`; use explicit variants and media queries rather than global class selectors. A small reset is the only global UI CSS. The invoice preview and server document share the scoped `invoice.css` contract so exports retain their existing appearance.
 

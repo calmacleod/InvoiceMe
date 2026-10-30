@@ -28,7 +28,7 @@ ENV RAILS_ENV="production" \
     LD_PRELOAD="/usr/local/lib/libjemalloc.so"
 
 # Throw-away build stage to reduce size of final image
-FROM docker.io/library/node:24-bookworm-slim AS node
+FROM docker.io/library/node:26-bookworm-slim AS node
 
 FROM base AS build
 COPY --from=node /usr/local/bin/node /usr/local/bin/node
