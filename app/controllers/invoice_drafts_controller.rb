@@ -87,7 +87,7 @@ class InvoiceDraftsController < ApplicationController
   def persist_data
     @draft.reload if @draft.persisted?
     return conflict if @draft.invoice&.editing_blocked?
-    data = params.require(:data).permit(*InvoiceDraft::FIELDS, game_ids: [], line_items_attributes: %i[id key description quantity rate position _destroy]).to_h
+    data = params.require(:data).permit(*InvoiceDraft::FIELDS, game_ids: [], line_items_attributes: %i[id key description quantity rate position amount_only _destroy]).to_h
     # Retrying an acknowledged-lost request is harmless. A different payload
     # must carry the current revision; another tab's work is never overwritten.
     if @draft.persisted? && @draft.data == data

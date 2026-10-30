@@ -10,7 +10,7 @@ module WorkspaceProps
     games = invoice.persisted? ? invoice.games.merge(Game.summaries).includes(:invoices).to_a : []
     props.merge!(
       issuer: invoice.issuer, year: invoice.season.year,
-      line_items: invoice.line_items.map { |item| item.as_json(only: %i[id description position quantity rate_cents]).merge(rate: item.rate, total_cents: item.total_cents) },
+      line_items: invoice.line_items.map { |item| item.as_json(only: %i[id description position quantity rate_cents amount_only]).merge(rate: item.rate, total_cents: item.total_cents) },
       game_ids: games.map(&:id), games: games.map { |game| game_props(game) },
       payments: invoice.payments.as_json(only: %i[id amount_cents received_on method notes])
     )

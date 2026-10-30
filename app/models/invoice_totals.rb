@@ -8,7 +8,7 @@ class InvoiceTotals
     # Quantities have at most three decimal places and rates are integer cents.
     # SQLite integer arithmetic rounds EACH nonnegative line half up, exactly as
     # LineItem#total_cents does, without loading every line or multiplying joins.
-    line_cents = "SUM((CAST(ROUND(quantity * 1000) AS INTEGER) * rate_cents + 500) / 1000)"
+    line_cents = "SUM(CASE WHEN amount_only THEN rate_cents ELSE (CAST(ROUND(quantity * 1000) AS INTEGER) * rate_cents + 500) / 1000 END)"
     totals = LineItem.where(invoice_id: finalized).group(:invoice_id).pluck(:invoice_id, Arel.sql(line_cents)).to_h
     payments = Payment.where(invoice_id: finalized).group(:invoice_id).sum(:amount_cents)
     invoiced = totals.values.sum

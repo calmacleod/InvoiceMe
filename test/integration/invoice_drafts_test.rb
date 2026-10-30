@@ -117,6 +117,31 @@ class InvoiceDraftsTest < ActionDispatch::IntegrationTest
     assert_equal 4011, invoice.reload.total_cents
   end
 
+  test "amount-only lines and reordered saved IDs survive autosave preview and reopening" do
+    invoice = @season.invoices.create!(number: "EXAMPLE-ORDER", recipient: "Example Club", description: "Example fees", issued_on: "2031-02-17", line_items_attributes: [
+      { description: "Example travel", amount_only: true, rate: "24.75", position: 0 },
+      { description: "Example services", quantity: 2, rate: "13.37", position: 1 }
+    ])
+    travel, services = invoice.line_items.to_a
+    data = @data.merge(number: invoice.number, description: invoice.description, issued_on: "2031-02-17", line_items_attributes: [
+      { id: services.id, key: services.id, description: services.description, quantity: "2", rate: "13.37", amount_only: false, position: 0, _destroy: false },
+      { id: travel.id, key: travel.id, description: travel.description, quantity: "", rate: "24.75", amount_only: true, position: 1, _destroy: false }
+    ])
+    post invoice_drafts_path, params: { invoice_id: invoice.id, client_key: "example-order", season_id: @season.id, data: data }, as: :json
+    assert_response :success
+    draft = InvoiceDraft.find(response.parsed_body.fetch("id"))
+    assert_equal true, draft.data.dig("line_items_attributes", 1, "amount_only")
+    assert_no_difference "LineItem.count" do
+      post preview_invoice_draft_path(draft), params: { lock_version: draft.lock_version }
+    end
+    assert_redirected_to invoice_path(invoice)
+    assert_equal [ services.id, travel.id ], invoice.reload.line_items.ids
+    assert_equal 5149, invoice.total_cents
+    get edit_invoice_draft_path(draft)
+    assert_equal [ services.id, travel.id ], inertia.props[:invoice][:line_items].map { |item| item["id"] }
+    assert_equal true, inertia.props[:invoice][:line_items].last["amount_only"]
+  end
+
   test "existing invoice drafts autosave separately and finalized invoices reject further workbench writes" do
     invoice = @season.invoices.create!(number: "EXAMPLE-EXISTING", recipient: "Example", description: "Fictional", issued_on: Date.current,
       line_items_attributes: [ { description: "Example", quantity: 1, rate_cents: 1337 } ])

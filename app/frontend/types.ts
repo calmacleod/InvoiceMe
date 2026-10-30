@@ -170,6 +170,7 @@ export type InvoiceDetail = Omit<
     position: number;
     quantity: string;
     rate_cents: number | null;
+    amount_only: boolean;
     rate: string | null;
     total_cents: number;
   }[];
@@ -201,6 +202,7 @@ export type EditableLineItem = {
   description: string;
   quantity: string;
   rate: string;
+  amount_only?: boolean;
   position: number;
   _destroy: boolean;
 };

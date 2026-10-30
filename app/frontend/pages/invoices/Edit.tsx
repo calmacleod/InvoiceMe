@@ -4,7 +4,6 @@ import type {
   InvoiceDetail,
   InvoiceFields,
   InvoiceForm,
-  EditableLineItem,
   GameOptions,
   GameSummary,
   DraftMetadata,
@@ -18,6 +17,7 @@ import { Head, useForm, usePage } from "@inertiajs/react";
 import { useCallback } from "react";
 import { Errors, Field, Heading, Section } from "../../components/UI";
 import GamePicker from "../../components/GamePicker";
+import InvoiceLineItems from "../../components/InvoiceLineItems";
 import ContactPicker from "../../components/ContactPicker";
 import { money } from "../../lib/format";
 import { invoiceTotal } from "../../lib/money";
@@ -75,6 +75,7 @@ function InvoiceEditor({
       description: item.description ?? "",
       quantity: item.quantity ?? "1",
       rate: item.rate ?? "",
+      amount_only: item.amount_only,
       position: index,
       _destroy: false,
       key: item.id ?? `new-${index}`,
@@ -101,22 +102,6 @@ function InvoiceEditor({
       })),
     [form.setData],
   );
-  const changeLine = <Key extends keyof EditableLineItem>(
-    index: number,
-    key: Key,
-    value: EditableLineItem[Key],
-  ) =>
-    form.setData(
-      "line_items_attributes",
-      form.data.line_items_attributes.map((item, i) =>
-        i === index
-          ? {
-              ...item,
-              [key]: value,
-            }
-          : item,
-      ),
-    );
   const field = (
     key: keyof InvoiceFields,
     label: string,
@@ -250,77 +235,14 @@ function InvoiceEditor({
             <Section
               step="02"
               title="Line items"
-              hint="Set your own descriptions, quantities, and rates."
+              hint="Set quantities and rates, or enter a single amount. Use the arrows to reorder items."
             >
-              <div {...stylex.props(ui.lineItems)}>
-                {form.data.line_items_attributes.map(
-                  (item, index) =>
-                    !item._destroy && (
-                      <div {...stylex.props(ui.lineRow)} key={item.key}>
-                        <Field
-                          name={`description-${index}`}
-                          label="Description"
-                          value={item.description}
-                          onChange={(value) =>
-                            changeLine(index, "description", value)
-                          }
-                          required
-                        />
-                        <Field
-                          name={`quantity-${index}`}
-                          label="Quantity"
-                          type="number"
-                          value={item.quantity}
-                          onChange={(value) =>
-                            changeLine(index, "quantity", value)
-                          }
-                          step="0.001"
-                          min="0.001"
-                          max="999999.999"
-                          required
-                        />
-                        <Field
-                          name={`rate-${index}`}
-                          label="Rate (CAD)"
-                          type="number"
-                          value={item.rate}
-                          onChange={(value) => changeLine(index, "rate", value)}
-                          step="0.01"
-                          min="0"
-                          max="999999.99"
-                          required
-                        />
-                        <button
-                          {...stylex.props(ui.nativeButton, ui.removeItem)}
-                          type="button"
-                          aria-label="Remove line item"
-                          onClick={() => changeLine(index, "_destroy", true)}
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ),
-                )}
-              </div>
-              <button
-                {...stylex.props(ui.nativeButton, ui.button, ui.dashed)}
-                type="button"
-                onClick={() =>
-                  form.setData("line_items_attributes", [
-                    ...form.data.line_items_attributes,
-                    {
-                      key: crypto.randomUUID(),
-                      description: "",
-                      quantity: "1",
-                      rate: "",
-                      position: form.data.line_items_attributes.length,
-                      _destroy: false,
-                    },
-                  ])
+              <InvoiceLineItems
+                items={form.data.line_items_attributes}
+                onChange={(items) =>
+                  form.setData("line_items_attributes", items)
                 }
-              >
-                + Add line item
-              </button>
+              />
               <div {...stylex.props(ui.editorTotal)}>
                 <span>
                   Total <small {...stylex.props(ui.small)}>CAD</small>

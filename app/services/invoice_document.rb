@@ -58,7 +58,7 @@ class InvoiceDocument
       pdf.text "ATTENTION: #{i.contact.presence || i.recipient}", style: :bold
       pdf.move_down 16
       rows = [ [ "Item", "Description", "Quantity", "Rate", "Charge" ] ]
-      i.line_items.each_with_index { |l, n| rows << [ (n+1).to_s, l.description, quantity(l.quantity), money(l.rate_cents, rate: true), money(l.total_cents) ] }
+      i.line_items.each_with_index { |l, n| rows << [ (n+1).to_s, l.description, l.amount_only? ? "" : quantity(l.quantity), l.amount_only? ? "" : money(l.rate_cents, rate: true), money(l.total_cents) ] }
       [ 5 - i.line_items.size, 0 ].max.times { rows << [ "", "", "", "", "" ] }
       rows << [ { content: "Total", colspan: 4, font_style: :bold }, money(i.total_cents) ]
       # Keep the preview's column proportions inside the PDF's printable area.

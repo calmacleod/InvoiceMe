@@ -1,5 +1,7 @@
 class LineItem < ApplicationRecord
   belongs_to :invoice
+  before_validation { self.quantity = 1 if amount_only? }
+  validates :amount_only, inclusion: { in: [ true, false ] }
   validates :description, presence: true, length: { maximum: 1000 }
   validates :quantity, numericality: { greater_than: 0, less_than: 1_000_000 }
   validates :rate_cents, numericality: { only_integer: true, greater_than_or_equal_to: 0, less_than: 100_000_000 }
@@ -19,5 +21,5 @@ class LineItem < ApplicationRecord
     self.rate_cents = nil
     @invalid_rate = true
   end
-  def total_cents = ((quantity || 0) * (rate_cents || 0)).round(0).to_i
+  def total_cents = amount_only? ? rate_cents.to_i : ((quantity || 0) * (rate_cents || 0)).round(0).to_i
 end

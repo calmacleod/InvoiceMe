@@ -8,6 +8,23 @@ class InvoiceTest < ActiveSupport::TestCase
     assert_equal 25_063, @invoice.total_cents
     assert_equal 25_063, @invoice.owed_cents
   end
+  test "amount-only lines use a single charge and remain immutable after finalizing" do
+    item = @invoice.line_items.create!(description: "Example travel", amount_only: true, rate: "24.75", position: 1)
+    assert_equal 1, item.quantity
+    assert_equal 2475, item.total_cents
+    assert_equal 27538, @invoice.reload.total_cents
+    item.quantity = 99
+    assert_equal 2475, item.total_cents
+    item.save!
+    assert_equal 1, item.reload.quantity
+    @invoice.finalize!
+    assert_equal @invoice.total_cents, InvoiceTotals.new(@season.invoices).call[:invoiced]
+    assert_not item.update(amount_only: false)
+    assert_not @invoice.update(line_items_attributes: [ { id: item.id, description: item.description, rate: "24.75", position: 0 } ])
+    [ "10.005", "bad", "-1" ].each do |rate|
+      assert_not @invoice.line_items.build(description: "Example amount", amount_only: true, rate: rate).valid?
+    end
+  end
   test "money rejects precision loss and malformed amounts" do
     [ "10.005", "oops", "-1", "1e3" ].each { |v| assert_raises(ArgumentError) { MoneyValue.cents(v) } }
     assert_equal 123456, MoneyValue.cents("$1,234.56")

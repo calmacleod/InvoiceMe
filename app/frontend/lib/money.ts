@@ -16,10 +16,15 @@ export function invoiceTotal(
   items: {
     quantity: string | number;
     rate: string | number;
+    amount_only?: boolean;
     _destroy?: boolean;
   }[],
 ) {
   return items
     .filter((item) => !item._destroy)
-    .reduce((sum, item) => sum + lineTotal(item.quantity, item.rate), 0);
+    .reduce(
+      (sum, item) =>
+        sum + lineTotal(item.amount_only ? "1" : item.quantity, item.rate),
+      0,
+    );
 }

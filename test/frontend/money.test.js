@@ -20,3 +20,15 @@ test("removing a persisted line excludes its amount and blank or invalid values 
   assert.equal(lineTotal("1.0001", "10"), 0);
   assert.equal(lineTotal("1", "10.001"), 0);
 });
+
+test("amount-only charges ignore quantity and combine with quantity-based lines", () => {
+  assert.equal(
+    invoiceTotal([
+      { quantity: "2.5", rate: "13.37" },
+      { quantity: "", rate: "24.75", amount_only: true },
+      { quantity: "99", rate: "5.00", amount_only: true },
+      { quantity: "1", rate: "100.00", amount_only: true, _destroy: true },
+    ]),
+    6318,
+  );
+});

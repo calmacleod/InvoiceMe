@@ -393,20 +393,17 @@ export const ui = stylex.create({
   lineRow: {
     display: "grid",
     gridTemplateColumns: {
-      default: "minmax(0, 1fr) 85px 105px 20px",
-      "@media (max-width: 560px)": "minmax(0, 1fr) 70px 90px 20px",
+      default: "minmax(0, 1fr) 155px 85px 120px auto",
+      "@media (max-width: 800px)": "repeat(2, minmax(0, 1fr))",
     },
     gap: { default: 10, "@media (max-width: 560px)": 6 },
     alignItems: "end",
     marginBottom: 15,
   },
-  removeItem: {
-    backgroundColor: "transparent",
-    borderWidth: 0,
-    color: colors.subtle,
-    fontSize: 21,
-    marginBottom: 6,
+  lineDescription: {
+    gridColumn: { default: "auto", "@media (max-width: 800px)": "1 / -1" },
   },
+  lineAction: { padding: "8px 10px", minWidth: 34 },
   editorTotal: {
     borderTopWidth: 1,
     borderTopStyle: "solid",

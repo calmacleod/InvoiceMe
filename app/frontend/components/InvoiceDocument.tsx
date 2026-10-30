@@ -72,8 +72,8 @@ export default function InvoiceDocument({
             <tr key={item.id}>
               <td>{i + 1}</td>
               <td>{item.description}</td>
-              <td>{Number(item.quantity)}</td>
-              <td>{amount(item.rate_cents, true)}</td>
+              <td>{item.amount_only ? "" : Number(item.quantity)}</td>
+              <td>{item.amount_only ? "" : amount(item.rate_cents, true)}</td>
               <td>{amount(item.total_cents)}</td>
             </tr>
           ))}

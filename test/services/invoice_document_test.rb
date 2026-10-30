@@ -26,6 +26,25 @@ class InvoiceDocumentTest < ActiveSupport::TestCase
     assert_not_includes text, "INTERNAL ONLY"
   end
 
+  test "amount-only rows omit quantity and rate in HTML PDF and Google document content" do
+    @invoice.line_items.last.amount_only = true
+    html = Nokogiri::HTML(InvoiceDocument.new(@invoice).html)
+    row = html.css(".doc-items tbody tr").find { |item| item.at_css("td:nth-child(2)")&.text == "Travel" }
+    assert_equal [ "3", "Travel", "", "", "$20.00" ], row.css("td").map(&:text)
+    Zip::File.open_buffer(InvoiceDocument.new(@invoice).odt) do |zip|
+      xml = Nokogiri::XML(zip.read("content.xml")) { |config| config.strict }
+      row = xml.xpath("//table:table-row", xml.root.namespaces).find { |item| item.text.include?("Travel") }
+      assert_equal [ "3", "Travel", "", "", "$20.00" ], row.xpath("table:table-cell", xml.root.namespaces).map(&:text)
+    end
+    reader = pdf_reader
+    assert_printable_layout reader
+    runs = reader.pages.first.runs
+    travel = runs.find { |run| run.text == "Travel" }
+    row = runs.select { |run| (run.y - travel.y).abs < 1 }.sort_by(&:x)
+    assert_equal [ "3", "Travel", "$20.00" ], row.map(&:text)
+    assert_includes reader.pages.first.text, "$1870.00"
+  end
+
   test "ODT uses the required mimetype header and ordinary ZIP entries" do
     bytes = InvoiceDocument.new(@invoice).odt
     assert_equal "PK\x03\x04".b, bytes.byteslice(0, 4)

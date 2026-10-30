@@ -30,7 +30,7 @@ class InvoiceDraft < ApplicationRecord
         (data.keys - FIELDS - %w[game_ids line_items_attributes]).empty? &&
         FIELDS.all? { |field| !data.key?(field) || data[field].is_a?(String) } &&
         (!data.key?("game_ids") || data["game_ids"].is_a?(Array)) &&
-        (!data.key?("line_items_attributes") || (data["line_items_attributes"].is_a?(Array) && data["line_items_attributes"].all? { |item| item.is_a?(Hash) }))
+        (!data.key?("line_items_attributes") || (data["line_items_attributes"].is_a?(Array) && data["line_items_attributes"].all? { |item| item.is_a?(Hash) && (!item.key?("amount_only") || [ true, false ].include?(item["amount_only"])) }))
       errors.add(:data, "is too large or has an invalid format")
       return
     end
