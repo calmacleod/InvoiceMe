@@ -87,7 +87,21 @@ export type GameOptions = {
   games: GameSummary[];
   pagination: Pagination;
   query: string;
+  filters: GameFilters;
+  errors: string[];
 };
+export type GameFilters = Record<
+  | "q"
+  | "home_team"
+  | "away_team"
+  | "code"
+  | "location"
+  | "official"
+  | "date_from"
+  | "date_to"
+  | "link_status",
+  string
+>;
 export type GameSummary = {
   id: number;
   external_id: string;
@@ -101,7 +115,23 @@ export type GameSummary = {
   matchup: string;
   official_count: number;
   paid_by_team: string | null;
-  invoices: { id: number; number: string }[];
+  invoices: { id: number; number: string; finalized_at: string | null }[];
+  workbenches: { id: number; title: string }[];
+};
+export type ContactFields = Record<
+  "name" | "organization" | "email" | "phone" | "address" | "notes",
+  string
+>;
+export type ContactRecord = ContactFields & { id: number | null };
+export type RecipientContact = Omit<ContactFields, "notes"> & {
+  id: number;
+  recipient: string;
+  contact: string;
+};
+export type ContactOptions = {
+  contacts: RecipientContact[];
+  pagination: Pagination;
+  query: string;
 };
 export type GameDetail = GameSummary & {
   officials: Official[];

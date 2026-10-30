@@ -244,6 +244,7 @@ export const ui = stylex.create({
   },
   numeric: { textAlign: "right", fontVariantNumeric: "tabular-nums" },
   nowrap: { whiteSpace: "nowrap" },
+  preWrap: { whiteSpace: "pre-wrap" },
   invoiceLink: { fontWeight: 600, color: "#426346", fontSize: 11 },
   count: {
     fontSize: 10,

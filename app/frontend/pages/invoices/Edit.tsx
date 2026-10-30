@@ -8,6 +8,8 @@ import type {
   GameOptions,
   GameSummary,
   DraftMetadata,
+  ContactOptions,
+  RecipientContact,
 } from "../../types";
 import type { FieldOptions } from "../../components/UI";
 import * as stylex from "@stylexjs/stylex";
@@ -16,6 +18,7 @@ import { Head, useForm, usePage } from "@inertiajs/react";
 import { useCallback } from "react";
 import { Errors, Field, Heading, Section } from "../../components/UI";
 import GamePicker from "../../components/GamePicker";
+import ContactPicker from "../../components/ContactPicker";
 import { money } from "../../lib/format";
 import { invoiceTotal } from "../../lib/money";
 import useDraftAutosave from "../../lib/useDraftAutosave";
@@ -28,6 +31,7 @@ type EditorProps = {
   draft_data: InvoiceForm | null;
   workbenches: DraftMetadata[];
   selected_games: GameSummary[];
+  contact_options?: ContactOptions;
 };
 export default function Edit(props: EditorProps) {
   // POST redirects preserve Inertia state. Each workbench still needs its own
@@ -50,6 +54,7 @@ function InvoiceEditor({
   draft_data,
   workbenches,
   selected_games,
+  contact_options,
 }: EditorProps) {
   const initial: InvoiceFields = {
     number: invoice.number ?? "",
@@ -84,6 +89,16 @@ function InvoiceEditor({
     : workbenches;
   const selectGames = useCallback(
     (ids: number[]) => form.setData("game_ids", ids),
+    [form.setData],
+  );
+  const chooseContact = useCallback(
+    (contact: RecipientContact) =>
+      form.setData((previous) => ({
+        ...previous,
+        recipient: contact.recipient,
+        contact: contact.contact,
+        recipient_address: contact.address,
+      })),
     [form.setData],
   );
   const changeLine = <Key extends keyof EditableLineItem>(
@@ -205,6 +220,10 @@ function InvoiceEditor({
                 title="Invoice details"
                 hint="Who it's for and how you'll find it later."
               >
+                <ContactPicker
+                  options={contact_options}
+                  onChoose={chooseContact}
+                />
                 <div {...stylex.props(ui.formGrid)}>
                   {field("number", "Invoice number", {
                     required: true,
@@ -345,6 +364,7 @@ function InvoiceEditor({
                   selectedIds={form.data.game_ids}
                   onChange={selectGames}
                   invoiceId={autosave.identity.invoice_id}
+                  draftId={autosave.identity.id}
                 />
               </Section>
               <div {...stylex.props(ui.tip)}>

@@ -2,6 +2,7 @@ class ApplicationController < ActionController::Base
   include Authentication
   include WorkspaceProps
   include InvoiceWorkbench
+  include GameBrowser
 
   inertia_share do
     signed_in = authenticated?

@@ -15,11 +15,18 @@ module InvoiceWorkbench
       workbenches: -> { open_workbenches.summaries.limit(20).map(&:metadata) },
       selected_games: -> {
         ids = draft&.data&.fetch("game_ids", nil) || invoice.game_ids
-        current_season.games.where(id: ids).summaries.includes(:invoices).map { |game| game_props(game) }
+        game_list_props(current_season.games.where(id: ids))
       },
       game_options: -> {
-        page = WorkspacePage.new(current_season.games.matching(params[:game_q]).order(date: :desc, external_id: :asc), params[:game_page])
-        { games: page.records.summaries.includes(:invoices).map { |game| game_props(game) }, pagination: page.props, query: params[:game_q].to_s }
+        search = game_search(picker: true)
+        page = WorkspacePage.new(search.results.order(date: :desc, external_id: :asc), params[:game_page])
+        { games: game_list_props(page.records), pagination: page.props, query: search.filters["q"], filters: search.filters, errors: search.errors }
+      },
+      game_detail: InertiaRails.optional { game_detail_props },
+      contact_options: InertiaRails.optional {
+        scope = Current.user.contacts.searching(params[:contact_q]).order(:name, :id)
+        page = WorkspacePage.new(scope, params[:contact_page])
+        { contacts: page.records.map(&:recipient_props), pagination: page.props, query: params[:contact_q].to_s }
       }
     }
   end

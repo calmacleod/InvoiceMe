@@ -106,7 +106,10 @@ export default function useDraftAutosave(
       const visit = event.detail.visit;
       if (
         visit.prefetch ||
-        (visit.only.length === 1 && visit.only[0] === "game_options")
+        (visit.only.length > 0 &&
+          visit.only.every((key) =>
+            ["game_options", "game_detail", "contact_options"].includes(key),
+          ))
       )
         return;
       saver.current!.change(latest.current);

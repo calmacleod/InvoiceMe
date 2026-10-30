@@ -149,6 +149,14 @@ The application UI uses [StyleX](https://stylexjs.com/docs/learn/installation/vi
 
 The official StyleX Vite plugin extracts atomic CSS at build time and adds it to the manifest alongside the typed Inertia entrypoint. The build checks that the extracted CSS, design tokens, and responsive rules are present. Rails loads the generated stylesheet through Vite Rails; Kamal bridges it with the other versioned assets. Development uses a linked StyleX stylesheet and Vite events to refresh it across the separate Rails/Vite origins, without runtime style injection or loosening the production content security policy.
 
+## Game browser and contacts
+
+The master game list and invoice game browser share server-side filters for home team, away team, code, venue, official name, inclusive date range, and invoice/workbench link status. Text filters match part of a name and treat `%`, `_`, and backslashes literally. Filters combine and remain applied when paging. Results stay bounded to 25 games. Selecting games in the wide invoice browser retains selections across filters and pages, with a selected-game summary in the editor. Crew fee tables and original source data load only when opened; imported fees are reference amounts rather than proof of payment.
+
+Link badges distinguish saved invoices from the signed-in user's autosaved workbench selections. Link filters include those workbenches without exposing another user's private draft titles or notes. Selecting an already-linked game is allowed and its existing links remain visible.
+
+Contacts are private to each user and reusable across years. Save a name, organization, email, phone, mailing address, and private notes in Contacts. The invoice editor's saved-recipient picker searches contacts on demand and copies recipient, contact name/email, and address into the draft. Those fields remain editable and autosave normally. Editing or deleting a contact does not change existing invoices or drafts, and private contact notes are not copied to invoices.
+
 ## Draft workbench
 
 Drafts autosave to the server after a 700 ms pause in typing. Incomplete fields, raw quantities/rates, notes, line additions/removals, and game selections are retained independently of the validated invoice. Create several drafts, switch between them in the editor, or resume them from the register's workbench shelf and the searchable Draft workbench page. Workbenches belong to the signed-in user and invoice year; GET requests and hover prefetch never create drafts.

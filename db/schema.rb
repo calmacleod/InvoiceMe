@@ -10,7 +10,21 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_30_133000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_30_150000) do
+  create_table "contacts", force: :cascade do |t|
+    t.integer "user_id", null: false
+    t.string "name", null: false
+    t.string "organization", default: "", null: false
+    t.string "email", default: "", null: false
+    t.string "phone", default: "", null: false
+    t.text "address", default: "", null: false
+    t.text "notes", default: "", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id", "name", "id"], name: "index_contacts_on_user_id_and_name_and_id"
+    t.index ["user_id"], name: "index_contacts_on_user_id"
+  end
+
   create_table "games", force: :cascade do |t|
     t.integer "season_id", null: false
     t.string "external_id", null: false
@@ -144,6 +158,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_30_133000) do
     t.index ["email_address"], name: "index_users_on_email_address", unique: true
   end
 
+  add_foreign_key "contacts", "users"
   add_foreign_key "games", "seasons"
   add_foreign_key "invoice_drafts", "invoices"
   add_foreign_key "invoice_drafts", "seasons"

@@ -1,5 +1,10 @@
 import Link from "./AppLink";
-import type { ReactNode, ChangeEvent, HTMLInputTypeAttribute } from "react";
+import type {
+  ReactNode,
+  ChangeEvent,
+  FormEvent,
+  HTMLInputTypeAttribute,
+} from "react";
 import type { InvoiceStatus, Pagination } from "../types";
 import * as stylex from "@stylexjs/stylex";
 import { ui } from "../styles/ui.stylex";
@@ -92,6 +97,11 @@ export function Field({
     value: value ?? "",
     onChange: (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
       onChange(event.target.value),
+    onInput:
+      type === "date"
+        ? (event: FormEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+            onChange(event.currentTarget.value)
+        : undefined,
     ...props,
   };
   return (
@@ -225,11 +235,13 @@ export function PaginationControls({
   url,
   query,
   only,
+  filters = {},
 }: {
   pagination: Pagination;
   url: string;
   query: string;
   only: string[];
+  filters?: Record<string, string>;
 }) {
   return (
     <nav {...stylex.props(ui.tableBottom)} aria-label="Pagination">
@@ -241,7 +253,7 @@ export function PaginationControls({
           <Link
             {...stylex.props(ui.link, ui.button)}
             href={url}
-            data={{ q: query, page: pagination.page - 1 }}
+            data={{ ...filters, q: query, page: pagination.page - 1 }}
             only={only}
             preserveState
             preserveScroll
@@ -256,7 +268,7 @@ export function PaginationControls({
           <Link
             {...stylex.props(ui.link, ui.button)}
             href={url}
-            data={{ q: query, page: pagination.page + 1 }}
+            data={{ ...filters, q: query, page: pagination.page + 1 }}
             only={only}
             preserveState
             preserveScroll

@@ -84,6 +84,17 @@ export default function Layout({ children }: PropsWithChildren) {
                 {...stylex.props(
                   ui.link,
                   layout.navLink,
+                  section === "contacts" && layout.navActive,
+                )}
+                href="/contacts"
+              >
+                ◉ Contacts
+              </Link>
+              <Link
+                navigateOnMouseDown
+                {...stylex.props(
+                  ui.link,
+                  layout.navLink,
                   section === "seasons" && layout.navActive,
                 )}
                 href={season ? `/seasons/${season.id}/edit` : "/seasons/new"}
