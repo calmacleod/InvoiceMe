@@ -90,4 +90,36 @@ class GameFiltersSystemTest < ActionDispatch::SystemTestCase
       assert_text "1–32 of 32"
     end
   end
+
+  test "linked game counts by code include every page and survive saving the draft" do
+    32.times do |index|
+      seasons(:current).games.create!(external_id: "EXAMPLE-CODE-#{index.to_s.rjust(2, '0')}", code: index < 25 ? "EXAMPLE-ALPHA" : "EXAMPLE-BETA", date: "2031-09-15")
+    end
+    visit new_invoice_path
+    assert_no_selector 'section[aria-label="Games by game code"]'
+    click_button "Link this page"
+    within('section[aria-label="Games by game code"]') do
+      assert_selector "dt", text: "EXAMPLE-ALPHA"
+      assert_selector "dd", text: "25 games"
+      assert_no_text "EXAMPLE-BETA"
+    end
+    click_button "Next →"
+    assert_selector "tbody tr", count: 7
+    click_button "Link this page"
+    within('section[aria-label="Games by game code"]') do
+      assert_selector "dd", text: "25 games"
+      assert_selector "dt", text: "EXAMPLE-BETA"
+      assert_selector "dd", text: "7 games"
+    end
+    find('input[aria-label="Select game EXAMPLE-CODE-25"]').set(false)
+    within('section[aria-label="Games by game code"]') { assert_selector "dd", text: "6 games" }
+    assert_text "All changes saved"
+    draft_path = page.current_path
+    visit games_path
+    visit draft_path
+    within('section[aria-label="Games by game code"]') do
+      assert_selector "dd", text: "25 games"
+      assert_selector "dd", text: "6 games"
+    end
+  end
 end

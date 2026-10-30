@@ -9,7 +9,7 @@ import type {
 import { ui } from "../styles/ui.stylex";
 import { browserStyles as styles } from "./GameBrowser.stylex";
 import { money } from "../lib/format";
-import { gameTotals } from "../lib/gameTotals";
+import { gameCountsByCode, gameTotals } from "../lib/gameTotals";
 import GameFilters from "./GameFilters";
 import GameResultsTable from "./GameResultsTable";
 import { PageSizeSelect } from "./UI";
@@ -55,6 +55,7 @@ export default memo(function GamePicker({
         a.external_id.localeCompare(b.external_id),
     );
   const totals = gameTotals(selectedIds, known.current, invoiceTotal);
+  const codeCounts = gameCountsByCode(selectedIds, known.current);
   const linkedPages = Math.max(1, Math.ceil(selected.length / linkedPerPage));
   const currentLinkedPage = Math.min(linkedPage, linkedPages);
   useEffect(() => {
@@ -166,6 +167,35 @@ export default memo(function GamePicker({
           ? "Some linked games are unavailable. Reload this draft before comparing totals."
           : "Game fees include every linked game. A difference can include assigning, travel or other line items."}
       </p>
+      {totals.count > 0 && (
+        <section
+          {...stylex.props(styles.codeSummary)}
+          aria-label="Games by game code"
+          aria-live="polite"
+        >
+          <h3 {...stylex.props(ui.h3)}>Games by game code</h3>
+          <dl {...stylex.props(styles.comparison, styles.codeCounts)}>
+            {codeCounts.byCode.map(({ code, count }) => (
+              <div key={code ?? ""} {...stylex.props(styles.comparisonItem)}>
+                <dt {...stylex.props(ui.small, styles.codeLabel)}>
+                  {code ?? "No game code"}
+                </dt>
+                <dd {...stylex.props(styles.codeCount)}>
+                  {count} {count === 1 ? "game" : "games"}
+                </dd>
+              </div>
+            ))}
+            {codeCounts.unavailable > 0 && (
+              <div {...stylex.props(styles.comparisonItem)}>
+                <dt {...stylex.props(ui.small)}>Unavailable games</dt>
+                <dd {...stylex.props(styles.codeCount)}>
+                  {codeCounts.unavailable}
+                </dd>
+              </div>
+            )}
+          </dl>
+        </section>
+      )}
       <div
         {...stylex.props(styles.viewControls)}
         role="group"

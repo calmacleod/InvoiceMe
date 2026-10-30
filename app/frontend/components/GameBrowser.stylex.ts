@@ -58,6 +58,16 @@ export const browserStyles = stylex.create({
     fontVariantNumeric: "tabular-nums",
   },
   matched: { backgroundColor: colors.accentSoft, borderColor: colors.focus },
+  codeSummary: { marginTop: space.lg, marginBottom: space.lg },
+  codeCounts: { margin: 0 },
+  codeLabel: { overflowWrap: "anywhere" },
+  codeCount: {
+    margin: 0,
+    marginTop: space.sm,
+    fontSize: 16,
+    fontWeight: 600,
+    color: colors.text,
+  },
   viewControls: {
     display: "flex",
     flexWrap: "wrap",
