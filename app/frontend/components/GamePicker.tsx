@@ -1,5 +1,4 @@
 import { memo, useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { router } from "@inertiajs/react";
 import * as stylex from "@stylexjs/stylex";
 import type {
@@ -10,9 +9,11 @@ import type {
 import { ui } from "../styles/ui.stylex";
 import { browserStyles as styles } from "./GameBrowser.stylex";
 import { money } from "../lib/format";
+import { gameTotals } from "../lib/gameTotals";
 import GameFilters from "./GameFilters";
 import GameResultsTable from "./GameResultsTable";
-import GameLinks from "./GameLinks";
+
+const linkedPerPage = 25;
 
 export default memo(function GamePicker({
   options,
@@ -21,6 +22,7 @@ export default memo(function GamePicker({
   onChange,
   invoiceId,
   draftId,
+  invoiceTotal,
 }: {
   options: GameOptions;
   initialSelected: GameSummary[];
@@ -28,21 +30,53 @@ export default memo(function GamePicker({
   onChange: (ids: number[]) => void;
   invoiceId: number | null;
   draftId: number | null;
+  invoiceTotal: number;
 }) {
-  const [open, setOpen] = useState(false);
+  const [view, setView] = useState<"linked" | "all">(
+    selectedIds.length ? "linked" : "all",
+  );
+  const [linkedPage, setLinkedPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
-  const dialog = useRef<HTMLDialogElement>(null);
+  // Retain summaries across browser pages so off-page selections contribute
+  // to the comparison immediately, before the autosave response returns.
   const known = useRef(new Map(initialSelected.map((game) => [game.id, game])));
   options.games.forEach((game) => known.current.set(game.id, game));
-  const selected = selectedIds.flatMap((id) => {
-    const game = known.current.get(id);
-    return game ? [game] : [];
-  });
+  const selected = [...new Set(selectedIds)]
+    .flatMap((id) => {
+      const game = known.current.get(id);
+      return game ? [game] : [];
+    })
+    .sort(
+      (a, b) =>
+        b.date.localeCompare(a.date) ||
+        a.external_id.localeCompare(b.external_id),
+    );
+  const totals = gameTotals(selectedIds, known.current, invoiceTotal);
+  const linkedPages = Math.max(1, Math.ceil(selected.length / linkedPerPage));
+  const currentLinkedPage = Math.min(linkedPage, linkedPages);
   useEffect(() => {
-    if (open && dialog.current && !dialog.current.open)
-      dialog.current.showModal();
-  }, [open]);
+    setLinkedPage((page) => Math.min(page, linkedPages));
+  }, [linkedPages]);
+  const pagination =
+    view === "all"
+      ? options.pagination
+      : {
+          page: currentLinkedPage,
+          pages: linkedPages,
+          total: selected.length,
+          from: selected.length
+            ? (currentLinkedPage - 1) * linkedPerPage + 1
+            : 0,
+          to: Math.min(currentLinkedPage * linkedPerPage, selected.length),
+        };
+  const games =
+    view === "all"
+      ? options.games
+      : selected.slice(
+          (currentLinkedPage - 1) * linkedPerPage,
+          currentLinkedPage * linkedPerPage,
+        );
   const load = (filters: Filters, page = 1) => {
     setLoading(true);
     setFailed(false);
@@ -62,180 +96,180 @@ export default memo(function GamePicker({
         ? [...new Set([...selectedIds, id])]
         : selectedIds.filter((value) => value !== id),
     );
+  const changePage = (page: number) => {
+    if (view === "linked") setLinkedPage(page);
+    else load(options.filters, page);
+  };
+  const busy = view === "all" && loading;
+  const difference = totals.differenceCents;
   return (
     <>
-      <button
-        type="button"
-        {...stylex.props(ui.nativeButton, ui.button, ui.primary, ui.full)}
-        onClick={() => setOpen(true)}
-      >
-        Browse & filter games
-      </button>
-      <p {...stylex.props(ui.paragraph, ui.hint)} role="status">
-        {selectedIds.length} {selectedIds.length === 1 ? "game" : "games"}{" "}
-        selected ·{" "}
-        {money(selected.reduce((sum, game) => sum + game.fees_cents, 0))}{" "}
-        reference fees
-      </p>
-      <div {...stylex.props(styles.selectedScroll)}>
-        {selected.map((game) => (
-          <div {...stylex.props(styles.selected)} key={game.id}>
-            <div>
-              <strong {...stylex.props(ui.strong)}>
-                {game.code || game.external_id} · {game.date}
-              </strong>
-              <small {...stylex.props(ui.small)}>{game.matchup}</small>
-              <small {...stylex.props(ui.small)}>
-                {money(game.fees_cents)} · {game.official_count} officials
-              </small>
-              <GameLinks
-                game={game}
-                invoiceId={invoiceId}
-                draftId={draftId}
-                selected
-              />
-            </div>
-            <button
-              type="button"
-              {...stylex.props(ui.nativeButton, ui.textButton, ui.danger)}
-              aria-label={`Remove game ${game.external_id}`}
-              onClick={() => toggle(game.id, false)}
-            >
-              ×
-            </button>
-          </div>
-        ))}
+      <div {...stylex.props(styles.comparison)} aria-live="polite">
+        <div {...stylex.props(styles.comparisonItem)}>
+          <span {...stylex.props(ui.small)}>Invoice total</span>
+          <strong {...stylex.props(styles.comparisonValue)}>
+            {money(invoiceTotal)}
+          </strong>
+          <span {...stylex.props(ui.small)}>From your line items · CAD</span>
+        </div>
+        <div {...stylex.props(styles.comparisonItem)}>
+          <span {...stylex.props(ui.small)}>Linked game fees</span>
+          <strong {...stylex.props(styles.comparisonValue)}>
+            {totals.feesCents === null
+              ? "Unavailable"
+              : money(totals.feesCents)}
+          </strong>
+          <span {...stylex.props(ui.small)}>
+            {totals.count} {totals.count === 1 ? "game" : "games"} across all
+            pages
+          </span>
+        </div>
+        <div
+          {...stylex.props(
+            styles.comparisonItem,
+            difference === 0 && styles.matched,
+          )}
+        >
+          <span {...stylex.props(ui.small)}>Difference</span>
+          <strong {...stylex.props(styles.comparisonValue)}>
+            {difference === null
+              ? "—"
+              : `${difference > 0 ? "+" : difference < 0 ? "−" : ""}${money(Math.abs(difference))}`}
+          </strong>
+          <span {...stylex.props(ui.small)}>
+            {difference === null
+              ? totals.feesCents === null
+                ? "Game fee total unavailable"
+                : "Link games to compare totals"
+              : difference === 0
+                ? "Invoice and game fees match"
+                : difference > 0
+                  ? "Invoice is above game fees"
+                  : "Game fees exceed the invoice"}
+          </span>
+        </div>
       </div>
-      {!selected.length && (
-        <p {...stylex.props(ui.paragraph, ui.hint)}>
-          Choose games using team, code, date and invoice-link filters. Your
-          selection stays with the autosaved draft.
+      <p {...stylex.props(ui.paragraph, ui.hint)}>
+        {totals.feesCents === null
+          ? "Some linked games are unavailable. Reload this draft before comparing totals."
+          : "Game fees include every linked game. A difference can include assigning, travel or other line items."}
+      </p>
+      <div
+        {...stylex.props(styles.viewControls)}
+        role="group"
+        aria-label="Games shown"
+      >
+        <button
+          type="button"
+          {...stylex.props(
+            ui.nativeButton,
+            ui.button,
+            view === "linked" && ui.primary,
+          )}
+          aria-pressed={view === "linked"}
+          onClick={() => setView("linked")}
+        >
+          Linked games ({totals.count})
+        </button>
+        <button
+          type="button"
+          {...stylex.props(
+            ui.nativeButton,
+            ui.button,
+            view === "all" && ui.primary,
+          )}
+          aria-pressed={view === "all"}
+          onClick={() => setView("all")}
+        >
+          Browse all games
+        </button>
+      </div>
+      {view === "all" && (
+        <GameFilters
+          collapsible
+          id="picker"
+          applied={options.filters}
+          errors={options.errors}
+          busy={loading}
+          onApply={(filters) => load(filters)}
+        />
+      )}
+      <div {...stylex.props(ui.tableHeading)}>
+        <span role="status">
+          {busy
+            ? "Finding games…"
+            : `${pagination.total} ${view === "linked" ? "linked" : "matching"} ${pagination.total === 1 ? "game" : "games"}`}
+        </span>
+        {view === "all" && (
+          <button
+            type="button"
+            {...stylex.props(ui.nativeButton, ui.button)}
+            disabled={loading || !options.games.length}
+            onClick={() =>
+              onChange([
+                ...new Set([
+                  ...selectedIds,
+                  ...options.games.map((game) => game.id),
+                ]),
+              ])
+            }
+          >
+            Link this page
+          </button>
+        )}
+      </div>
+      {view === "all" && failed && (
+        <p {...stylex.props(ui.flash, ui.alert)} role="alert">
+          Couldn't load games. Apply the filters again to retry.
         </p>
       )}
-      {open &&
-        createPortal(
-          <dialog
-            ref={dialog}
-            {...stylex.props(styles.dialog)}
-            aria-labelledby="game-browser-title"
-            onCancel={() => setOpen(false)}
-            onClose={() => setOpen(false)}
+      <GameResultsTable
+        games={games}
+        selectedIds={selectedIds}
+        onToggle={toggle}
+        invoiceId={invoiceId}
+        draftId={draftId}
+      />
+      {!games.length && (
+        <p {...stylex.props(ui.empty)}>
+          {view === "linked"
+            ? "No games linked yet. Browse all games to add them to this draft."
+            : "No matching games. Your linked games are kept when filters change."}
+        </p>
+      )}
+      <nav
+        {...stylex.props(ui.tableBottom)}
+        aria-label={
+          view === "linked"
+            ? "Linked games pagination"
+            : "Game browser pagination"
+        }
+      >
+        <span>
+          {pagination.from}–{pagination.to} of {pagination.total}
+        </span>
+        <div {...stylex.props(ui.actions)}>
+          <button
+            type="button"
+            {...stylex.props(ui.nativeButton, ui.button)}
+            disabled={busy || pagination.page <= 1}
+            onClick={() => changePage(pagination.page - 1)}
           >
-            <div {...stylex.props(styles.dialogHeader)}>
-              <div>
-                <h2 {...stylex.props(ui.h2)} id="game-browser-title">
-                  Select Horizon games
-                </h2>
-                <p {...stylex.props(ui.paragraph)}>
-                  Inspect each official's fee and existing invoice links before
-                  selecting.
-                </p>
-              </div>
-              <button
-                type="button"
-                {...stylex.props(ui.nativeButton, ui.button)}
-                onClick={() => setOpen(false)}
-              >
-                Close game browser
-              </button>
-            </div>
-            <GameFilters
-              collapsible
-              id="picker"
-              applied={options.filters}
-              errors={options.errors}
-              busy={loading}
-              onApply={(filters) => load(filters)}
-            />
-            <div {...stylex.props(ui.tableHeading)}>
-              <span role="status">
-                {loading
-                  ? "Finding games…"
-                  : `${options.pagination.total} matching ${options.pagination.total === 1 ? "game" : "games"}`}
-              </span>
-              <button
-                type="button"
-                {...stylex.props(ui.nativeButton, ui.button)}
-                disabled={loading || !options.games.length}
-                onClick={() =>
-                  onChange([
-                    ...new Set([
-                      ...selectedIds,
-                      ...options.games.map((game) => game.id),
-                    ]),
-                  ])
-                }
-              >
-                Select this page
-              </button>
-            </div>
-            {failed && (
-              <p {...stylex.props(ui.flash, ui.alert)} role="alert">
-                Couldn't load games. Apply the filters again to retry.
-              </p>
-            )}
-            <GameResultsTable
-              games={options.games}
-              selectedIds={selectedIds}
-              onToggle={toggle}
-              invoiceId={invoiceId}
-              draftId={draftId}
-            />
-            {!options.games.length && (
-              <p {...stylex.props(ui.empty)}>
-                No matching games. Your previously selected games are kept.
-              </p>
-            )}
-            <div {...stylex.props(ui.tableBottom)}>
-              <span>
-                {options.pagination.from}–{options.pagination.to} of{" "}
-                {options.pagination.total}
-              </span>
-              <div {...stylex.props(ui.actions)}>
-                <button
-                  type="button"
-                  {...stylex.props(ui.nativeButton, ui.button)}
-                  disabled={loading || options.pagination.page <= 1}
-                  onClick={() =>
-                    load(options.filters, options.pagination.page - 1)
-                  }
-                >
-                  ← Previous
-                </button>
-                <span>
-                  Page {options.pagination.page} of {options.pagination.pages}
-                </span>
-                <button
-                  type="button"
-                  {...stylex.props(ui.nativeButton, ui.button)}
-                  disabled={
-                    loading ||
-                    options.pagination.page >= options.pagination.pages
-                  }
-                  onClick={() =>
-                    load(options.filters, options.pagination.page + 1)
-                  }
-                >
-                  Next →
-                </button>
-              </div>
-            </div>
-            <div {...stylex.props(styles.dialogFooter)}>
-              <span>
-                {selectedIds.length} selected · selections stay when filters
-                change
-              </span>
-              <button
-                type="button"
-                {...stylex.props(ui.nativeButton, ui.button, ui.primary)}
-                onClick={() => setOpen(false)}
-              >
-                Done selecting games
-              </button>
-            </div>
-          </dialog>,
-          document.body,
-        )}
+            ← Previous
+          </button>
+          <span>
+            Page {pagination.page} of {pagination.pages}
+          </span>
+          <button
+            type="button"
+            {...stylex.props(ui.nativeButton, ui.button)}
+            disabled={busy || pagination.page >= pagination.pages}
+            onClick={() => changePage(pagination.page + 1)}
+          >
+            Next →
+          </button>
+        </div>
+      </nav>
     </>
   );
 });

@@ -14,12 +14,13 @@ export default function GameLinks({
   draftId?: number | null;
   selected?: boolean;
 }) {
+  const workbenches = game.workbenches.filter((draft) => draft.id !== draftId);
   return (
     <div>
       {selected && (
         <span {...stylex.props(styles.linkStatus)}>Selected on this draft</span>
       )}
-      {!selected && !game.invoices.length && !game.workbenches.length && (
+      {!selected && !game.invoices.length && !workbenches.length && (
         <span {...stylex.props(styles.linkStatus, styles.unlinked)}>
           Not linked
         </span>
@@ -36,20 +37,16 @@ export default function GameLinks({
           </Link>
         </div>
       ))}
-      {game.workbenches
-        .filter((draft) => !selected || draft.id !== draftId)
-        .map((draft) => (
-          <div key={draft.id}>
-            <Link
-              {...stylex.props(styles.linkStatus)}
-              href={`/invoice_drafts/${draft.id}/edit`}
-            >
-              {draft.id === draftId
-                ? "This workbench"
-                : `Workbench: ${draft.title}`}
-            </Link>
-          </div>
-        ))}
+      {workbenches.map((draft) => (
+        <div key={draft.id}>
+          <Link
+            {...stylex.props(styles.linkStatus)}
+            href={`/invoice_drafts/${draft.id}/edit`}
+          >
+            Workbench: {draft.title}
+          </Link>
+        </div>
+      ))}
     </div>
   );
 }

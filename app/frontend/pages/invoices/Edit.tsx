@@ -213,170 +213,157 @@ function InvoiceEditor({
           {...stylex.props(workbench.fields)}
         >
           <Errors errors={form.errors} />
-          <div {...stylex.props(ui.editorLayout)}>
-            <div>
-              <Section
-                step="01"
-                title="Invoice details"
-                hint="Who it's for and how you'll find it later."
-              >
-                <ContactPicker
-                  options={contact_options}
-                  onChoose={chooseContact}
-                />
-                <div {...stylex.props(ui.formGrid)}>
-                  {field("number", "Invoice number", {
-                    required: true,
-                  })}
-                  {field("recipient", "Bill to", {
-                    required: true,
-                  })}
-                  {field("description", "Description for master ledger", {
-                    required: true,
-                  })}
-                  {field("contact", "Contact name or email")}
-                  {field("recipient_address", "Recipient address (optional)", {
-                    multiline: true,
-                    rows: 2,
-                  })}
-                  {field("issued_on", "Invoice date", {
-                    type: "date",
-                    required: true,
-                  })}
-                  {field("due_on", "Due date (optional)", {
-                    type: "date",
-                  })}
-                </div>
-              </Section>
-              <Section
-                step="02"
-                title="Line items"
-                hint="Set your own descriptions, quantities, and rates."
-              >
-                <div {...stylex.props(ui.lineItems)}>
-                  {form.data.line_items_attributes.map(
-                    (item, index) =>
-                      !item._destroy && (
-                        <div {...stylex.props(ui.lineRow)} key={item.key}>
-                          <Field
-                            name={`description-${index}`}
-                            label="Description"
-                            value={item.description}
-                            onChange={(value) =>
-                              changeLine(index, "description", value)
-                            }
-                            required
-                          />
-                          <Field
-                            name={`quantity-${index}`}
-                            label="Quantity"
-                            type="number"
-                            value={item.quantity}
-                            onChange={(value) =>
-                              changeLine(index, "quantity", value)
-                            }
-                            step="0.001"
-                            min="0.001"
-                            max="999999.999"
-                            required
-                          />
-                          <Field
-                            name={`rate-${index}`}
-                            label="Rate (CAD)"
-                            type="number"
-                            value={item.rate}
-                            onChange={(value) =>
-                              changeLine(index, "rate", value)
-                            }
-                            step="0.01"
-                            min="0"
-                            max="999999.99"
-                            required
-                          />
-                          <button
-                            {...stylex.props(ui.nativeButton, ui.removeItem)}
-                            type="button"
-                            aria-label="Remove line item"
-                            onClick={() => changeLine(index, "_destroy", true)}
-                          >
-                            ×
-                          </button>
-                        </div>
-                      ),
-                  )}
-                </div>
-                <button
-                  {...stylex.props(ui.nativeButton, ui.button, ui.dashed)}
-                  type="button"
-                  onClick={() =>
-                    form.setData("line_items_attributes", [
-                      ...form.data.line_items_attributes,
-                      {
-                        key: crypto.randomUUID(),
-                        description: "",
-                        quantity: "1",
-                        rate: "",
-                        position: form.data.line_items_attributes.length,
-                        _destroy: false,
-                      },
-                    ])
-                  }
-                >
-                  + Add line item
-                </button>
-                <div {...stylex.props(ui.editorTotal)}>
-                  <span>
-                    Total <small {...stylex.props(ui.small)}>CAD</small>
-                  </span>
-                  <strong
-                    {...stylex.props(ui.strong, ui.totalValue)}
-                    aria-live="polite"
-                  >
-                    {money(invoiceTotal(form.data.line_items_attributes))}
-                  </strong>
-                </div>
-              </Section>
-              <Section
-                step="03"
-                title="Notes"
-                hint="The right details, in the right place."
-              >
-                <div {...stylex.props(ui.formGrid)}>
-                  {field("public_notes", "Notes on invoice", {
-                    multiline: true,
-                    rows: 4,
-                  })}
-                  {field("private_notes", "Private notes", {
-                    multiline: true,
-                    rows: 4,
-                  })}
-                </div>
-              </Section>
-            </div>
-            <aside {...stylex.props(ui.editorAside)}>
-              <Section
-                title="Link Horizon games"
-                hint="Links keep your records connected. Invoice amounts come from the line items you enter."
-              >
-                <GamePicker
-                  options={game_options}
-                  initialSelected={selected_games}
-                  selectedIds={form.data.game_ids}
-                  onChange={selectGames}
-                  invoiceId={autosave.identity.invoice_id}
-                  draftId={autosave.identity.id}
-                />
-              </Section>
-              <div {...stylex.props(ui.tip)}>
-                <strong {...stylex.props(ui.strong)}>
-                  A draft is just a draft.
-                </strong>
-                <p {...stylex.props(ui.paragraph)}>
-                  Leave and return whenever you like. Your drafts stay on the
-                  workbench until you are ready to preview and publish.
-                </p>
+          <div {...stylex.props(ui.editorMain)}>
+            <Section
+              step="01"
+              title="Invoice details"
+              hint="Who it's for and how you'll find it later."
+            >
+              <ContactPicker
+                options={contact_options}
+                onChoose={chooseContact}
+              />
+              <div {...stylex.props(ui.formGrid)}>
+                {field("number", "Invoice number", {
+                  required: true,
+                })}
+                {field("recipient", "Bill to", {
+                  required: true,
+                })}
+                {field("description", "Description for master ledger", {
+                  required: true,
+                })}
+                {field("contact", "Contact name or email")}
+                {field("recipient_address", "Recipient address (optional)", {
+                  multiline: true,
+                  rows: 2,
+                })}
+                {field("issued_on", "Invoice date", {
+                  type: "date",
+                  required: true,
+                })}
+                {field("due_on", "Due date (optional)", {
+                  type: "date",
+                })}
               </div>
-            </aside>
+            </Section>
+            <Section
+              step="02"
+              title="Line items"
+              hint="Set your own descriptions, quantities, and rates."
+            >
+              <div {...stylex.props(ui.lineItems)}>
+                {form.data.line_items_attributes.map(
+                  (item, index) =>
+                    !item._destroy && (
+                      <div {...stylex.props(ui.lineRow)} key={item.key}>
+                        <Field
+                          name={`description-${index}`}
+                          label="Description"
+                          value={item.description}
+                          onChange={(value) =>
+                            changeLine(index, "description", value)
+                          }
+                          required
+                        />
+                        <Field
+                          name={`quantity-${index}`}
+                          label="Quantity"
+                          type="number"
+                          value={item.quantity}
+                          onChange={(value) =>
+                            changeLine(index, "quantity", value)
+                          }
+                          step="0.001"
+                          min="0.001"
+                          max="999999.999"
+                          required
+                        />
+                        <Field
+                          name={`rate-${index}`}
+                          label="Rate (CAD)"
+                          type="number"
+                          value={item.rate}
+                          onChange={(value) => changeLine(index, "rate", value)}
+                          step="0.01"
+                          min="0"
+                          max="999999.99"
+                          required
+                        />
+                        <button
+                          {...stylex.props(ui.nativeButton, ui.removeItem)}
+                          type="button"
+                          aria-label="Remove line item"
+                          onClick={() => changeLine(index, "_destroy", true)}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ),
+                )}
+              </div>
+              <button
+                {...stylex.props(ui.nativeButton, ui.button, ui.dashed)}
+                type="button"
+                onClick={() =>
+                  form.setData("line_items_attributes", [
+                    ...form.data.line_items_attributes,
+                    {
+                      key: crypto.randomUUID(),
+                      description: "",
+                      quantity: "1",
+                      rate: "",
+                      position: form.data.line_items_attributes.length,
+                      _destroy: false,
+                    },
+                  ])
+                }
+              >
+                + Add line item
+              </button>
+              <div {...stylex.props(ui.editorTotal)}>
+                <span>
+                  Total <small {...stylex.props(ui.small)}>CAD</small>
+                </span>
+                <strong
+                  {...stylex.props(ui.strong, ui.totalValue)}
+                  aria-live="polite"
+                >
+                  {money(invoiceTotal(form.data.line_items_attributes))}
+                </strong>
+              </div>
+            </Section>
+            <Section
+              step="03"
+              title="Linked Horizon games"
+              hint="Review linked games, inspect crew fees, and compare them with your invoice."
+            >
+              <GamePicker
+                options={game_options}
+                initialSelected={selected_games}
+                selectedIds={form.data.game_ids}
+                onChange={selectGames}
+                invoiceId={autosave.identity.invoice_id}
+                draftId={autosave.identity.id}
+                invoiceTotal={invoiceTotal(form.data.line_items_attributes)}
+              />
+            </Section>
+            <Section
+              step="04"
+              title="Notes"
+              hint="The right details, in the right place."
+            >
+              <div {...stylex.props(ui.formGrid)}>
+                {field("public_notes", "Notes on invoice", {
+                  multiline: true,
+                  rows: 4,
+                })}
+                {field("private_notes", "Private notes", {
+                  multiline: true,
+                  rows: 4,
+                })}
+              </div>
+            </Section>
           </div>
           <div {...stylex.props(ui.formActions, ui.sticky)}>
             <Link {...stylex.props(ui.link, ui.button)} href="/">

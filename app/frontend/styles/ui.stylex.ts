@@ -368,6 +368,7 @@ export const ui = stylex.create({
     backdropFilter: "blur(8px)",
   },
   hint: { fontSize: 11, lineHeight: 1.6, color: "#8c9981", marginTop: 14 },
+  editorMain: { minWidth: 0 },
   editorLayout: {
     display: "grid",
     gridTemplateColumns: {
