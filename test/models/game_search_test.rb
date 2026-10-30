@@ -28,6 +28,26 @@ class GameSearchTest < ActiveSupport::TestCase
     assert_equal [ @literal.id ], ids(location: 'Example\Field')
   end
 
+  test "multi-select fields match any selected value exactly and combine across fields" do
+    assert_equal [ @alpha.id, @bravo.id ].sort, ids(code: [ "EXAMPLE-JUNIOR", "EXAMPLE-SENIOR" ]).sort
+    assert_equal [ @alpha.id ], ids(home_team: [ "Example Alpha", "Example_% Club" ], away_team: [ "Example Bravo" ], code: [ "EXAMPLE-JUNIOR", "EXAMPLE-SENIOR" ])
+    assert_empty ids(code: [ "JUNIOR" ])
+    assert_equal [ @literal.id ], ids(home_team: [ "Example_% Club" ])
+    assert_equal @season.games.count, ids(code: [], home_team: [], away_team: []).size
+  end
+
+  test "choices include the full master schedule and exclude other years and blank values" do
+    30.times { |index| make_game("EXAMPLE-OPTION-#{index}", code: "EXAMPLE-CODE-#{index}") }
+    other = Season.create!(year: 2032, sheet_name: "Example", issuer: @season.issuer)
+    other.games.create!(external_id: "EXAMPLE-OTHER-YEAR", date: "2032-01-01", code: "PRIVATE-OTHER-YEAR")
+    choices = GameSearch.choices(@season.games)
+    assert_equal 32, choices.fetch("code").size
+    assert_includes choices.fetch("code"), "EXAMPLE-CODE-29"
+    assert_not_includes choices.fetch("code"), "PRIVATE-OTHER-YEAR"
+    assert_not_includes choices.fetch("code"), nil
+    assert_equal [ "Example Alpha", "Example Bravo", "ExampleZZ Club", "Example_% Club" ].sort, choices.fetch("home_team").sort
+  end
+
   test "invoice and workbench filters include only visible workbenches" do
     assert_equal [ @alpha.id ], ids(link_status: "invoiced")
     assert_equal [ @bravo.id ], ids(link_status: "workbench")

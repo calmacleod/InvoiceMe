@@ -7,6 +7,7 @@ class GamesController < ApplicationController
       games: -> { game_list_props(page.call.records) },
       pagination: -> { page.call.props }, total_count: -> { current_season.games.count }, query: params[:q].to_s,
       filters: -> { search.call.filters }, filter_errors: -> { page.call; search.call.errors },
+      filter_choices: -> { game_filter_choices },
       game_detail: InertiaRails.optional { game_detail_props }
     }
   end

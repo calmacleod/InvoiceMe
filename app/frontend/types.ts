@@ -89,19 +89,17 @@ export type GameOptions = {
   query: string;
   filters: GameFilters;
   errors: string[];
+  filter_choices: GameFilterChoices;
 };
-export type GameFilters = Record<
-  | "q"
-  | "home_team"
-  | "away_team"
-  | "code"
-  | "location"
-  | "official"
-  | "date_from"
-  | "date_to"
-  | "link_status",
-  string
+export type GameFilterChoices = Record<
+  "home_team" | "away_team" | "code",
+  string[]
 >;
+export type GameFilters = Record<
+  "q" | "location" | "official" | "date_from" | "date_to" | "link_status",
+  string
+> &
+  Record<keyof GameFilterChoices, string | string[]>;
 export type GameSummary = {
   id: number;
   external_id: string;

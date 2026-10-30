@@ -40,6 +40,19 @@ class GameBrowserTest < ActionDispatch::IntegrationTest
     assert_response :not_found
   end
 
+  test "array selections and all master choices reach both game browsers" do
+    28.times { |index| @season.games.create!(external_id: "EXAMPLE-MULTI-#{index}", code: "EXAMPLE-CHOICE-#{index}", home_team: "Fictional Third", away_team: "Fictional Fourth", date: "2031-03-01") }
+    filters = { code: [ "EXAMPLE-CODE", "OTHER" ], home_team: [ "Fictional Alpha", "Fictional Bravo" ], away_team: [ "Fictional Alpha", "Fictional Bravo" ] }
+    get games_path, params: filters, headers: inertia_headers
+    assert_equal 2, response.parsed_body.dig("props", "pagination", "total")
+    assert_equal filters[:code], response.parsed_body.dig("props", "filters", "code")
+    assert_includes response.parsed_body.dig("props", "filter_choices", "code"), "EXAMPLE-CHOICE-27"
+    get new_invoice_path, params: { game_filters: filters }, headers: inertia_headers.merge("X-Inertia-Partial-Component" => "invoices/Edit", "X-Inertia-Partial-Data" => "game_options")
+    assert_equal 2, response.parsed_body.dig("props", "game_options", "pagination", "total")
+    assert_equal filters[:home_team], response.parsed_body.dig("props", "game_options", "filters", "home_team")
+    assert_includes response.parsed_body.dig("props", "game_options", "filter_choices", "code"), "EXAMPLE-CHOICE-27"
+  end
+
   test "master and invoice pagination retain every applied filter" do
     30.times { |i| @season.games.create!(external_id: "EXAMPLE-PAGE-#{i}", home_team: "Fictional Alpha", away_team: "Fictional Bravo", code: "EXAMPLE-CODE", date: "2031-02-17") }
     filters = { home_team: "alpha", away_team: "bravo", code: "example-code", date_from: "2031-02-17", date_to: "2031-02-17" }

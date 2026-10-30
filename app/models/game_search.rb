@@ -1,10 +1,14 @@
 class GameSearch
   FIELDS = %w[q home_team away_team code location official date_from date_to link_status].freeze
+  MULTI_FIELDS = %w[home_team away_team code].freeze
   attr_reader :filters, :errors
 
   def initialize(scope, values, user:)
     @scope, @user = scope, user
-    @filters = FIELDS.index_with { |key| values[key].to_s.strip.first(200) }
+    @filters = FIELDS.index_with do |key|
+      value = values[key]
+      MULTI_FIELDS.include?(key) && value.is_a?(Array) ? value.grep(String).map { |item| item.strip.first(200) }.reject(&:blank?).uniq : value.to_s.strip.first(200)
+    end
     @filters["link_status"] = "" unless %w[linked unlinked invoiced workbench].include?(@filters["link_status"])
     @errors = []
   end
@@ -16,7 +20,8 @@ class GameSearch
       scope = scope.where(%q(games.external_id LIKE :q ESCAPE '\' OR games.code LIKE :q ESCAPE '\' OR games.home_team LIKE :q ESCAPE '\' OR games.away_team LIKE :q ESCAPE '\' OR games.location LIKE :q ESCAPE '\'), q: value)
     end
     %w[home_team away_team code location].each do |field|
-      scope = scope.where("games.#{field} LIKE ? ESCAPE '\\'", contains(filters[field])) if filters[field].present?
+      next if filters[field].blank?
+      scope = filters[field].is_a?(Array) ? scope.where(field => filters[field]) : scope.where("games.#{field} LIKE ? ESCAPE '\\'", contains(filters[field]))
     end
     if filters["official"].present?
       scope = scope.where(%q{EXISTS (SELECT 1 FROM json_each(games.officials) AS official WHERE json_extract(official.value, '$.name') LIKE ? ESCAPE '\')}, contains(filters["official"]))
@@ -35,6 +40,10 @@ class GameSearch
     when "unlinked" then scope.where.not(id: invoice_ids).where.not(id: draft_ids)
     else scope
     end
+  end
+
+  def self.choices(scope)
+    MULTI_FIELDS.index_with { |field| scope.where.not(field => [ nil, "" ]).distinct.order(field).pluck(field).reject(&:blank?) }
   end
 
   def self.workbench_games(user)

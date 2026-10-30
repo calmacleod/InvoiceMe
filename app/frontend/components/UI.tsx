@@ -241,7 +241,7 @@ export function PaginationControls({
   url: string;
   query: string;
   only: string[];
-  filters?: Record<string, string>;
+  filters?: Record<string, string | string[]>;
 }) {
   return (
     <nav {...stylex.props(ui.tableBottom)} aria-label="Pagination">

@@ -189,6 +189,7 @@ export default memo(function GamePicker({
           collapsible
           id="picker"
           applied={options.filters}
+          choices={options.filter_choices}
           errors={options.errors}
           busy={loading}
           onApply={(filters) => load(filters)}

@@ -3,6 +3,7 @@ import type {
   GameSummary,
   Pagination,
   GameFilters as Filters,
+  GameFilterChoices,
 } from "../../types";
 import * as stylex from "@stylexjs/stylex";
 import { ui } from "../../styles/ui.stylex";
@@ -19,6 +20,7 @@ export default function Index({
   query,
   pagination,
   filters,
+  filter_choices,
   filter_errors,
 }: {
   games: GameSummary[];
@@ -26,6 +28,7 @@ export default function Index({
   total_count: number;
   query: string;
   filters: Filters;
+  filter_choices: GameFilterChoices;
   filter_errors: string[];
 }) {
   const [loading, setLoading] = useState(false);
@@ -68,6 +71,7 @@ export default function Index({
         <GameFilters
           id="master"
           applied={filters}
+          choices={filter_choices}
           errors={filter_errors}
           busy={loading}
           onApply={(values) => {

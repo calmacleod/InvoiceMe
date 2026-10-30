@@ -1,25 +1,28 @@
 import { useEffect, useState } from "react";
-import type { GameFilters as Values } from "../types";
+import type { GameFilters as Values, GameFilterChoices } from "../types";
 import * as stylex from "@stylexjs/stylex";
 import { ui } from "../styles/ui.stylex";
 import { browserStyles as styles } from "./GameBrowser.stylex";
 import { Field } from "./UI";
+import SearchableMultiSelect from "./SearchableMultiSelect";
 
-const labels: [keyof Values, string][] = [
+const labels: [Exclude<keyof Values, keyof GameFilterChoices>, string][] = [
   ["q", "Search games"],
-  ["home_team", "Home team"],
-  ["away_team", "Away team"],
-  ["code", "Game code"],
   ["location", "Venue"],
   ["official", "Official name"],
   ["date_from", "From date"],
   ["date_to", "To date"],
 ];
+const multiLabels: [keyof GameFilterChoices, string][] = [
+  ["code", "Game code"],
+  ["home_team", "Home team"],
+  ["away_team", "Away team"],
+];
 export const emptyGameFilters: Values = {
   q: "",
-  home_team: "",
-  away_team: "",
-  code: "",
+  home_team: [],
+  away_team: [],
+  code: [],
   location: "",
   official: "",
   date_from: "",
@@ -29,6 +32,7 @@ export const emptyGameFilters: Values = {
 
 export default function GameFilters({
   applied,
+  choices,
   errors,
   busy,
   onApply,
@@ -36,6 +40,7 @@ export default function GameFilters({
   collapsible = false,
 }: {
   applied: Values;
+  choices: GameFilterChoices;
   errors: string[];
   busy: boolean;
   onApply: (values: Values) => void;
@@ -43,7 +48,9 @@ export default function GameFilters({
   collapsible?: boolean;
 }) {
   const [values, setValues] = useState(applied);
-  const active = Object.values(applied).filter(Boolean).length;
+  const active = Object.values(applied).filter((value) =>
+    Array.isArray(value) ? value.length > 0 : Boolean(value),
+  ).length;
   const [expanded, setExpanded] = useState(!collapsible || active === 0);
   useEffect(() => setValues(applied), [applied]);
   useEffect(() => {
@@ -70,6 +77,18 @@ export default function GameFilters({
     >
       <legend {...stylex.props(ui.label)}>Filter games</legend>
       <div {...stylex.props(styles.filterGrid)}>
+        {multiLabels.map(([key, label]) => (
+          <SearchableMultiSelect
+            key={key}
+            id={`${id}-${key}`}
+            label={label}
+            options={choices[key]}
+            value={values[key]}
+            onChange={(value) =>
+              setValues((previous) => ({ ...previous, [key]: value }))
+            }
+          />
+        ))}
         {labels.map(([key, label]) => (
           <Field
             key={key}
@@ -125,7 +144,8 @@ export default function GameFilters({
           Clear filters
         </button>
         <span {...stylex.props(ui.hint)}>
-          Team, code, venue and official filters match part of the name.
+          Select any matching codes or teams. Venue and official filters match
+          part of the name.
         </span>
       </div>
       {errors.length > 0 && (

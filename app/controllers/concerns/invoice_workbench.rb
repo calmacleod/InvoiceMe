@@ -20,7 +20,7 @@ module InvoiceWorkbench
       game_options: -> {
         search = game_search(picker: true)
         page = WorkspacePage.new(search.results.order(date: :desc, external_id: :asc), params[:game_page])
-        { games: game_list_props(page.records), pagination: page.props, query: search.filters["q"], filters: search.filters, errors: search.errors }
+        { games: game_list_props(page.records), pagination: page.props, query: search.filters["q"], filters: search.filters, errors: search.errors, filter_choices: game_filter_choices }
       },
       game_detail: InertiaRails.optional { game_detail_props },
       contact_options: InertiaRails.optional {
