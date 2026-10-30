@@ -26,6 +26,43 @@ class InvoiceDocumentTest < ActiveSupport::TestCase
     assert_not_includes text, "INTERNAL ONLY"
   end
 
+  test "ODT uses the required mimetype header and ordinary ZIP entries" do
+    bytes = InvoiceDocument.new(@invoice).odt
+    assert_equal "PK\x03\x04".b, bytes.byteslice(0, 4)
+    assert_equal 0, bytes.byteslice(8, 2).unpack1("v"), "The mimetype entry must be uncompressed"
+    assert_equal 8, bytes.byteslice(26, 2).unpack1("v")
+    assert_equal 0, bytes.byteslice(28, 2).unpack1("v"), "ODF prohibits extra fields in the mimetype header"
+    assert_equal "mimetype", bytes.byteslice(30, 8)
+    assert_equal "application/vnd.oasis.opendocument.text", bytes.byteslice(38, 39)
+
+    Zip::File.open_buffer(bytes) do |zip|
+      assert_equal "mimetype", zip.entries.first.name
+      zip.entries.each do |entry|
+        assert_not entry.zip64?, "Small ODT entries must not require ZIP64: #{entry.name}"
+        assert_operator bytes.byteslice(entry.local_header_offset + 4, 2).unpack1("v"), :<=, 20
+        assert_equal entry.size, zip.read(entry.name).bytesize
+      end
+      manifest = Nokogiri::XML(zip.read("META-INF/manifest.xml")) { |config| config.strict }
+      assert_equal "application/vnd.oasis.opendocument.text", manifest.at_xpath("//manifest:file-entry[@manifest:full-path='/']", "manifest" => "urn:oasis:names:tc:opendocument:xmlns:manifest:1.0")["manifest:media-type"]
+    end
+  end
+
+  test "ODT hyperlinks and page orientation conform to OpenDocument attributes" do
+    Zip::File.open_buffer(InvoiceDocument.new(@invoice).odt) do |zip|
+      content = Nokogiri::XML(zip.read("content.xml")) { |config| config.strict }
+      links = content.xpath("//text:a", content.root.namespaces)
+      assert_equal 2, links.size
+      links.each do |link|
+        assert_equal "simple", link["xlink:type"]
+        assert_equal "mailto:treasurer@example.test", link["xlink:href"]
+      end
+      styles = Nokogiri::XML(zip.read("styles.xml")) { |config| config.strict }
+      layout = styles.at_xpath("//style:page-layout-properties", styles.root.namespaces)
+      assert_equal "portrait", layout["style:print-orientation"]
+      assert_nil layout["fo:print-orientation"]
+    end
+  end
+
   test "wrapped headings and addresses stay within the invoice margins" do
     @invoice.issuer_snapshot = @invoice.issuer.merge(
       "name" => "Example Regional Tackle Football Officials and Community Sports Association"

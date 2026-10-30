@@ -3,6 +3,6 @@
 <office:font-face-decls><style:font-face style:name="Calibri" svg:font-family="Calibri"/></office:font-face-decls>
 <office:styles><style:default-style style:family="paragraph"><style:paragraph-properties fo:margin-top="0in" fo:margin-bottom="0in" fo:line-height="100%"/><style:text-properties style:font-name="Calibri" fo:font-size="12pt" fo:color="#000000"/></style:default-style>
 <style:style style:name="Standard" style:family="paragraph"/>
-</office:styles><office:automatic-styles><style:page-layout style:name="Page"><style:page-layout-properties fo:page-width="8.5in" fo:page-height="11in" fo:margin-top="0.5in" fo:margin-bottom="1in" fo:margin-left="0.75in" fo:margin-right="0.1771in" fo:print-orientation="portrait"/></style:page-layout></office:automatic-styles>
+</office:styles><office:automatic-styles><style:page-layout style:name="Page"><style:page-layout-properties fo:page-width="8.5in" fo:page-height="11in" fo:margin-top="0.5in" fo:margin-bottom="1in" fo:margin-left="0.75in" fo:margin-right="0.1771in" style:print-orientation="portrait"/></style:page-layout></office:automatic-styles>
 <office:master-styles><style:master-page style:name="Standard" style:page-layout-name="Page"/></office:master-styles>
 </office:document-styles>
