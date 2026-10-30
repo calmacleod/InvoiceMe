@@ -28,20 +28,25 @@ class InvoicesController < ApplicationController
   end
   def show
     respond_to do |format|
-      format.html { render inertia: "invoices/Show", props: { invoice: invoice_props(@invoice, detail: true) } }
+      format.html do
+        render inertia: "invoices/Show", props: {
+          invoice: -> { invoice_props(@invoice, detail: true) },
+          google_export: -> { @invoice.invoice_exports.order(id: :desc).first&.progress }
+        }
+      end
       format.pdf { send_data InvoiceDocument.new(@invoice).pdf, filename: "#{@invoice.number}.pdf", type: "application/pdf", disposition: "inline" }
     end
   end
   def edit
-    return redirect_to @invoice, alert: "This invoice is finalized" if @invoice.finalized_at
+    return redirect_to @invoice, alert: "This invoice is finalized or exporting" if @invoice.editing_blocked?
     draft = InvoiceDraft.find_by(user: Current.user, invoice: @invoice)
     return redirect_to edit_invoice_draft_path(draft) if draft
     render_invoice_editor(@invoice)
   end
   def update
     saved = @invoice.with_lock do
-      if @invoice.finalized_at
-        @invoice.errors.add(:base, "This invoice is finalized")
+      if @invoice.editing_blocked?
+        @invoice.errors.add(:base, "This invoice is finalized or exporting")
         false
       else
         @invoice.update(invoice_params)
@@ -54,19 +59,22 @@ class InvoicesController < ApplicationController
     end
   end
   def destroy
-    if @invoice.finalized_at
-      redirect_to @invoice, alert: "Finalized invoices are retained for your records"
-    else
-      @invoice.destroy!
-      redirect_to root_path, notice: "Draft deleted"
+    @invoice.with_lock do
+      if @invoice.editing_blocked?
+        redirect_to @invoice, alert: "Finalized invoices and invoices being exported are retained for your records"
+      else
+        @invoice.destroy!
+        redirect_to root_path, notice: "Draft deleted"
+      end
     end
   end
   def publish
-    PublishInvoice.new(@invoice).call
-    redirect_to @invoice, notice: "Saved to Google Drive and recorded in the master spreadsheet"
+    InvoiceExport.enqueue_for(@invoice)
+    redirect_to @invoice, notice: "Google export queued. You can follow its progress here or return later."
   end
   def payment
     @invoice.with_lock do
+      raise GoogleApi::Error, "Wait for the Google export to finish before recording a payment." if @invoice.exporting?
       @invoice.payments.create!(amount_cents: MoneyValue.cents(params[:amount]), received_on: params[:received_on], method: params[:payment_method], notes: params[:notes])
       @invoice.update!(published_at: nil) if @invoice.google_doc_id
     end

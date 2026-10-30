@@ -1,26 +1,6 @@
 require "test_helper"
+require_relative "../test_helpers/fake_google"
 class PublishInvoiceTest < ActiveSupport::TestCase
-  class FakeGoogle
-    attr_reader :uploads, :writes
-    attr_accessor :fail_write
-    def initialize
-      @uploads, @writes, @row = [], [], nil
-    end
-    def upload(**attrs)
-      @uploads << attrs
-      "file-#{@uploads.size}"
-    end
-    def validate_destination(_) = true
-    def values(_, range)
-      return @row ? [ @row ] : [] if range.include?("I100000")
-      @row ? [ @row ] : []
-    end
-    def write_values(_, range, values)
-      raise GoogleApi::Error, "Network failed" if @fail_write
-      @writes << [ range, values ]
-      @row = values.first
-    end
-  end
   def setup
     @season = seasons(:current)
     @season.update!(drive_folder_id: "folder", spreadsheet_id: "sheet")

@@ -1,6 +1,6 @@
 class PublishInvoice
-  def initialize(invoice, api: nil)
-    @invoice, @api = invoice, api
+  def initialize(invoice, api: nil, progress: nil)
+    @invoice, @api, @progress = invoice, api, progress
   end
   def call
     # Cross-process file lock avoids concurrent remote writes without holding a SQLite write transaction over HTTP.
@@ -8,7 +8,8 @@ class PublishInvoice
     File.open(Rails.root.join("storage/locks/google-publish.lock"), "w") do |lock|
       lock.flock(File::LOCK_EX)
       @invoice.reload
-      ensure_previewed!
+      @invoice.ensure_previewed_for_export!
+      @progress&.call("validating")
       destination = @invoice.destination
       raise GoogleApi::Error, "Set this year's Drive folder and master spreadsheet in Settings" unless destination["drive_folder_id"].present? && destination["spreadsheet_id"].present?
       @api ||= GoogleApi.new
@@ -17,28 +18,27 @@ class PublishInvoice
       # Remote preflight can take time. Recheck under the same invoice lock used
       # by autosave before freezing the document, so late edits cannot disappear.
       @invoice.with_lock do
-        ensure_previewed!
+        @invoice.ensure_previewed_for_export!
+        @progress&.call("finalizing")
         @invoice.finalize!
       end
       renderer = InvoiceDocument.new(@invoice)
+      @progress&.call("document")
       doc = @invoice.google_doc_id || @api.upload(name: @invoice.number, folder: destination.fetch("drive_folder_id"), mime: "application/vnd.oasis.opendocument.text", target_mime: "application/vnd.google-apps.document", bytes: renderer.odt, key: key("doc"))
       @invoice.update!(google_doc_id: doc)
+      @progress&.call("pdf")
       pdf = @invoice.google_pdf_id || @api.upload(name: "#{@invoice.number}.pdf", folder: destination["pdf_folder_id"].presence || destination.fetch("drive_folder_id"), mime: "application/pdf", bytes: renderer.pdf, key: key("pdf"))
       @invoice.update!(google_pdf_id: pdf)
+      @progress&.call("ledger")
       sync_ledger(destination)
       @invoice.update!(published_at: Time.current, publish_error: nil)
     end
     @invoice
-  rescue GoogleApi::Error, Net::OpenTimeout, Net::ReadTimeout, SocketError, IOError => e
+  rescue GoogleApi::Error => e
     @invoice.update!(publish_error: e.message)
-    raise GoogleApi::Error, e.message
+    raise
   end
   private
-  def ensure_previewed!
-    if !@invoice.finalized_at && InvoiceDraft.where(invoice: @invoice).where.not(data: {}).exists?
-      raise GoogleApi::Error, "This invoice has workbench edits. Resume the draft and use Save & preview before publishing."
-    end
-  end
   def check_number_available(destination)
     tab = "'#{destination.fetch('sheet_name').gsub("'", "''")}'"
     rows = @api.values(destination.fetch("spreadsheet_id"), "#{tab}!A#{destination.fetch('ledger_start_row')}:I100000")

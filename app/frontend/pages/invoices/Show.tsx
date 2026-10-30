@@ -1,12 +1,20 @@
 import Link from "../../components/AppLink";
-import type { SavedInvoice } from "../../types";
+import type { GoogleExportProgress, SavedInvoice } from "../../types";
+import { useEffect, useRef } from "react";
 import * as stylex from "@stylexjs/stylex";
 import { ui } from "../../styles/ui.stylex";
-import { Head, useForm, usePage } from "@inertiajs/react";
+import { Head, router, useForm, usePage, usePoll } from "@inertiajs/react";
 import { Badge, Errors, Field, Heading } from "../../components/UI";
 import { money } from "../../lib/format";
 import InvoiceDocument from "../../components/InvoiceDocument";
-export default function Show({ invoice }: { invoice: SavedInvoice }) {
+import GoogleExportStatus from "../../components/GoogleExportStatus";
+export default function Show({
+  invoice,
+  google_export,
+}: {
+  invoice: SavedInvoice;
+  google_export: GoogleExportProgress | null;
+}) {
   const { today } = usePage().props;
   const notes = useForm({
     private_notes: invoice.private_notes ?? "",
@@ -20,6 +28,23 @@ export default function Show({ invoice }: { invoice: SavedInvoice }) {
   const publish = useForm({});
   const deletion = useForm({});
   const url = `/invoices/${invoice.id}`;
+  const exporting = google_export?.active ?? false;
+  const wasExporting = useRef(exporting);
+  const { start, stop } = usePoll(
+    2000,
+    { only: ["google_export"] },
+    { autoStart: false, background: "pause", mode: "rest" },
+  );
+  useEffect(() => {
+    if (exporting) start();
+    else stop();
+    if (wasExporting.current && !exporting) {
+      router.flushAll();
+      router.reload({ only: ["invoice"] });
+    }
+    wasExporting.current = exporting;
+    return stop;
+  }, [exporting, start, stop]);
   return (
     <>
       <Head title={invoice.number} />
@@ -28,7 +53,7 @@ export default function Show({ invoice }: { invoice: SavedInvoice }) {
         actions={
           <div {...stylex.props(ui.actions)}>
             <Badge status={invoice.status} />
-            {!invoice.finalized_at && (
+            {!invoice.finalized_at && !exporting && (
               <Link
                 {...stylex.props(ui.link, ui.button)}
                 href="/invoice_drafts"
@@ -52,7 +77,7 @@ export default function Show({ invoice }: { invoice: SavedInvoice }) {
       >
         {invoice.description}
       </Heading>
-      {invoice.publish_error && (
+      {invoice.publish_error && !google_export && (
         <div {...stylex.props(ui.flash, ui.alert)}>
           <strong {...stylex.props(ui.strong)}>
             Google sync needs attention.
@@ -75,9 +100,10 @@ export default function Show({ invoice }: { invoice: SavedInvoice }) {
                 ? "Sync safely resumes completed steps and updates the ledger."
                 : "Publishing finalizes the invoice, saves a Google Doc and PDF, and records it in your master spreadsheet."}
             </p>
+            {google_export && <GoogleExportStatus progress={google_export} />}
             <button
               {...stylex.props(ui.nativeButton, ui.button, ui.primary, ui.full)}
-              disabled={publish.processing}
+              disabled={publish.processing || exporting}
               onClick={() => {
                 if (
                   invoice.finalized_at ||
@@ -88,11 +114,13 @@ export default function Show({ invoice }: { invoice: SavedInvoice }) {
                   publish.post(`${url}/publish`);
               }}
             >
-              {publish.processing
-                ? "Saving…"
-                : invoice.finalized_at
-                  ? "Sync to Google ↗"
-                  : "Finalize & save to Google ↗"}
+              {publish.processing || exporting
+                ? "Export in progress…"
+                : google_export?.status === "failed"
+                  ? "Retry Google export ↗"
+                  : invoice.finalized_at
+                    ? "Sync to Google ↗"
+                    : "Finalize & save to Google ↗"}
             </button>
             {invoice.google_doc_id && (
               <p {...stylex.props(ui.paragraph)}>
@@ -204,10 +232,15 @@ export default function Show({ invoice }: { invoice: SavedInvoice }) {
                   />
                   <button
                     {...stylex.props(ui.nativeButton, ui.button, ui.full)}
-                    disabled={payment.processing}
+                    disabled={payment.processing || exporting}
                   >
                     Record payment
                   </button>
+                  {exporting && (
+                    <p {...stylex.props(ui.paragraph, ui.hint)}>
+                      Payments can be recorded when the export finishes.
+                    </p>
+                  )}
                 </form>
               )}
             </section>
@@ -255,7 +288,7 @@ export default function Show({ invoice }: { invoice: SavedInvoice }) {
               ))}
             </section>
           )}
-          {!invoice.finalized_at && (
+          {!invoice.finalized_at && !exporting && (
             <button
               {...stylex.props(ui.nativeButton, ui.textButton, ui.danger)}
               disabled={deletion.processing}

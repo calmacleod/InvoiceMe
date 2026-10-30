@@ -5,6 +5,7 @@ class Invoice < ApplicationRecord
   has_many :games, through: :invoice_games
   has_many :payments, dependent: :restrict_with_error
   has_many :invoice_drafts, dependent: :destroy
+  has_many :invoice_exports, dependent: :destroy
   accepts_nested_attributes_for :line_items, allow_destroy: true, reject_if: ->(a) { a["description"].blank? && a["rate"].blank? }
   validates :number, :recipient, :description, :issued_on, presence: true
   validates :number, uniqueness: { scope: :season_id }, format: { with: /\A[\p{L}\p{N}_. -]+\z/, message: "may contain letters, numbers, spaces, underscores, periods, and hyphens" }, length: { maximum: 120 }
@@ -16,6 +17,13 @@ class Invoice < ApplicationRecord
   def owed_cents = total_cents - received_cents
   def issuer = issuer_snapshot || season.issuer
   def destination = destination_snapshot || season.destination
+  def exporting? = persisted? && invoice_exports.active.exists?
+  def editing_blocked? = finalized_at.present? || exporting?
+  def ensure_previewed_for_export!
+    if !finalized_at && invoice_drafts.where.not(data: {}).exists?
+      raise GoogleApi::Error, "This invoice has workbench edits. Resume the draft and use Save & preview before publishing."
+    end
+  end
   def status
     return "Draft" unless finalized_at
     return "Needs sync" unless published_at

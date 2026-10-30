@@ -246,3 +246,22 @@ export type SavedInvoice = InvoiceDetail & {
   recipient: string;
   description: string;
 };
+
+export type GoogleExportProgress = {
+  id: number;
+  status: "queued" | "running" | "retrying" | "succeeded" | "failed";
+  step:
+    | "waiting"
+    | "validating"
+    | "finalizing"
+    | "document"
+    | "pdf"
+    | "ledger"
+    | "complete";
+  active: boolean;
+  attempts: number;
+  max_attempts: number;
+  error: string | null;
+  retry_at: string | null;
+  finished_at: string | null;
+};

@@ -25,6 +25,7 @@ class InvoiceDraft < ApplicationRecord
   def valid_workbench
     errors.add(:invoice, "belongs to a different year") if invoice && invoice.season_id != season_id
     errors.add(:invoice, "is finalized") if invoice&.finalized_at
+    errors.add(:invoice, "is being exported") if invoice && !invoice.finalized_at && invoice.exporting?
     unless data.is_a?(Hash) && data.to_json.bytesize <= 512_000 &&
         (data.keys - FIELDS - %w[game_ids line_items_attributes]).empty? &&
         FIELDS.all? { |field| !data.key?(field) || data[field].is_a?(String) } &&

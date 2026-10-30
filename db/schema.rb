@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_30_150000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_30_160000) do
   create_table "contacts", force: :cascade do |t|
     t.integer "user_id", null: false
     t.string "name", null: false
@@ -67,6 +67,20 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_30_150000) do
     t.index ["user_id", "invoice_id"], name: "index_invoice_drafts_on_user_id_and_invoice_id", unique: true, where: "invoice_id IS NOT NULL"
     t.index ["user_id", "season_id", "updated_at", "id"], name: "index_invoice_drafts_for_workbench", order: { updated_at: :desc, id: :desc }
     t.index ["user_id"], name: "index_invoice_drafts_on_user_id"
+  end
+
+  create_table "invoice_exports", force: :cascade do |t|
+    t.integer "invoice_id", null: false
+    t.string "status", default: "queued", null: false
+    t.string "step", default: "waiting", null: false
+    t.integer "attempts", default: 0, null: false
+    t.text "error"
+    t.datetime "retry_at"
+    t.datetime "finished_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["invoice_id"], name: "index_invoice_exports_on_invoice_id"
+    t.index ["invoice_id"], name: "index_one_active_export_per_invoice", unique: true, where: "status IN ('queued', 'running', 'retrying')"
   end
 
   create_table "invoice_games", force: :cascade do |t|
@@ -163,6 +177,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_30_150000) do
   add_foreign_key "invoice_drafts", "invoices"
   add_foreign_key "invoice_drafts", "seasons"
   add_foreign_key "invoice_drafts", "users"
+  add_foreign_key "invoice_exports", "invoices"
   add_foreign_key "invoice_games", "games"
   add_foreign_key "invoice_games", "invoices"
   add_foreign_key "invoices", "seasons"

@@ -28,7 +28,7 @@ class InvoiceDraftsController < ApplicationController
       if params[:invoice_id].present?
         invoice = Invoice.find(params[:invoice_id])
         invoice.with_lock do
-          return redirect_to invoice, alert: "This invoice is finalized" if invoice.finalized_at
+          return redirect_to invoice, alert: "This invoice is finalized or exporting" if invoice.editing_blocked?
           draft = own_drafts.find_or_create_by!(invoice: invoice) { |work| work.season = invoice.season; work.client_key = SecureRandom.uuid }
           redirect_to edit_invoice_draft_path(draft)
         end
@@ -40,7 +40,7 @@ class InvoiceDraftsController < ApplicationController
   end
 
   def edit
-    return redirect_to @draft.invoice, alert: "This invoice is finalized" if @draft.invoice&.finalized_at
+    return redirect_to @draft.invoice, alert: "This invoice is finalized or exporting" if @draft.invoice&.editing_blocked?
     @current_season = @draft.season
     session[:season_id] = @draft.season_id
     render_invoice_editor(@draft.invoice || fresh_invoice, draft: @draft)
@@ -64,7 +64,7 @@ class InvoiceDraftsController < ApplicationController
   def preview_locked(invoice)
     @draft.with_lock do
       raise ActiveRecord::StaleObjectError.new(@draft, "preview") unless @draft.lock_version == params.require(:lock_version).to_i
-      return redirect_to invoice, alert: "This invoice is finalized" if invoice.finalized_at
+      return redirect_to invoice, alert: "This invoice is finalized or exporting" if invoice.editing_blocked?
       if @draft.data.present?
         attrs = @draft.data.except("line_items_attributes")
         attrs["line_items_attributes"] = Array(@draft.data["line_items_attributes"]).map { |item| item.except("key") }
@@ -86,7 +86,7 @@ class InvoiceDraftsController < ApplicationController
   end
   def persist_data
     @draft.reload if @draft.persisted?
-    return conflict if @draft.invoice&.finalized_at
+    return conflict if @draft.invoice&.editing_blocked?
     data = params.require(:data).permit(*InvoiceDraft::FIELDS, game_ids: [], line_items_attributes: %i[id key description quantity rate position _destroy]).to_h
     # Retrying an acknowledged-lost request is harmless. A different payload
     # must carry the current revision; another tab's work is never overwritten.
@@ -106,7 +106,7 @@ class InvoiceDraftsController < ApplicationController
     render json: { error: "A workbench already exists for this invoice. Open it from Draft workbench." }, status: :conflict
   end
   def conflict
-    message = "This draft changed in another tab or was finalized. Your edits are still on this page. Open the saved draft in another tab to compare before continuing."
+    message = "This draft changed in another tab, was finalized, or is being exported. Your edits are still on this page. Open the saved draft in another tab to compare before continuing."
     if request.format.json?
       render json: { error: message }, status: :conflict
     else

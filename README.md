@@ -7,10 +7,14 @@ A private EOTFOA treasurer workspace for Horizon game imports, invoice preparati
 1. Open **Games & officials → Import Horizon file**. Upload a CSV or XLSX export, match columns, review the totals, then import. Files can contain one row per game, one row per assignment, or separate name/fee columns for each position. All original columns remain available in each game's Source details. ISO dates are accepted automatically; explicitly choose the format of other dates.
 2. Choose **Create invoice**. Enter a unique invoice number, recipient, ledger description, dates, and line items. Quantities support three decimal places; rates use exact cents. Optionally select games. Game fees are reference information; linking games does not change invoice prices. The same game can be linked to multiple invoices, with a visible warning.
 3. Save the draft, review the preview, and download its PDF if desired. Private notes never appear in the PDF or Google Doc.
-4. Choose **Finalize & save to Google**. The app validates the destination and checks for an existing invoice number, freezes the issuer/address/payment details and destination, creates a native Google Doc and PDF, and records the ledger row. After finalization, invoice details cannot be edited. Make corrections using a new invoice number. Private notes remain editable.
+4. Choose **Finalize & save to Google**. The app queues a background export and shows its progress on the invoice page. You can leave the page and return later. The job validates the destination and checks for an existing invoice number, freezes the issuer/address/payment details and destination, creates a native Google Doc and PDF, and records the ledger row. After finalization, invoice details cannot be edited. Make corrections using a new invoice number. Private notes remain editable.
 5. Record payments against finalized invoices. **Sync to Google** updates the received amount, balance, last payment method, and deposit date. Payment recording is local; syncing is a separate explicit action.
 
 The register contains invoices created in InvoiceMe. Historical invoices already in Drive/Sheets are not automatically migrated. Invoice emails are not sent by this app. Password resets use Action Mailer.
+
+Google exports run through Active Job and the existing Solid Queue worker in production. The invoice page polls progress every two seconds while an export is active, pauses polling in a hidden tab, and refreshes the invoice when the export finishes. Status, completed file IDs, and the pending ledger row are retained in the database. Repeated clicks reuse the active export. Invoice edits, deletion, and payment recording wait until the export finishes; private notes remain editable.
+
+Temporary Google server errors, rate limits, and interrupted connections retry up to five total attempts, with increasing delays of approximately 10 seconds, 30 seconds, two minutes, and five minutes. Each attempt rechecks for previously created Drive files and reuses saved file IDs and the ledger row. Permission, authorization, and destination errors stop immediately with guidance. After retries are exhausted or a configuration error is resolved, **Retry Google export** starts another background attempt. No retry delay holds an HTTP request or a worker thread open. Local `bin/dev` uses Rails' normal in-process asynchronous adapter; production uses the durable queue configured in `config/environments/production.rb`.
 
 ## Invoice appearance
 
@@ -113,7 +117,7 @@ bin/kamal rollback <previous-version>
 
 The `invoice_me_storage` named volume contains the existing primary database and Rails' separate production cache, queue, and cable databases. It was retained during migration from Compose. No host application port is published; the shared Kamal proxy routes HTTPS to the active release's Thruster port. Other apps use their own services and volumes.
 
-Production migrations run through the generated Docker entrypoint's `db:prepare`. `/up` is the health endpoint. Invoice publishing has a per-service 180-second response timeout. The retired Compose deployment is no longer used; its original source and a pre-migration database snapshot are retained on the VM for recovery.
+Production migrations run through the generated Docker entrypoint's `db:prepare`. `/up` is the health endpoint. Google exports run outside web requests using the existing Solid Queue supervisor in Puma; no additional service or proxy route is needed. The retired Compose deployment is no longer used; its original source and a pre-migration database snapshot are retained on the VM for recovery.
 
 ## Checks
 
