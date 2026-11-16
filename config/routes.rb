@@ -1,4 +1,29 @@
 Rails.application.routes.draw do
+  namespace :api do
+    namespace :v1 do
+      resource :google, only: %i[show destroy]
+      resources :seasons, only: %i[index show create update]
+      resources :contacts, only: %i[index show create update destroy]
+      resources :drafts, only: %i[index show create update destroy] do
+        post :preview, on: :member
+      end
+      resources :invoices, only: %i[index show create update destroy] do
+        member do
+          post :publish
+          post :reopen
+          post :payment
+          patch :notes
+          get :pdf
+        end
+      end
+      resources :games, only: %i[index show] do
+        collection do
+          patch :invoicing_status
+          post :import
+        end
+      end
+    end
+  end
   resource :session
   resources :contacts, except: :show
   resources :passwords, param: :token

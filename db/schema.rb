@@ -10,7 +10,20 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_30_230000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_16_120000) do
+  create_table "api_keys", force: :cascade do |t|
+    t.integer "user_id", null: false
+    t.string "name", null: false
+    t.string "token_digest", null: false
+    t.boolean "write_access", default: false, null: false
+    t.datetime "last_used_at"
+    t.datetime "revoked_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["token_digest"], name: "index_api_keys_on_token_digest", unique: true
+    t.index ["user_id"], name: "index_api_keys_on_user_id"
+  end
+
   create_table "contacts", force: :cascade do |t|
     t.integer "user_id", null: false
     t.string "name", null: false
@@ -179,6 +192,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_30_230000) do
     t.index ["email_address"], name: "index_users_on_email_address", unique: true
   end
 
+  add_foreign_key "api_keys", "users"
   add_foreign_key "contacts", "users"
   add_foreign_key "games", "seasons"
   add_foreign_key "invoice_drafts", "invoices"
