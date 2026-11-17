@@ -139,23 +139,26 @@ Restore only while the InvoiceMe service is stopped, with a backup of the curren
 
 This version imports downloaded CSV/XLSX files. The native master-fees export is detected automatically, including its repeated name/position/fee groups after the fixed game fields. Every official and position is retained, the fees are summed exactly, the Paid By Team field is retained, and meeting entries are excluded with a visible count. These are fee amounts, not evidence that an official has actually been paid. It does not scrape the signed-in website and does not assume access to Horizon's Developer API. Export the complete filtered schedule/payroll report yourself and use the upload/review workflow. CSV layouts vary; explicit mapping and separate position-name/fee pairs are supported. The API service layer is available for future integration; it does not yet connect accounts, synchronize, or change this import workflow.
 
-### Horizon API service layer
+### Horizon API and connection
 
-`Horizon::Client` wraps the [Horizon Developer API](https://www.horizonwebref.com/developer). Supply `HORIZON_APP_ID` and `HORIZON_APP_KEY` as environment secrets, or pass `app_id:` and `app_key:` explicitly. Do not commit credentials. No Horizon credentials are configured or deployed by this change.
+Set `HORIZON_APP_ID` and `HORIZON_APP_KEY` in the ignored `.kamal/secrets` file and deploy with Kamal. Never commit credentials. In **Year & settings**, choose **Connect Horizon** and approve read-only organization access. Horizon may offer multiple organizations; select only those you want to connect. InvoiceMe encrypts each authorization code and access token in SQLite using keys derived from `SECRET_KEY_BASE`, which must remain stable. Use **Test read access** for a single schedule request for today. Disconnect deletes local credentials; revoke access separately in Horizon. No game data is imported by this test.
 
-```ruby
-client = Horizon::Client.new
-approval = client.request_code(scope: [ "read_organization" ], callback_uri: "https://example.com/horizon/callback")
-# Send the user to approval.fetch("login_uri"); after consent, exchange the authorization code.
-token = client.request_token(authorization_code: authorization_code)
-client = Horizon::Client.new(access_token: token.fetch("access_token"))
-page = client.request(:get, "schedule", params: { start_date: "2031-01-01", end_date: "2031-01-31" })
-event = client.request(:get, "schedule", "fictional-event-id")
-```
+The integration requests only `read_organization`. Horizon enforces the user's roles and approved scopes; methods that change Horizon data require additional permissions and an appropriately authorized token. The client makes no automatic retries or pagination requests. A token exchange can return HTTP 409 if Horizon already has a valid token that InvoiceMe did not receive (for example after a dropped response); wait for that token to expire before retrying. Authorization codes last one year and access tokens last 30 minutes. The app serializes token exchanges on its shared storage volume and reuses the token until expiry.
 
-`request` accepts GET, POST, PUT and DELETE, path segments, and the endpoint's documented parameters as a JSON object. It can call all documented resources, including operations with multiple IDs; consult Horizon's reference for supported methods, parameters, scopes and side effects. The full response hash is returned, including pagination metadata. Pagination is not automatic: check the endpoint's current documentation before requesting additional pages. Requests have bounded timeouts and are not automatically retried. `Horizon::Client::Error` subclasses distinguish missing configuration, authentication, rate limiting, transient network/server errors, and malformed responses; `status` exposes the HTTP status where available. Errors deliberately omit response bodies and request data.
+The [Horizon Developer API](https://www.horizonwebref.com/developer) is available through named resource methods. `HorizonConnection.find(id).access_token_for_request` obtains the token; construct `Horizon::Client.new(access_token: token)` and call, for example, `client.schedule.list(start_date: "2031-01-01", end_date: "2031-01-31", cancelled: false)` or `client.teams.find("fictional-id")`. Methods return the complete Horizon response, including pagination metadata. Each call is one API request. The available resources and methods are:
 
-Horizon authorization codes are long-lived and access tokens last 30 minutes. Horizon documents a 409 when a valid token already exists, so a future integration must securely persist and reuse the current token until it expires, handle concurrent exchanges, and protect authorization codes. The service does not implement a callback, token persistence, refresh coordination, or automatic reauthorization. Those are required before connecting an account. Horizon's rate limits apply to calls; there is no built-in rate limiter.
+| Resource | Methods |
+| --- | --- |
+| `contact_groups` | `list`, `find`, `create`, `update`, `delete_many`, `add_members`, `remove_members`, `add_member`, `remove_member` |
+| `custom_fields` | `list`, `find`, `find_answer`, `save_answer`, `delete_answers`, `delete_answer` |
+| `event_codes`, `leagues`, `locations`, `teams` | `list`, `find`, `create`, `update`, `deactivate`, `deactivate_many` |
+| `manual_ranks` | `list`, `find`, `update` |
+| `payroll_adjustments` | `list`, `find`, `create`, `update`, `update_many`, `delete`, `delete_many` |
+| `positions` | `list`, `find`, `deactivate`, `deactivate_many` |
+| `schedule` | `list`, `find`, `create`, `update`, `cancel_many`, `remove` |
+| `users` | `list`, `find`, `find_permission`, `create`, `update_permission`, `delete_permission`, `delete_many` |
+
+Resource methods take path IDs as positional arguments and documented query parameters as keywords; their accepted names are listed in the corresponding `app/services/horizon/` resource class. The API reference defines value types and conditional requirements. Horizon labels the bulk contact-group member and payroll-adjustment IDs as path parameters despite omitting them from the path; the wrapper sends them in the JSON body. The reference does not document manual-rank update fields, so that method accepts arbitrary keyword fields. Those cases require live verification. For newly introduced or undocumented endpoints, `client.request` remains available. Errors omit response bodies and distinguish configuration, authentication, rate limit, transient network/server, and response failures.
 
 Horizon exports contain private information. Keep downloaded exports outside Git. Automated fixtures use fictional names, teams, locations, game IDs, dates, and fees; the normal `HorizonWebRef_Master_Fees_*.csv` export filename pattern is ignored.
 

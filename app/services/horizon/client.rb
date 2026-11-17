@@ -31,6 +31,18 @@ module Horizon
       @app_id, @app_key, @access_token = app_id, app_key, access_token
     end
 
+    def contact_groups = ContactGroups.new(self)
+    def custom_fields = CustomFields.new(self)
+    def event_codes = EventCodes.new(self)
+    def leagues = Leagues.new(self)
+    def locations = Locations.new(self)
+    def manual_ranks = ManualRanks.new(self)
+    def payroll_adjustments = PayrollAdjustments.new(self)
+    def positions = Positions.new(self)
+    def schedule = Schedule.new(self)
+    def teams = Teams.new(self)
+    def users = Users.new(self)
+
     def request_code(scope:, callback_uri:)
       request(:post, "oauth2", "requestCode", params: { scope: scope, callback_uri: callback_uri }, authenticated: false)
     end

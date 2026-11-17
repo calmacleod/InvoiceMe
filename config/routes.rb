@@ -55,6 +55,10 @@ Rails.application.routes.draw do
       get :sample
     end
   end
+  post "horizon/connect" => "horizon#connect"
+  get "horizon/callback/:state" => "horizon#callback", as: :horizon_callback
+  post "horizon/:id/test" => "horizon#test", as: :test_horizon
+  delete "horizon/disconnect" => "horizon#disconnect"
   post "google/connect" => "google#connect"
   get "google/callback" => "google#callback"
   delete "google/disconnect" => "google#disconnect"

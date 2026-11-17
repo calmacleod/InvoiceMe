@@ -9,9 +9,14 @@ import { Errors, Field, Heading, Section } from "../../components/UI";
 export default function Edit({
   season,
   google,
+  horizon,
 }: {
   season: SeasonSettings;
   google: { configured: boolean; email: string | null };
+  horizon: {
+    configured: boolean;
+    connections: { id: number; organization_name: string | null }[];
+  };
 }) {
   const form = useForm<SeasonForm>({
     year: String(season.year),
@@ -23,6 +28,7 @@ export default function Edit({
     spreadsheet_id: season.spreadsheet_id ?? "",
   });
   const disconnect = useForm({});
+  const horizonActions = useForm({});
   const field = (
     key: Exclude<keyof SeasonForm, "issuer">,
     label: string,
@@ -120,6 +126,55 @@ export default function Edit({
               </Link>
             )}
           </div>
+          <div {...stylex.props(ui.card, ui.connection)}>
+            <div>
+              <h2 {...stylex.props(ui.h2)}>Horizon connection</h2>
+              <p {...stylex.props(ui.paragraph)}>
+                {horizon.connections.length
+                  ? "Authorized for read-only organization access. Test each connection before using it."
+                  : "Connect Horizon to test read-only access to your organization."}
+              </p>
+              {horizon.connections.map((connection, index) => (
+                <div key={connection.id}>
+                  {connection.organization_name || `Organization ${index + 1}`}{" "}
+                  <button
+                    type="button"
+                    {...stylex.props(ui.nativeButton, ui.button)}
+                    disabled={horizonActions.processing}
+                    onClick={() =>
+                      horizonActions.post(`/horizon/${connection.id}/test`)
+                    }
+                  >
+                    Test read access
+                  </button>
+                </div>
+              ))}
+            </div>
+            {horizon.connections.length ? (
+              <button
+                type="button"
+                {...stylex.props(ui.nativeButton, ui.button)}
+                disabled={horizonActions.processing}
+                onClick={() => horizonActions.delete("/horizon/disconnect")}
+              >
+                Disconnect Horizon
+              </button>
+            ) : (
+              <Link
+                {...stylex.props(ui.link, ui.button, ui.primary)}
+                as="button"
+                method="post"
+                href="/horizon/connect"
+              >
+                Connect Horizon ↗
+              </Link>
+            )}
+          </div>
+          {!horizon.configured && (
+            <div {...stylex.props(ui.flash)}>
+              Horizon application credentials are not configured yet.
+            </div>
+          )}
           {!google.configured && (
             <div {...stylex.props(ui.flash)}>
               Google OAuth credentials are not configured yet. See the README
