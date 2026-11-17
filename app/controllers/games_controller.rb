@@ -5,6 +5,8 @@ class GamesController < ApplicationController
     order = GameOrder.new(params[:sort], params[:direction])
     page = -> { @game_page ||= WorkspacePage.new(order.apply(search.call.results), params[:page], params[:per_page]) }
     render inertia: "games/Index", props: {
+      horizon_connections: -> { HorizonConnection.order(:id).map { |connection| { id: connection.id, name: connection.organization_name } } },
+      active_horizon_sync: -> { Current.user.horizon_game_syncs.where(season: current_season, status: %w[queued running ready]).order(id: :desc).pick(:id) },
       games: -> { game_list_props(page.call.records) },
       pagination: -> { page.call.props }, total_count: -> { current_season.games.count }, query: -> { search.call.filters["q"] },
       filters: -> { search.call.filters }, filter_errors: -> { page.call; search.call.errors },

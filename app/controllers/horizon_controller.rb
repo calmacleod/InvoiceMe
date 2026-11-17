@@ -46,6 +46,7 @@ class HorizonController < ApplicationController
   end
 
   def disconnect
+    HorizonGameSync.delete_all
     HorizonConnection.destroy_all
     redirect_to edit_season_path(current_season), notice: "Horizon disconnected from InvoiceMe. Revoke access in Horizon if desired."
   end

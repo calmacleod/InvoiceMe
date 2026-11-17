@@ -127,6 +127,7 @@ export type GameSummary = {
   matchup: string;
   official_count: number;
   paid_by_team: string | null;
+  horizon_cancelled: string | null;
   invoices: { id: number; number: string; finalized_at: string | null }[];
   workbenches: { id: number; title: string }[];
 };

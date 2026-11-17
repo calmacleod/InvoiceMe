@@ -55,6 +55,9 @@ Rails.application.routes.draw do
       get :sample
     end
   end
+  resources :horizon_game_syncs, only: %i[create show destroy] do
+    post :apply, on: :member
+  end
   post "horizon/connect" => "horizon#connect"
   get "horizon/callback/:state" => "horizon#callback", as: :horizon_callback
   post "horizon/:id/test" => "horizon#test", as: :test_horizon

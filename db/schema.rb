@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_17_160000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_17_170000) do
   create_table "api_keys", force: :cascade do |t|
     t.integer "user_id", null: false
     t.string "name", null: false
@@ -53,6 +53,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_17_160000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.boolean "already_invoiced", default: false, null: false
+    t.string "horizon_cancelled"
     t.index ["season_id", "date", "external_id"], name: "index_games_on_season_id_and_date_and_external_id", order: { date: :desc }
     t.index ["season_id", "external_id"], name: "index_games_on_season_id_and_external_id", unique: true
     t.index ["season_id"], name: "index_games_on_season_id"
@@ -72,6 +73,24 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_17_160000) do
     t.string "organization_name"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+  end
+
+  create_table "horizon_game_syncs", force: :cascade do |t|
+    t.integer "season_id", null: false
+    t.integer "user_id", null: false
+    t.integer "horizon_connection_id", null: false
+    t.string "status", default: "queued", null: false
+    t.integer "pages_fetched", default: 0, null: false
+    t.integer "total_pages"
+    t.json "games", default: [], null: false
+    t.text "error"
+    t.datetime "completed_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index "(1)", name: "index_one_active_horizon_game_sync", unique: true, where: "status IN ('queued', 'running')"
+    t.index ["horizon_connection_id"], name: "index_horizon_game_syncs_on_horizon_connection_id"
+    t.index ["season_id"], name: "index_horizon_game_syncs_on_season_id"
+    t.index ["user_id"], name: "index_horizon_game_syncs_on_user_id"
   end
 
   create_table "invoice_drafts", force: :cascade do |t|
@@ -204,6 +223,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_17_160000) do
   add_foreign_key "api_keys", "users"
   add_foreign_key "contacts", "users"
   add_foreign_key "games", "seasons"
+  add_foreign_key "horizon_game_syncs", "horizon_connections"
+  add_foreign_key "horizon_game_syncs", "seasons"
+  add_foreign_key "horizon_game_syncs", "users"
   add_foreign_key "invoice_drafts", "invoices"
   add_foreign_key "invoice_drafts", "seasons"
   add_foreign_key "invoice_drafts", "users"

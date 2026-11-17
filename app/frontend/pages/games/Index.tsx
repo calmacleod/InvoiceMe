@@ -33,6 +33,8 @@ export default function Index({
   filter_choices,
   filter_errors,
   sort,
+  horizon_connections,
+  active_horizon_sync,
 }: {
   games: GameSummary[];
   pagination: Pagination;
@@ -42,6 +44,8 @@ export default function Index({
   filter_choices: GameFilterChoices;
   filter_errors: string[];
   sort: GameSort;
+  horizon_connections: { id: number; name: string | null }[];
+  active_horizon_sync: number | null;
 }) {
   const [loading, setLoading] = useState(false);
   const { current_season: season } = usePage().props;
@@ -132,12 +136,39 @@ export default function Index({
         eyebrow="THE SEASON'S SOURCE OF TRUTH"
         title="Games & officials."
         actions={
-          <Link
-            {...stylex.props(ui.link, ui.button, ui.primary)}
-            href="/games/new"
-          >
-            ↑ Import Horizon file
-          </Link>
+          <div {...stylex.props(ui.actions)}>
+            <Link {...stylex.props(ui.link, ui.button)} href="/games/new">
+              Import Horizon file
+            </Link>
+            {active_horizon_sync ? (
+              <Link
+                {...stylex.props(ui.link, ui.button, ui.primary)}
+                href={`/horizon_game_syncs/${active_horizon_sync}`}
+              >
+                View Horizon sync
+              </Link>
+            ) : (
+              horizon_connections.map((connection, index) => (
+                <Link
+                  key={connection.id}
+                  {...stylex.props(ui.link, ui.button, ui.primary)}
+                  as="button"
+                  method="post"
+                  href="/horizon_game_syncs"
+                  data={{
+                    horizon_connection_id: connection.id,
+                    season_id: season?.id,
+                  }}
+                >
+                  Sync{" "}
+                  {connection.name ||
+                    (horizon_connections.length > 1
+                      ? `organization ${index + 1}`
+                      : "from Horizon")}
+                </Link>
+              ))
+            )}
+          </div>
         }
       >
         Find the right games, inspect crew fees, and see where each game is

@@ -1,4 +1,5 @@
 class User < ApplicationRecord
+  has_many :horizon_game_syncs, dependent: :destroy
   has_many :invoice_drafts, dependent: :destroy
   has_many :contacts, dependent: :destroy
   has_secure_password

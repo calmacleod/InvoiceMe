@@ -143,6 +143,11 @@ export default function GameResultsTable({
                   #{game.external_id}
                 </strong>
                 <small {...stylex.props(ui.small)}>{game.code}</small>
+                {game.horizon_cancelled && (
+                  <small {...stylex.props(ui.small)}>
+                    Horizon cancelled: {game.horizon_cancelled}
+                  </small>
+                )}
                 {game.paid_by_team && (
                   <small {...stylex.props(ui.small)}>
                     Paid by team: {game.paid_by_team}
