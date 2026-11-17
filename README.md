@@ -137,7 +137,25 @@ Restore only while the InvoiceMe service is stopped, with a backup of the curren
 
 ## Horizon integration
 
-This version imports downloaded CSV/XLSX files. The native master-fees export is detected automatically, including its repeated name/position/fee groups after the fixed game fields. Every official and position is retained, the fees are summed exactly, the Paid By Team field is retained, and meeting entries are excluded with a visible count. These are fee amounts, not evidence that an official has actually been paid. It does not scrape the signed-in website and does not assume access to Horizon's Developer API. Export the complete filtered schedule/payroll report yourself and use the upload/review workflow. CSV layouts vary; explicit mapping and separate position-name/fee pairs are supported. API synchronization can be added once EOTFOA's API access and the actual API contract are available.
+This version imports downloaded CSV/XLSX files. The native master-fees export is detected automatically, including its repeated name/position/fee groups after the fixed game fields. Every official and position is retained, the fees are summed exactly, the Paid By Team field is retained, and meeting entries are excluded with a visible count. These are fee amounts, not evidence that an official has actually been paid. It does not scrape the signed-in website and does not assume access to Horizon's Developer API. Export the complete filtered schedule/payroll report yourself and use the upload/review workflow. CSV layouts vary; explicit mapping and separate position-name/fee pairs are supported. The API service layer is available for future integration; it does not yet connect accounts, synchronize, or change this import workflow.
+
+### Horizon API service layer
+
+`Horizon::Client` wraps the [Horizon Developer API](https://www.horizonwebref.com/developer). Supply `HORIZON_APP_ID` and `HORIZON_APP_KEY` as environment secrets, or pass `app_id:` and `app_key:` explicitly. Do not commit credentials. No Horizon credentials are configured or deployed by this change.
+
+```ruby
+client = Horizon::Client.new
+approval = client.request_code(scope: [ "read_organization" ], callback_uri: "https://example.com/horizon/callback")
+# Send the user to approval.fetch("login_uri"); after consent, exchange the authorization code.
+token = client.request_token(authorization_code: authorization_code)
+client = Horizon::Client.new(access_token: token.fetch("access_token"))
+page = client.request(:get, "schedule", params: { start_date: "2031-01-01", end_date: "2031-01-31" })
+event = client.request(:get, "schedule", "fictional-event-id")
+```
+
+`request` accepts GET, POST, PUT and DELETE, path segments, and the endpoint's documented parameters as a JSON object. It can call all documented resources, including operations with multiple IDs; consult Horizon's reference for supported methods, parameters, scopes and side effects. The full response hash is returned, including pagination metadata. Pagination is not automatic: check the endpoint's current documentation before requesting additional pages. Requests have bounded timeouts and are not automatically retried. `Horizon::Client::Error` subclasses distinguish missing configuration, authentication, rate limiting, transient network/server errors, and malformed responses; `status` exposes the HTTP status where available. Errors deliberately omit response bodies and request data.
+
+Horizon authorization codes are long-lived and access tokens last 30 minutes. Horizon documents a 409 when a valid token already exists, so a future integration must securely persist and reuse the current token until it expires, handle concurrent exchanges, and protect authorization codes. The service does not implement a callback, token persistence, refresh coordination, or automatic reauthorization. Those are required before connecting an account. Horizon's rate limits apply to calls; there is no built-in rate limiter.
 
 Horizon exports contain private information. Keep downloaded exports outside Git. Automated fixtures use fictional names, teams, locations, game IDs, dates, and fees; the normal `HorizonWebRef_Master_Fees_*.csv` export filename pattern is ignored.
 
