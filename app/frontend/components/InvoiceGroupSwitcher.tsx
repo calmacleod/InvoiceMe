@@ -58,7 +58,7 @@ export default function InvoiceGroupSwitcher({
           as="button"
           data={{ invoice_group_id: group.id }}
         >
-          + Add invoice
+          New invoice
         </Link>
       </div>
     </div>

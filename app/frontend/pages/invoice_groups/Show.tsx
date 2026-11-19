@@ -7,7 +7,6 @@ import type {
   GameSummary,
   InvoiceGroupEntry,
   InvoiceGroupReference,
-  InvoiceSummary,
 } from "../../types";
 import Link from "../../components/AppLink";
 import GamePicker from "../../components/GamePicker";
@@ -22,7 +21,6 @@ type Props = {
     games_locked: boolean;
   };
   entries: InvoiceGroupEntry[];
-  matching_invoices: Pick<InvoiceSummary, "id" | "number" | "recipient">[];
   selected_games: GameSummary[];
   game_options: GameOptions;
 };
@@ -39,7 +37,6 @@ export default function Show(props: Props) {
 function GroupWorkbench({
   group,
   entries,
-  matching_invoices,
   selected_games,
   game_options,
 }: Props) {
@@ -49,7 +46,6 @@ function GroupWorkbench({
     game_ids: group.game_ids,
     lock_version: group.lock_version,
   });
-  const attachment = useForm({ invoice_id: "" });
   useEffect(() => {
     if (!form.isDirty) return;
 
@@ -92,15 +88,23 @@ function GroupWorkbench({
         >
           <div {...stylex.props(ui.tableHeading)}>
             <h2 {...stylex.props(ui.h2)}>Invoices in this group</h2>
-            <Link
-              {...stylex.props(ui.link, ui.button, ui.primary)}
-              href="/invoice_drafts"
-              method="post"
-              as="button"
-              data={{ invoice_group_id: group.id }}
-            >
-              + Add invoice
-            </Link>
+            <div {...stylex.props(ui.actions)}>
+              <Link
+                {...stylex.props(ui.link, ui.button)}
+                href={`${url}/add_existing`}
+              >
+                Add existing invoice
+              </Link>
+              <Link
+                {...stylex.props(ui.link, ui.button, ui.primary)}
+                href="/invoice_drafts"
+                method="post"
+                as="button"
+                data={{ invoice_group_id: group.id }}
+              >
+                New invoice
+              </Link>
+            </div>
           </div>
           {entries.length ? (
             <div {...stylex.props(ui.tableScroll)}>
@@ -169,45 +173,6 @@ function GroupWorkbench({
             </div>
           ) : (
             <p {...stylex.props(ui.empty)}>Add an invoice for each payer.</p>
-          )}
-          {matching_invoices.length > 0 && (
-            <form
-              {...stylex.props(ui.tableHeading)}
-              onSubmit={(event) => {
-                event.preventDefault();
-                attachment.post(`${url}/attach_invoice`, {
-                  preserveScroll: true,
-                  onSuccess: () => attachment.reset(),
-                });
-              }}
-            >
-              <div>
-                <label htmlFor="existing-invoice" {...stylex.props(ui.label)}>
-                  Existing invoice with the same games
-                </label>
-                <select
-                  id="existing-invoice"
-                  {...stylex.props(ui.input)}
-                  value={attachment.data.invoice_id}
-                  onChange={(event) =>
-                    attachment.setData("invoice_id", event.target.value)
-                  }
-                >
-                  <option value="">Select an invoice</option>
-                  {matching_invoices.map((invoice) => (
-                    <option key={invoice.id} value={invoice.id}>
-                      {invoice.number} · {invoice.recipient}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <button
-                {...stylex.props(ui.nativeButton, ui.button)}
-                disabled={!attachment.data.invoice_id || attachment.processing}
-              >
-                Add existing invoice
-              </button>
-            </form>
           )}
         </section>
 

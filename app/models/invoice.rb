@@ -30,6 +30,18 @@ class Invoice < ApplicationRecord
     @invalid_group_game_selection = invoice_group && Array(ids).compact_blank.map(&:to_s).uniq.sort != invoice_group.game_ids.map(&:to_s).sort
     super unless @invalid_group_game_selection
   end
+  # An unlinked finalized invoice can gain game references when joining a group.
+  def attach_to_group!(group)
+    @backfilling_group_games = finalized_at_in_database && invoice_group_id.nil? && game_ids.empty?
+    update!(invoice_group: group, game_ids: group.game_ids)
+  ensure
+    @backfilling_group_games = false
+  end
+
+  def backfilling_group_game?(game_id)
+    @backfilling_group_games && invoice_group.game_ids.include?(game_id)
+  end
+
   def total_cents = line_items.reject(&:marked_for_destruction?).sum(&:total_cents)
   def received_cents = payments.loaded? ? payments.select(&:persisted?).sum(&:amount_cents) : payments.sum(:amount_cents)
   def owed_cents = total_cents - received_cents
@@ -38,6 +50,7 @@ class Invoice < ApplicationRecord
   def exporting? = persisted? && invoice_exports.active.exists?
   def editing_blocked? = finalized_at.present? || exporting?
   def ever_finalized? = destination_snapshot.present?
+  def locked_game_history? = finalized_at.present? || ever_finalized?
   def reopened? = !finalized_at && ever_finalized?
   def reopen!
     with_lock do

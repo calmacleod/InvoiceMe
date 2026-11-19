@@ -23,14 +23,6 @@ class InvoiceGroup < ApplicationRecord
       InvoiceExport.active.where(invoice_id: invoices.select(:id)).exists?
   end
 
-  def matching_invoices
-    selection = invoice_group_games.select(:game_id)
-    matches = InvoiceGame.where(game_id: selection).group(:invoice_id)
-      .having("COUNT(*) = ?", invoice_group_games.count).select(:invoice_id)
-    other_games = InvoiceGame.where.not(game_id: selection).select(:invoice_id)
-    season.invoices.where(invoice_group_id: nil, id: matches).where.not(id: other_games)
-  end
-
   # Keep the existing invoice game references in step with the group so game
   # searches, invoice links and downstream callers see the same associations.
   def update_selection!(name:, game_ids:, revision:)

@@ -101,8 +101,8 @@ class InvoiceGroupsTest < ActionDispatch::IntegrationTest
     group = league.reload.invoice_group
     assert_redirected_to invoice_group_path(group)
     assert group.games_locked?
-    get invoice_group_path(group)
-    assert_equal [ club.id ], inertia.props[:matching_invoices].map { |invoice| invoice["id"] }
+    get add_existing_invoice_group_path(group), params: { q: "EXAMPLE-CLUB" }
+    assert_equal [ club.id ], inertia.props[:invoices].map { |invoice| invoice["id"] }
 
     post attach_invoice_invoice_group_path(group), params: { invoice_id: extra.id }
     assert_nil extra.reload.invoice_group_id
@@ -116,6 +116,75 @@ class InvoiceGroupsTest < ActionDispatch::IntegrationTest
     get games_path(link_status: "linked")
     game = inertia.props[:games].find { |result| result["id"] == @game.id }
     assert_equal group.id, game[:invoice_groups].first["id"]
+  end
+
+  test "an editable invoice can adopt the group games only after reviewing the changes" do
+    invoice = create_invoice("EXAMPLE-EXISTING", [ @second_game.id ])
+    draft = users(:one).invoice_drafts.create!(season: @season, invoice: invoice, client_key: "example-review",
+      data: { recipient: "Example saved edit", game_ids: [ @second_game.id ] })
+    group = InvoiceGroup.start!(season: @season, game_ids: [ @game.id ])
+    original_total = invoice.total_cents
+    original_line_item_ids = invoice.line_items.ids
+
+    get add_existing_invoice_group_path(group)
+    assert_equal [ invoice.id ], inertia.props[:invoices].map { |item| item["id"] }
+    get add_existing_invoice_group_path(group, invoice_id: invoice.id)
+    review = inertia.props[:review]
+    assert_equal [ @game.id ], review[:games_added].map { |game| game[:id] }
+    assert_equal [ @second_game.id ], review[:games_removed].map { |game| game[:id] }
+    assert_nil review[:blocked_reason]
+
+    post attach_invoice_invoice_group_path(group), params: { invoice_id: invoice.id }
+    assert_redirected_to add_existing_invoice_group_path(group, invoice_id: invoice.id)
+    assert_nil invoice.reload.invoice_group_id
+    assert_equal [ @second_game.id ], invoice.game_ids
+
+    post attach_invoice_invoice_group_path(group), params: { invoice_id: invoice.id, review_token: review[:token] }
+    assert_redirected_to invoice_group_path(group)
+    assert_equal group.id, invoice.reload.invoice_group_id
+    assert_equal [ @game.id ], invoice.game_ids
+    assert_equal original_total, invoice.total_cents
+    assert_equal original_line_item_ids, invoice.line_items.ids
+    assert_equal group.id, draft.reload.invoice_group_id
+    assert_equal "Example saved edit", draft.invoice_data["recipient"]
+    assert_not draft.invoice_data.key?("game_ids")
+  end
+
+  test "the attachment review must be refreshed if shared games change" do
+    invoice = create_invoice("EXAMPLE-STALE-REVIEW", [])
+    group = InvoiceGroup.start!(season: @season, game_ids: [ @game.id ])
+    get add_existing_invoice_group_path(group, invoice_id: invoice.id)
+    token = inertia.props[:review][:token]
+    group.update_selection!(name: group.name, game_ids: [ @second_game.id ], revision: group.lock_version)
+
+    post attach_invoice_invoice_group_path(group), params: { invoice_id: invoice.id, review_token: token }
+    assert_redirected_to add_existing_invoice_group_path(group, invoice_id: invoice.id)
+    assert_nil invoice.reload.invoice_group_id
+    assert_empty invoice.game_ids
+  end
+
+  test "a finalized invoice can be linked when it has no games and retains existing game history otherwise" do
+    unlinked = create_invoice("EXAMPLE-FINAL-UNLINKED", [])
+    different = create_invoice("EXAMPLE-FINAL-DIFFERENT", [ @second_game.id ])
+    [ unlinked, different ].each(&:finalize!)
+    group = InvoiceGroup.start!(season: @season, game_ids: [ @game.id ])
+
+    get add_existing_invoice_group_path(group, invoice_id: different.id)
+    assert_match "has been finalized", inertia.props[:review][:blocked_reason]
+    post attach_invoice_invoice_group_path(group), params: { invoice_id: different.id, review_token: inertia.props[:review][:token] }
+    assert_nil different.reload.invoice_group_id
+    assert_equal [ @second_game.id ], different.game_ids
+
+    get add_existing_invoice_group_path(group, invoice_id: unlinked.id)
+    review = inertia.props[:review]
+    assert_nil review[:blocked_reason]
+    finalization = unlinked.finalized_at
+    post attach_invoice_invoice_group_path(group), params: { invoice_id: unlinked.id, review_token: review[:token] }
+    assert_redirected_to invoice_group_path(group)
+    assert_equal group.id, unlinked.reload.invoice_group_id
+    assert_equal [ @game.id ], unlinked.game_ids
+    assert_equal finalization, unlinked.finalized_at
+    assert group.games_locked?
   end
 
   test "a group requires games from its own year" do
