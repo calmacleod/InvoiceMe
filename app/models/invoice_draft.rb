@@ -50,6 +50,9 @@ class InvoiceDraft < ApplicationRecord
     ids = Array(data["game_ids"])
     errors.add(:data, "contains games from a different year") unless season.games.where(id: ids).count == ids.uniq.size
     item_ids = Array(data["line_items_attributes"]).filter_map { |item| item["id"].presence }
+    unless Array(data["line_items_attributes"]).all? { |item| !item.key?("private_breakdown") || LineItemPrivateBreakdown.valid_data?(item["private_breakdown"]) }
+      errors.add(:data, "contains an invalid private breakdown")
+    end
     if item_ids.any? && (!invoice || invoice.line_items.where(id: item_ids).count != item_ids.uniq.size)
       errors.add(:data, "contains line items from a different invoice")
     end

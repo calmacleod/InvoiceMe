@@ -1,5 +1,6 @@
 class LineItem < ApplicationRecord
   belongs_to :invoice
+  has_many :private_breakdowns, class_name: "LineItemPrivateBreakdown", dependent: :destroy
   before_validation { self.quantity = 1 if amount_only? }
   validates :amount_only, inclusion: { in: [ true, false ] }
   validates :description, presence: true, length: { maximum: 1000 }

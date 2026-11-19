@@ -34,10 +34,11 @@ module Api
       end
 
       def invoice_json(invoice)
+        breakdowns = @api_key.user.line_item_private_breakdowns.where(line_item_id: invoice.line_items.map(&:id)).index_by(&:line_item_id)
         invoice.as_json(except: %i[created_at updated_at contacts]).merge(
           status: invoice.status, total_cents: invoice.total_cents, received_cents: invoice.received_cents,
           owed_cents: invoice.owed_cents, contacts: invoice.contacts, issuer: invoice.issuer,
-          line_items: invoice.line_items.map { |item| item.as_json.merge(rate: item.rate, total_cents: item.total_cents) },
+          line_items: invoice.line_items.map { |item| item.as_json.merge(rate: item.rate, total_cents: item.total_cents, private_breakdown: breakdowns[item.id]&.data) },
           game_ids: invoice.games.ids, payments: invoice.payments.as_json,
           export: invoice.invoice_exports.order(id: :desc).first&.progress
         )

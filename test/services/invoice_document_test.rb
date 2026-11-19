@@ -26,6 +26,18 @@ class InvoiceDocumentTest < ActiveSupport::TestCase
     assert_not_includes text, "INTERNAL ONLY"
   end
 
+  test "private breakdowns never appear in invoice documents" do
+    @invoice.save!
+    @invoice.line_items.last.private_breakdowns.create!(user: users(:one), data: { "notes" => "SECRET BREAKDOWN NOTE", "entries" => [ { "key" => "private", "description" => "SECRET TRIP", "amount" => "20.00" } ] })
+    document = InvoiceDocument.new(@invoice)
+    outputs = [ Nokogiri::HTML(document.html).text, PDF::Reader.new(StringIO.new(document.pdf)).pages.map(&:text).join(" ") ]
+    Zip::File.open_buffer(document.odt) { |zip| outputs << zip.read("content.xml") }
+    outputs.each do |text|
+      assert_not_includes text, "SECRET BREAKDOWN NOTE"
+      assert_not_includes text, "SECRET TRIP"
+    end
+  end
+
   test "HTML PDF and Google document include every contact name and no contact emails" do
     @invoice.contacts = [ { name: "Fictional Avery & Coordinator", email: "avery@example.test" }, { name: "Fictional Rowan", email: "rowan@example.test" } ]
     document = InvoiceDocument.new(@invoice)

@@ -2,6 +2,7 @@ class User < ApplicationRecord
   has_many :horizon_game_syncs, dependent: :destroy
   has_many :invoice_drafts, dependent: :destroy
   has_many :contacts, dependent: :destroy
+  has_many :line_item_private_breakdowns, dependent: :destroy
   has_secure_password
   has_many :sessions, dependent: :destroy
 

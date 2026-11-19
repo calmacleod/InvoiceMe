@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import {
   moveLineItem,
   changeLinePricing,
+  breakdownTotal,
+  applyBreakdownTotal,
 } from "../../app/frontend/lib/lineItems.ts";
 import { invoiceTotal } from "../../app/frontend/lib/money.ts";
 
@@ -53,6 +55,45 @@ test("reordering skips removed rows while retaining saved IDs, deletions and tot
   assert.equal(moveLineItem(items, 2, 1), items);
   assert.equal(moveLineItem(items, 1, -1), items);
   assert.deepEqual(moveLineItem(moved, 0, 1), items);
+});
+
+test("private breakdown totals use exact cents and can be applied without losing notes", () => {
+  const item = {
+    key: "travel",
+    description: "Travel",
+    quantity: "2",
+    rate: "100",
+    position: 0,
+    _destroy: false,
+    private_breakdown: {
+      notes: "Private reminder",
+      entries: [
+        { key: "a", description: "Trip A", amount: "20.10" },
+        { key: "b", description: "Trip B", amount: "0.20" },
+      ],
+    },
+  };
+  assert.equal(breakdownTotal(item.private_breakdown.entries), 2030);
+  const updated = applyBreakdownTotal(item);
+  assert.equal(updated.rate, "20.30");
+  assert.equal(updated.quantity, "1");
+  assert.equal(updated.amount_only, true);
+  assert.equal(updated.private_breakdown.notes, "Private reminder");
+  assert.equal(
+    breakdownTotal([{ key: "a", description: "", amount: "" }]),
+    null,
+  );
+  assert.equal(
+    breakdownTotal([{ key: "a", description: "", amount: "3.999" }]),
+    null,
+  );
+  assert.equal(
+    breakdownTotal([
+      { key: "a", description: "", amount: "999999.99" },
+      { key: "b", description: "", amount: "0.01" },
+    ]),
+    null,
+  );
 });
 
 test("switching pricing retains the rounded charge and keeps invalid amounts visible", () => {

@@ -9,9 +9,10 @@ module WorkspaceProps
     props.merge!(invoice.as_json(only: %i[recipient_address public_notes private_notes publish_error google_doc_id google_pdf_id ledger_row]))
     props.merge!(contacts: invoice.contacts, attention: invoice.attention, reopened: invoice.reopened?, number_suffix: invoice.number_suffix, number_prefix: invoice.number_prefix)
     games = invoice.persisted? ? invoice.games.merge(Game.summaries).includes(:invoices).to_a : []
+    breakdowns = Current.user.line_item_private_breakdowns.where(line_item_id: invoice.line_items.map(&:id).compact).index_by(&:line_item_id)
     props.merge!(
       issuer: invoice.issuer, year: invoice.season.year,
-      line_items: invoice.line_items.map { |item| item.as_json(only: %i[id description position quantity rate_cents amount_only]).merge(rate: item.rate, total_cents: item.total_cents) },
+      line_items: invoice.line_items.map { |item| item.as_json(only: %i[id description position quantity rate_cents amount_only]).merge(rate: item.rate, total_cents: item.total_cents, private_breakdown: breakdowns[item.id]&.data) },
       game_ids: games.map(&:id), games: games.map { |game| game_props(game) },
       payments: invoice.payments.as_json(only: %i[id amount_cents received_on method notes])
     )

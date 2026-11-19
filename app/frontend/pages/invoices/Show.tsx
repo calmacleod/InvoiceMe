@@ -117,10 +117,49 @@ export default function Show({
         </div>
       )}
       <div {...stylex.props(ui.editorLayout)}>
-        <section {...stylex.props(ui.card, ui.invoicePaper)}>
+        <section
+          {...stylex.props(ui.card, ui.invoicePaper)}
+          aria-label="Invoice document"
+        >
           <InvoiceDocument invoice={invoice} />
         </section>
         <aside {...stylex.props(ui.editorAside)}>
+          {invoice.line_items.some(
+            (item) =>
+              item.private_breakdown &&
+              (item.private_breakdown.notes ||
+                item.private_breakdown.entries.length),
+          ) && (
+            <section
+              {...stylex.props(ui.card)}
+              aria-label="Your private line item breakdowns"
+            >
+              <h2 {...stylex.props(ui.h2)}>Your private breakdowns</h2>
+              <p {...stylex.props(ui.hint)}>
+                Visible only to you and excluded from the invoice.
+              </p>
+              {invoice.line_items.map((item, index) => {
+                const breakdown = item.private_breakdown;
+                if (
+                  !breakdown ||
+                  (!breakdown.notes && !breakdown.entries.length)
+                )
+                  return null;
+                return (
+                  <div key={item.id ?? index}>
+                    <h3>{item.description}</h3>
+                    {breakdown.entries.map((entry) => (
+                      <p key={entry.key}>
+                        {entry.description}:{" "}
+                        {entry.amount ? `$${entry.amount}` : "—"}
+                      </p>
+                    ))}
+                    {breakdown.notes && <p>{breakdown.notes}</p>}
+                  </div>
+                );
+              })}
+            </section>
+          )}
           <section {...stylex.props(ui.card)}>
             <h2 {...stylex.props(ui.h2)}>
               {invoice.finalized_at ? "Google records" : "Ready to publish?"}

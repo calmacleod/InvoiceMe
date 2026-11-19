@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_17_170000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_19_000000) do
   create_table "api_keys", force: :cascade do |t|
     t.integer "user_id", null: false
     t.string "name", null: false
@@ -164,6 +164,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_17_170000) do
     t.index ["season_id"], name: "index_invoices_on_season_id"
   end
 
+  create_table "line_item_private_breakdowns", force: :cascade do |t|
+    t.integer "line_item_id", null: false
+    t.integer "user_id", null: false
+    t.text "data", default: "{}", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["line_item_id"], name: "index_line_item_private_breakdowns_on_line_item_id"
+    t.index ["user_id", "line_item_id"], name: "index_line_item_private_breakdowns_on_user_id_and_line_item_id", unique: true
+    t.index ["user_id"], name: "index_line_item_private_breakdowns_on_user_id"
+  end
+
   create_table "line_items", force: :cascade do |t|
     t.integer "invoice_id", null: false
     t.string "description", null: false
@@ -233,6 +244,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_17_170000) do
   add_foreign_key "invoice_games", "games"
   add_foreign_key "invoice_games", "invoices"
   add_foreign_key "invoices", "seasons"
+  add_foreign_key "line_item_private_breakdowns", "line_items"
+  add_foreign_key "line_item_private_breakdowns", "users"
   add_foreign_key "line_items", "invoices"
   add_foreign_key "payments", "invoices"
   add_foreign_key "sessions", "users"

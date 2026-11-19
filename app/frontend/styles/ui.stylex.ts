@@ -403,6 +403,22 @@ export const ui = stylex.create({
   lineDescription: {
     gridColumn: { default: "auto", "@media (max-width: 800px)": "1 / -1" },
   },
+  breakdown: {
+    gridColumn: "1 / -1",
+    padding: space.md,
+    backgroundColor: colors.accentSoft,
+    borderRadius: shape.control,
+  },
+  breakdownRows: { display: "grid", gap: space.sm, marginTop: space.md },
+  breakdownRow: {
+    display: "grid",
+    gridTemplateColumns: {
+      default: "minmax(0, 1fr) 150px auto",
+      "@media (max-width: 560px)": "minmax(0, 1fr) 110px auto",
+    },
+    gap: space.sm,
+    alignItems: "end",
+  },
   lineAction: { padding: "8px 10px", minWidth: 34 },
   editorTotal: {
     borderTopWidth: 1,

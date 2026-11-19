@@ -1,5 +1,32 @@
-import type { EditableLineItem } from "../types";
-import { lineTotal } from "./money.ts";
+import type { EditableLineItem, PrivateBreakdown } from "../types";
+import { lineTotal, scaled } from "./money.ts";
+
+export function breakdownTotal(
+  entries: PrivateBreakdown["entries"],
+): number | null {
+  if (
+    !entries.length ||
+    entries.some((entry) => !/^\d{1,6}(?:\.\d{1,2})?$/.test(entry.amount))
+  )
+    return null;
+  const cents = entries.reduce(
+    (sum, entry) => sum + scaled(entry.amount, 2),
+    0n,
+  );
+  return cents <= 99999999n ? Number(cents) : null;
+}
+
+export function applyBreakdownTotal(item: EditableLineItem): EditableLineItem {
+  const total = breakdownTotal(item.private_breakdown?.entries ?? []);
+  return total === null
+    ? item
+    : {
+        ...item,
+        amount_only: true,
+        quantity: "1",
+        rate: (total / 100).toFixed(2),
+      };
+}
 
 export function moveLineItem(
   items: EditableLineItem[],

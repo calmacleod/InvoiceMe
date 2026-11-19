@@ -29,6 +29,30 @@ class InvoiceDraftsTest < ActionDispatch::IntegrationTest
     assert_equal 0, LineItem.count
   end
 
+  test "private line breakdown survives preview and is visible only to its owner" do
+    breakdown = { notes: "Fictional internal note", entries: [ { key: "trip-a", description: "Fictional trip", amount: "70.00" }, { key: "trip-b", description: "Fictional passenger", amount: "20.00" } ] }
+    @data.merge!(number: "EXAMPLE-BREAKDOWN", description: "Fictional fees", issued_on: "2031-02-17",
+      line_items_attributes: [ { key: "travel", description: "Travel", quantity: "1", rate: "90.00", amount_only: true, position: 0, _destroy: false, private_breakdown: breakdown } ])
+    create_json
+    assert_response :success
+    draft = InvoiceDraft.last
+    assert_equal breakdown.deep_stringify_keys, draft.data.dig("line_items_attributes", 0, "private_breakdown")
+    post preview_invoice_draft_path(draft), params: { lock_version: draft.lock_version }
+    invoice = draft.reload.invoice
+    assert_redirected_to invoice_path(invoice)
+    assert_equal 9000, invoice.total_cents
+    get invoice_path(invoice)
+    assert_equal breakdown.deep_stringify_keys, inertia.props[:invoice][:line_items].first[:private_breakdown]
+    get edit_invoice_draft_path(draft)
+    assert_equal breakdown.deep_stringify_keys, inertia.props[:invoice][:line_items].first[:private_breakdown]
+    sign_out
+    sign_in_as(users(:two))
+    get invoice_path(invoice)
+    assert_nil inertia.props[:invoice][:line_items].first[:private_breakdown]
+    get edit_invoice_path(invoice)
+    assert_nil inertia.props[:invoice][:line_items].first[:private_breakdown]
+  end
+
   test "several blank drafts have separate identities and GET prefetch does not create anything" do
     ids = 2.times.map do
       post invoice_drafts_path

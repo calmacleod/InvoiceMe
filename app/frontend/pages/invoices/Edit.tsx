@@ -77,6 +77,7 @@ function InvoiceEditor({
       quantity: item.quantity ?? "1",
       rate: item.rate ?? "",
       amount_only: item.amount_only,
+      private_breakdown: item.private_breakdown ?? undefined,
       position: index,
       _destroy: false,
       key: item.id ?? `new-${index}`,

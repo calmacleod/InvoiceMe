@@ -5,6 +5,45 @@ class InvoiceLineItemsSystemTest < ActionDispatch::SystemTestCase
   include InvoiceNumberingGoogle
   driven_by :selenium, using: :headless_chrome, screen_size: [ 1400, 1100 ]
 
+  test "private breakdown sums can be applied and remain available after preview" do
+    visit new_session_path
+    fill_in "Email address", with: users(:one).email_address
+    fill_in "Password", with: "password"
+    click_button "Sign in"
+    assert_selector "h1", text: "Invoices."
+    visit new_invoice_path
+    fill_in "Identifying info", with: "EXAMPLE-BREAKDOWN"
+    fill_in "recipient", with: "Example Club"
+    fill_in "description", with: "Example fees"
+    fill_in "issued_on", with: Date.new(2031, 9, 15)
+    fill_in "description-0", with: "Travel"
+    within('[role="group"][aria-label="Line item 1"]') do
+      find("summary", text: "Private breakdown and notes").click
+      click_button "+ Add breakdown entry"
+      fill_in "Description or note", with: "Fictional trip"
+      fill_in "Amount (CAD)", with: "70.25"
+      fill_in "Private notes", with: "Fictional private details"
+      click_button "Use total for line item"
+      assert_selector :field, "rate-0", with: "70.25"
+      assert_selector :select, "pricing-0", selected: "Amount only"
+    end
+    assert_text "All changes saved"
+    draft_path = page.current_path
+    visit games_path
+    visit draft_path
+    find("summary", text: "Private breakdown and notes").click
+    assert_field "Description or note", with: "Fictional trip"
+    assert_field "Private notes", with: "Fictional private details"
+    click_button "Save & preview →"
+    assert_text "Your private breakdowns"
+    assert_text "Fictional private details"
+    within('[aria-label="Invoice document"]') do
+      assert_text "$70.25"
+      assert_no_text "Fictional private details"
+      assert_no_text "Fictional trip"
+    end
+  end
+
   test "reorder mixed pricing lines and retain amounts and order through autosave and preview" do
     visit new_session_path
     fill_in "Email address", with: users(:one).email_address

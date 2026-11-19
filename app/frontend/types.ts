@@ -178,6 +178,7 @@ export type InvoiceDetail = Omit<
     quantity: string;
     rate_cents: number | null;
     amount_only: boolean;
+    private_breakdown: PrivateBreakdown | null;
     rate: string | null;
     total_cents: number;
   }[];
@@ -209,8 +210,13 @@ export type EditableLineItem = {
   quantity: string;
   rate: string;
   amount_only?: boolean;
+  private_breakdown?: PrivateBreakdown;
   position: number;
   _destroy: boolean;
+};
+export type PrivateBreakdown = {
+  notes: string;
+  entries: { key: string; description: string; amount: string }[];
 };
 export type InvoiceForm = InvoiceFields & {
   contacts: InvoiceContact[];

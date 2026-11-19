@@ -79,6 +79,26 @@ class ApiV1Test < ActionDispatch::IntegrationTest
     assert_equal({}, InvoiceDraft.find(id).data)
   end
 
+  test "private breakdowns survive API draft updates and previews and remain user scoped" do
+    breakdown = { notes: "Private fictional note", entries: [ { key: "trip", description: "Fictional trip", amount: "20.00" } ] }
+    data = { number_suffix: "Example", recipient: "Fictional Club", description: "Services", issued_on: "2031-09-15", line_items_attributes: [ { description: "Travel", quantity: "1", rate: "20.00", amount_only: true, private_breakdown: breakdown } ] }
+    post "/api/v1/drafts", params: { season_id: @season.id, data: data }, headers: @headers, as: :json
+    assert_response :created
+    draft_id = response.parsed_body.fetch("id")
+    version = response.parsed_body.fetch("lock_version")
+    assert_equal breakdown.deep_stringify_keys, response.parsed_body.dig("data", "line_items_attributes", 0, "private_breakdown")
+    patch "/api/v1/drafts/#{draft_id}", params: { lock_version: version, data: data }, headers: @headers, as: :json
+    assert_response :success
+    post "/api/v1/drafts/#{draft_id}/preview", params: { lock_version: response.parsed_body.fetch("lock_version") }, headers: @headers, as: :json
+    assert_response :success
+    invoice_id = response.parsed_body.fetch("id")
+    assert_equal breakdown.deep_stringify_keys, response.parsed_body.dig("line_items", 0, "private_breakdown")
+    _, other_token = ApiKey.issue!(user: users(:two), name: "Other")
+    get "/api/v1/invoices/#{invoice_id}", headers: { "Authorization" => "Bearer #{other_token}" }
+    assert_response :success
+    assert_nil response.parsed_body.dig("line_items", 0, "private_breakdown")
+  end
+
   test "import previews and commits only synthetic file data" do
     file = fixture_file_upload("horizon.csv", "text/csv")
     post "/api/v1/games/import", params: { season_id: @season.id, file: file }, headers: @headers

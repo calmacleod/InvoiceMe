@@ -72,7 +72,11 @@ class InvoiceDraftsController < ApplicationController
     return if @draft.data.blank?
 
     attrs = @draft.invoice_data.except("line_items_attributes")
-    attrs["line_items_attributes"] = Array(@draft.data["line_items_attributes"]).map { |item| item.except("key") }
+    attrs["line_items_attributes"] = Array(@draft.data["line_items_attributes"]).map.with_index do |item, index|
+          line_attrs = item.except("key", "private_breakdown")
+          line_attrs["position"] = index if item.key?("private_breakdown") && !line_attrs.key?("position")
+          line_attrs
+        end
     invoice.assign_attributes(attrs)
   end
 
@@ -82,6 +86,7 @@ class InvoiceDraftsController < ApplicationController
       return redirect_to invoice, alert: "This invoice is finalized or exporting" if invoice.editing_blocked?
       assign_draft_data(invoice) if invoice.persisted?
       if numbering.save
+        PrivateBreakdownPersistence.save!(user: Current.user, invoice: invoice, data: @draft.data)
         @draft.update!(invoice: invoice, data: {})
         redirect_to invoice, notice: "Draft saved. Preview it before publishing."
       else
@@ -100,7 +105,7 @@ class InvoiceDraftsController < ApplicationController
   def persist_data
     @draft.reload if @draft.persisted?
     return conflict if @draft.invoice&.editing_blocked?
-    data = params.require(:data).permit(*InvoiceDraft::FIELDS, contacts: InvoiceContacts::FIELDS, game_ids: [], line_items_attributes: %i[id key description quantity rate position amount_only _destroy]).to_h
+    data = params.require(:data).permit(*InvoiceDraft::FIELDS, contacts: InvoiceContacts::FIELDS, game_ids: [], line_items_attributes: [ :id, :key, :description, :quantity, :rate, :position, :amount_only, :_destroy, { private_breakdown: [ :notes, { entries: %i[key description amount] } ] } ]).to_h
     # Retrying an acknowledged-lost request is harmless. A different payload
     # must carry the current revision; another tab's work is never overwritten.
     if @draft.persisted? && @draft.data == data

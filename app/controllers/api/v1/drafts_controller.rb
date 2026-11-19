@@ -48,6 +48,7 @@ module Api
             return render_error("Invoice is finalized or exporting", :conflict) if record.editing_blocked?
             assign_data(record) if record.persisted?
             return render_error(record.errors.full_messages, :unprocessable_entity) unless numbering.save
+            PrivateBreakdownPersistence.save!(user: @api_key.user, invoice: record, data: draft.data)
             draft.update!(invoice: record, data: {})
           end
         end
@@ -59,12 +60,16 @@ module Api
 
       def draft = @draft ||= @api_key.user.invoice_drafts.find(params[:id])
       def draft_data
-        params.require(:data).permit(*InvoiceDraft::FIELDS, contacts: InvoiceContacts::FIELDS, game_ids: [], line_items_attributes: %i[id key description quantity rate position amount_only _destroy]).to_h
+        params.require(:data).permit(*InvoiceDraft::FIELDS, contacts: InvoiceContacts::FIELDS, game_ids: [], line_items_attributes: [ :id, :key, :description, :quantity, :rate, :position, :amount_only, :_destroy, { private_breakdown: [ :notes, { entries: %i[key description amount] } ] } ]).to_h
       end
       def assign_data(record)
         return if draft.data.blank?
         attrs = draft.invoice_data.except("line_items_attributes")
-        attrs["line_items_attributes"] = Array(draft.data["line_items_attributes"]).map { |item| item.except("key") }
+        attrs["line_items_attributes"] = Array(draft.data["line_items_attributes"]).map.with_index do |item, index|
+          line_attrs = item.except("key", "private_breakdown")
+          line_attrs["position"] = index if item.key?("private_breakdown") && !line_attrs.key?("position")
+          line_attrs
+        end
         record.assign_attributes(attrs)
       end
     end

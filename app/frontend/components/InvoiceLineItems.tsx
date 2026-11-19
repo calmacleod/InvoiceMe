@@ -3,6 +3,7 @@ import * as stylex from "@stylexjs/stylex";
 import { ui } from "../styles/ui.stylex";
 import { Field } from "./UI";
 import { moveLineItem, changeLinePricing } from "../lib/lineItems";
+import LineItemBreakdown from "./LineItemBreakdown";
 
 export default function InvoiceLineItems({
   items,
@@ -138,6 +139,17 @@ export default function InvoiceLineItems({
                 ×
               </button>
             </div>
+            <LineItemBreakdown
+              item={item}
+              row={row + 1}
+              onChange={(updated) =>
+                onChange(
+                  items.map((line, position) =>
+                    position === index ? updated : line,
+                  ),
+                )
+              }
+            />
           </div>
         ))}
       </div>
