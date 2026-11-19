@@ -2,7 +2,7 @@ module WorkspaceProps
   private
 
   def invoice_props(invoice, detail: false)
-    props = invoice.as_json(only: %i[id number recipient description issued_on due_on finalized_at])
+    props = invoice.as_json(only: %i[id number recipient description issued_on due_on finalized_at invoice_group_id])
     props.merge!(status: invoice.status, total_cents: invoice.total_cents, received_cents: invoice.received_cents, owed_cents: invoice.owed_cents)
     return props unless detail
 
@@ -24,6 +24,7 @@ module WorkspaceProps
       paid_by_team: game.has_attribute?(:paid_by_team) ? game[:paid_by_team] : game.source.first&.fetch("Paid By Team", nil),
       invoices: game.invoices.as_json(only: %i[id number finalized_at]), workbenches: workbenches)
     props.merge!(officials: game.officials, source: game.source) if detail
+    props[:invoice_groups] = game.invoice_groups.as_json(only: %i[id name]) if game.association(:invoice_groups).loaded?
     props
   end
 end

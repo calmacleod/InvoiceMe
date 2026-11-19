@@ -59,6 +59,7 @@ export type SeasonForm = Omit<
 };
 export type InvoiceSummary = {
   id: number;
+  invoice_group_id: number | null;
   number: string;
   recipient: string;
   description: string;
@@ -129,6 +130,7 @@ export type GameSummary = {
   paid_by_team: string | null;
   horizon_cancelled: string | null;
   invoices: { id: number; number: string; finalized_at: string | null }[];
+  invoice_groups?: InvoiceGroupReference[];
   workbenches: { id: number; title: string }[];
 };
 export type ContactFields = Record<
@@ -230,8 +232,13 @@ export type DraftMetadata = {
   lock_version: number;
   updated_at: string;
   invoice_id: number | null;
+  invoice_group_id: number | null;
   season_id: number;
 };
+export type InvoiceGroupReference = { id: number; name: string };
+export type InvoiceGroupEntry =
+  | { invoice: InvoiceSummary; draft: DraftMetadata | null }
+  | { invoice: null; draft: DraftMetadata };
 export type InvoiceTotals = {
   invoiced: number;
   received: number;

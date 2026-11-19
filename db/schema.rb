@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_19_000000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_19_120000) do
   create_table "api_keys", force: :cascade do |t|
     t.integer "user_id", null: false
     t.string "name", null: false
@@ -103,6 +103,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_19_000000) do
     t.integer "lock_version", default: 0, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "invoice_group_id"
+    t.index ["invoice_group_id"], name: "index_invoice_drafts_on_invoice_group_id"
     t.index ["invoice_id"], name: "index_invoice_drafts_on_invoice_id"
     t.index ["season_id"], name: "index_invoice_drafts_on_season_id"
     t.index ["user_id", "client_key"], name: "index_invoice_drafts_on_user_id_and_client_key", unique: true
@@ -135,6 +137,22 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_19_000000) do
     t.index ["invoice_id"], name: "index_invoice_games_on_invoice_id"
   end
 
+  create_table "invoice_group_games", force: :cascade do |t|
+    t.integer "invoice_group_id", null: false
+    t.integer "game_id", null: false
+    t.index ["game_id"], name: "index_invoice_group_games_on_game_id"
+    t.index ["invoice_group_id", "game_id"], name: "index_invoice_group_games_on_invoice_group_id_and_game_id", unique: true
+  end
+
+  create_table "invoice_groups", force: :cascade do |t|
+    t.integer "season_id", null: false
+    t.string "name", null: false
+    t.integer "lock_version", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["season_id"], name: "index_invoice_groups_on_season_id"
+  end
+
   create_table "invoices", force: :cascade do |t|
     t.integer "season_id", null: false
     t.string "number", null: false
@@ -159,6 +177,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_19_000000) do
     t.json "contacts"
     t.boolean "google_doc_dirty", default: false, null: false
     t.boolean "google_pdf_dirty", default: false, null: false
+    t.integer "invoice_group_id"
+    t.index ["invoice_group_id"], name: "index_invoices_on_invoice_group_id"
     t.index ["season_id", "issued_on", "id"], name: "index_invoices_on_season_id_and_issued_on_and_id", order: { issued_on: :desc, id: :desc }
     t.index ["season_id", "number"], name: "index_invoices_on_season_id_and_number", unique: true
     t.index ["season_id"], name: "index_invoices_on_season_id"
@@ -237,12 +257,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_19_000000) do
   add_foreign_key "horizon_game_syncs", "horizon_connections"
   add_foreign_key "horizon_game_syncs", "seasons"
   add_foreign_key "horizon_game_syncs", "users"
+  add_foreign_key "invoice_drafts", "invoice_groups"
   add_foreign_key "invoice_drafts", "invoices"
   add_foreign_key "invoice_drafts", "seasons"
   add_foreign_key "invoice_drafts", "users"
   add_foreign_key "invoice_exports", "invoices"
   add_foreign_key "invoice_games", "games"
   add_foreign_key "invoice_games", "invoices"
+  add_foreign_key "invoice_group_games", "games"
+  add_foreign_key "invoice_group_games", "invoice_groups"
+  add_foreign_key "invoice_groups", "seasons"
+  add_foreign_key "invoices", "invoice_groups"
   add_foreign_key "invoices", "seasons"
   add_foreign_key "line_item_private_breakdowns", "line_items"
   add_foreign_key "line_item_private_breakdowns", "users"

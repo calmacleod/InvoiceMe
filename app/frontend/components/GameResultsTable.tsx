@@ -22,7 +22,7 @@ export default function GameResultsTable({
   selectedIds?: number[];
   onToggle?: (id: number, checked: boolean) => void;
   onTogglePage?: (checked: boolean) => void;
-  selectionContext?: "draft" | "bulk";
+  selectionContext?: "draft" | "bulk" | "group";
   invoiceId?: number | null;
   draftId?: number | null;
   sort?: GameSort;
@@ -174,8 +174,9 @@ export default function GameResultsTable({
                   invoiceId={invoiceId}
                   draftId={draftId}
                   selected={
-                    selectionContext === "draft" && selected.has(game.id)
+                    selectionContext !== "bulk" && selected.has(game.id)
                   }
+                  groupSelection={selectionContext === "group"}
                 />
               </td>
             </tr>

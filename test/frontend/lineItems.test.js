@@ -2,11 +2,36 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   moveLineItem,
+  moveLineItemTo,
   changeLinePricing,
   breakdownTotal,
   applyBreakdownTotal,
 } from "../../app/frontend/lib/lineItems.ts";
 import { invoiceTotal } from "../../app/frontend/lib/money.ts";
+
+test("a long move shifts intervening lines and preserves pending deletions", () => {
+  const items = Array.from({ length: 5 }, (_, position) => ({
+    id: position + 1,
+    key: position + 1,
+    description: `Example ${position + 1}`,
+    quantity: "1",
+    rate: "20.00",
+    position,
+    _destroy: position === 2,
+  }));
+  const moved = moveLineItemTo(items, 0, 4);
+  assert.deepEqual(
+    moved.map(({ id }) => id),
+    [2, 4, 3, 5, 1],
+  );
+  assert.deepEqual(
+    moved.map(({ position }) => position),
+    [0, 1, 2, 3, 4],
+  );
+  assert.equal(moved[2]._destroy, true);
+  assert.equal(invoiceTotal(moved), invoiceTotal(items));
+  assert.deepEqual(moveLineItemTo(moved, 4, 0), items);
+});
 
 test("reordering skips removed rows while retaining saved IDs, deletions and total", () => {
   const items = [

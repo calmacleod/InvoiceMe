@@ -39,9 +39,34 @@ export function moveLineItem(
   const current = visible.indexOf(index);
   const target = visible[current + direction];
   if (current === -1 || target === undefined) return items;
-  const reordered = [...items];
-  [reordered[index], reordered[target]] = [reordered[target], reordered[index]];
-  return reordered.map((item, position) => ({ ...item, position }));
+  return moveLineItemTo(items, index, target);
+}
+
+export function moveLineItemTo(
+  items: EditableLineItem[],
+  from: number,
+  to: number,
+) {
+  if (
+    !items[from] ||
+    !items[to] ||
+    items[from]._destroy ||
+    items[to]._destroy ||
+    from === to
+  )
+    return items;
+
+  const positions = items.flatMap((item, index) =>
+    item._destroy ? [] : [index],
+  );
+  const reordered = positions.map((index) => items[index]);
+  const [item] = reordered.splice(positions.indexOf(from), 1);
+  reordered.splice(positions.indexOf(to), 0, item);
+  let next = 0;
+  return items.map((original, position) => ({
+    ...(original._destroy ? original : reordered[next++]),
+    position,
+  }));
 }
 
 export function changeLinePricing(

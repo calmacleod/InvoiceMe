@@ -129,6 +129,24 @@ export default function Index({
       },
     );
   };
+  const startInvoiceGroup = () => {
+    const failed = () =>
+      setBulkError(
+        "Couldn't create the invoice group. Your game selection is kept.",
+      );
+    setBulkError("");
+    router.post(
+      "/invoice_groups",
+      { game_ids: selectedIds, season_id: season!.id },
+      {
+        onStart: () => setLoading(true),
+        onError: failed,
+        onNetworkError: failed,
+        onHttpException: failed,
+        onFinish: () => setLoading(false),
+      },
+    );
+  };
   return (
     <>
       <Head title="Games & officials" />
@@ -223,6 +241,14 @@ export default function Index({
           <button
             type="button"
             {...stylex.props(ui.nativeButton, ui.button, ui.primary)}
+            disabled={loading || selectedIds.length === 0}
+            onClick={startInvoiceGroup}
+          >
+            Start invoice group
+          </button>
+          <button
+            type="button"
+            {...stylex.props(ui.nativeButton, ui.button)}
             disabled={loading || selectedIds.length === 0}
             onClick={() => markInvoiced(true)}
           >

@@ -69,6 +69,14 @@ export default function Index({
                 >
                   Resume →
                 </Link>
+                {draft.invoice_group_id && (
+                  <Link
+                    {...stylex.props(ui.link, ui.smallLink)}
+                    href={`/invoice_groups/${draft.invoice_group_id}`}
+                  >
+                    View group
+                  </Link>
+                )}
                 <button
                   type="button"
                   {...stylex.props(ui.nativeButton, ui.textButton, ui.danger)}

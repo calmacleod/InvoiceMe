@@ -1,5 +1,6 @@
 class Invoice < ApplicationRecord
   belongs_to :season
+  belongs_to :invoice_group, optional: true
   has_many :line_items, -> { order(:position, :id) }, dependent: :destroy
   has_many :invoice_games, dependent: :destroy
   has_many :games, through: :invoice_games
@@ -12,6 +13,7 @@ class Invoice < ApplicationRecord
   validates :number_suffix, presence: true, if: -> { !@number_suffix.nil? && (new_record? || number_prefix.present?) }
   validate :has_items
   validate :same_season_games
+  validate :same_group_games
   validate :valid_contacts
   validate :immutable_when_finalized, on: :update
   validate :retain_invoice_number, on: :update
@@ -24,6 +26,10 @@ class Invoice < ApplicationRecord
   def contact_names = contacts.filter_map { |contact| contact["name"].presence }.join(", ")
   def contact_email = contacts.filter_map { |contact| contact["email"].presence }.first.to_s
   def attention = contact_names.presence || recipient
+  def game_ids=(ids)
+    @invalid_group_game_selection = invoice_group && Array(ids).compact_blank.map(&:to_s).uniq.sort != invoice_group.game_ids.map(&:to_s).sort
+    super unless @invalid_group_game_selection
+  end
   def total_cents = line_items.reject(&:marked_for_destruction?).sum(&:total_cents)
   def received_cents = payments.loaded? ? payments.select(&:persisted?).sum(&:amount_cents) : payments.sum(:amount_cents)
   def owed_cents = total_cents - received_cents
@@ -94,9 +100,16 @@ class Invoice < ApplicationRecord
   def same_season_games
     errors.add(:games, "must belong to the invoice year") if games.any? { |g| g.season_id != season_id }
   end
+  def same_group_games
+    return unless invoice_group
+
+    errors.add(:invoice_group, "must belong to the invoice year") if invoice_group.season_id != season_id
+    errors.add(:games, "must match the shared game selection") if @invalid_group_game_selection || game_ids.sort != invoice_group.game_ids.sort
+  end
   def immutable_when_finalized
     return unless finalized_at_in_database
     allowed = %w[private_notes published_at google_doc_id google_pdf_id google_doc_dirty google_pdf_dirty ledger_row publish_error updated_at]
+    allowed << "invoice_group_id" if invoice_group_id_in_database.nil? && invoice_group_id.present?
     allowed += %w[finalized_at issuer_snapshot] if @returning_to_draft
     errors.add(:base, "Return this invoice to draft before editing its details") if (changed - allowed).any? || line_items.any?(&:changed_for_autosave?)
   end

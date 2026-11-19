@@ -3,19 +3,21 @@ class InvoiceDraft < ApplicationRecord
   belongs_to :user
   belongs_to :season
   belongs_to :invoice, optional: true
+  belongs_to :invoice_group, optional: true
   scope :open_work, -> { left_joins(:invoice).where(invoices: { finalized_at: nil }).order(updated_at: :desc, id: :desc) }
-  scope :summaries, -> { select(:id, :title, :updated_at, :invoice_id, :season_id, :lock_version, :client_key) }
+  scope :summaries, -> { select(:id, :title, :updated_at, :invoice_id, :invoice_group_id, :season_id, :lock_version, :client_key) }
   validates :client_key, presence: true, length: { maximum: 100 }
   validates :client_key, uniqueness: { scope: :user_id }
   validate :valid_workbench
   before_validation :set_title
 
   def metadata
-    as_json(only: %i[id title updated_at invoice_id season_id lock_version client_key])
+    as_json(only: %i[id title updated_at invoice_id invoice_group_id season_id lock_version client_key])
   end
 
   def invoice_data
     attrs = data.deep_dup
+    attrs.delete("game_ids") if invoice_group_id
     if attrs.key?("contact")
       attrs = attrs.except("contact").reverse_merge("contacts" => InvoiceContacts.from_legacy(data["contact"]))
     end
@@ -36,6 +38,8 @@ class InvoiceDraft < ApplicationRecord
 
   def valid_workbench
     errors.add(:invoice, "belongs to a different year") if invoice && invoice.season_id != season_id
+    errors.add(:invoice_group, "belongs to a different year") if invoice_group && invoice_group.season_id != season_id
+    errors.add(:invoice_group, "must match the invoice group") if invoice && invoice.invoice_group_id != invoice_group_id
     errors.add(:invoice, "is finalized") if invoice&.finalized_at
     errors.add(:invoice, "is being exported") if invoice && !invoice.finalized_at && invoice.exporting?
     unless data.is_a?(Hash) && data.to_json.bytesize <= 512_000 &&

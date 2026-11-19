@@ -73,6 +73,18 @@ export default function Layout({ children }: PropsWithChildren) {
                 {...stylex.props(
                   ui.link,
                   layout.navLink,
+                  section === "invoice_groups" && layout.navActive,
+                )}
+                href="/invoice_groups"
+                aria-current={section === "invoice_groups" ? "page" : undefined}
+              >
+                ◧ Invoice groups
+              </Link>
+              <Link
+                navigateOnMouseDown
+                {...stylex.props(
+                  ui.link,
+                  layout.navLink,
                   section === "games" && layout.navActive,
                 )}
                 href="/games"

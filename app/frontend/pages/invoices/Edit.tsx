@@ -9,6 +9,8 @@ import type {
   DraftMetadata,
   ContactOptions,
   RecipientContact,
+  InvoiceGroupEntry,
+  InvoiceGroupReference,
 } from "../../types";
 import type { FieldOptions } from "../../components/UI";
 import * as stylex from "@stylexjs/stylex";
@@ -25,14 +27,21 @@ import { invoiceTotal } from "../../lib/money";
 import useDraftAutosave from "../../lib/useDraftAutosave";
 import { DraftSwitcher } from "../../components/DraftWorkbench";
 import { workbench } from "../../components/DraftWorkbench.stylex";
+import InvoiceGroupSwitcher from "../../components/InvoiceGroupSwitcher";
 type EditorProps = {
   invoice: InvoiceDetail;
-  game_options: GameOptions;
+  game_options: GameOptions | null;
   draft: DraftMetadata | null;
   draft_data: InvoiceForm | null;
   workbenches: DraftMetadata[];
   selected_games: GameSummary[];
   contact_options?: ContactOptions;
+  invoice_group:
+    | (InvoiceGroupReference & {
+        game_count: number;
+        entries: InvoiceGroupEntry[];
+      })
+    | null;
 };
 export default function Edit(props: EditorProps) {
   // POST redirects preserve Inertia state. Each workbench still needs its own
@@ -56,6 +65,7 @@ function InvoiceEditor({
   workbenches,
   selected_games,
   contact_options,
+  invoice_group: group,
 }: EditorProps) {
   const initial: InvoiceFields = {
     number_suffix: invoice.number_suffix ?? "",
@@ -84,8 +94,15 @@ function InvoiceEditor({
     })),
     ...draft_data,
   });
+  const grouping = useForm({});
   const { current_season: season } = usePage().props;
-  const autosave = useDraftAutosave(form.data, draft, season!.id, invoice.id);
+  const autosave = useDraftAutosave(
+    form.data,
+    draft,
+    season!.id,
+    invoice.id,
+    group?.id ?? null,
+  );
   const savedInvoice = autosave.identity.invoice_id !== null;
   const numberPrefix = savedInvoice ? invoice.number_prefix : null;
   const activeDraft = autosave.state.metadata;
@@ -145,6 +162,15 @@ function InvoiceEditor({
       /* Autosave feedback keeps all unsaved fields visible. */
     }
   }
+  async function groupGames() {
+    try {
+      const saved = await autosave.flush(true);
+      grouping.transform(() => ({ draft_id: saved.id }));
+      grouping.post("/invoice_groups");
+    } catch {
+      /* The autosave status shows how to retry. */
+    }
+  }
   return (
     <>
       <Head
@@ -158,7 +184,15 @@ function InvoiceEditor({
       >
         Your work saves automatically. Preview everything before you publish.
       </Heading>
-      <DraftSwitcher drafts={draftOptions} activeId={autosave.identity.id} />
+      {group ? (
+        <InvoiceGroupSwitcher
+          group={group}
+          activeDraftId={autosave.identity.id}
+          activeInvoiceId={autosave.identity.invoice_id}
+        />
+      ) : (
+        <DraftSwitcher drafts={draftOptions} activeId={autosave.identity.id} />
+      )}
       <div
         {...stylex.props(workbench.status)}
         aria-live="polite"
@@ -214,7 +248,7 @@ function InvoiceEditor({
       </div>
       <form onSubmit={submit}>
         <fieldset
-          disabled={form.processing}
+          disabled={form.processing || grouping.processing}
           {...stylex.props(workbench.fields)}
         >
           <Errors errors={form.errors} />
@@ -296,7 +330,7 @@ function InvoiceEditor({
             <Section
               step="02"
               title="Line items"
-              hint="Set quantities and rates, or enter a single amount. Use the arrows to reorder items."
+              hint="Drag items to reorder them, or use the move buttons."
             >
               <InvoiceLineItems
                 items={form.data.line_items_attributes}
@@ -317,19 +351,45 @@ function InvoiceEditor({
               </div>
             </Section>
             <Section
-              step="03"
-              title="Linked Horizon games"
-              hint="Review linked games, inspect crew fees, and compare them with your invoice."
+              title={group ? "Shared Horizon games" : "Linked Horizon games"}
             >
-              <GamePicker
-                options={game_options}
-                initialSelected={selected_games}
-                selectedIds={form.data.game_ids}
-                onChange={selectGames}
-                invoiceId={autosave.identity.invoice_id}
-                draftId={autosave.identity.id}
-                invoiceTotal={invoiceTotal(form.data.line_items_attributes)}
-              />
+              {group ? (
+                <Link
+                  {...stylex.props(ui.link, ui.button)}
+                  href={`/invoice_groups/${group.id}`}
+                >
+                  View {group.game_count} shared{" "}
+                  {group.game_count === 1 ? "game" : "games"}
+                </Link>
+              ) : (
+                game_options && (
+                  <>
+                    {form.data.game_ids.length > 0 && (
+                      <div {...stylex.props(ui.actions, ui.groupAction)}>
+                        <button
+                          type="button"
+                          {...stylex.props(ui.nativeButton, ui.button)}
+                          disabled={autosave.state.phase === "saving"}
+                          onClick={() => void groupGames()}
+                        >
+                          Group these games for multiple invoices
+                        </button>
+                      </div>
+                    )}
+                    <GamePicker
+                      options={game_options}
+                      initialSelected={selected_games}
+                      selectedIds={form.data.game_ids}
+                      onChange={selectGames}
+                      invoiceId={autosave.identity.invoice_id}
+                      draftId={autosave.identity.id}
+                      invoiceTotal={invoiceTotal(
+                        form.data.line_items_attributes,
+                      )}
+                    />
+                  </>
+                )
+              )}
             </Section>
             <Section
               step="04"
@@ -349,8 +409,11 @@ function InvoiceEditor({
             </Section>
           </div>
           <div {...stylex.props(ui.formActions, ui.sticky)}>
-            <Link {...stylex.props(ui.link, ui.button)} href="/">
-              Back to invoices
+            <Link
+              {...stylex.props(ui.link, ui.button)}
+              href={group ? `/invoice_groups/${group.id}` : "/"}
+            >
+              {group ? "Back to invoice group" : "Back to invoices"}
             </Link>
             <button
               {...stylex.props(ui.nativeButton, ui.button, ui.primary)}

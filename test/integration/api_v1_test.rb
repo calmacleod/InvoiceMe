@@ -99,6 +99,28 @@ class ApiV1Test < ActionDispatch::IntegrationTest
     assert_nil response.parsed_body.dig("line_items", 0, "private_breakdown")
   end
 
+  test "API workbenches preserve a grouped invoice's shared games" do
+    game = @season.games.create!(external_id: "EXAMPLE-SHARED", date: Date.new(2031, 9, 15))
+    group = InvoiceGroup.start!(season: @season, game_ids: [ game.id ])
+    data = { number_suffix: "Example", recipient: "Fictional Club", description: "Services", issued_on: "2031-09-15",
+      line_items_attributes: [ { description: "Stick crew", quantity: "1", rate: "20.00" } ] }
+    web_draft = @user.invoice_drafts.create!(season: @season, invoice_group: group, client_key: "example-grouped", data: data)
+    post "/api/v1/drafts/#{web_draft.id}/preview", params: { lock_version: web_draft.lock_version }, headers: @headers, as: :json
+    assert_response :success
+    assert_equal group.id, response.parsed_body.fetch("invoice_group_id")
+    assert_equal [ game.id ], response.parsed_body.fetch("game_ids")
+    invoice = web_draft.reload.invoice
+    web_draft.destroy!
+
+    post "/api/v1/drafts", params: { season_id: @season.id, invoice_id: invoice.id, data: { game_ids: [ game.id ] } }, headers: @headers, as: :json
+    assert_response :created
+    assert_equal group.id, response.parsed_body.fetch("invoice_group_id")
+    draft = InvoiceDraft.find(response.parsed_body.fetch("id"))
+    patch "/api/v1/drafts/#{draft.id}", params: { lock_version: draft.lock_version, data: { game_ids: [] } }, headers: @headers, as: :json
+    assert_response :unprocessable_entity
+    assert_equal [ game.id ], invoice.reload.game_ids
+  end
+
   test "import previews and commits only synthetic file data" do
     file = fixture_file_upload("horizon.csv", "text/csv")
     post "/api/v1/games/import", params: { season_id: @season.id, file: file }, headers: @headers

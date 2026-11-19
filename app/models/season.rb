@@ -7,6 +7,7 @@ class Season < ApplicationRecord
     "payment_instructions" => "Payment can be made either by check or e-transfer."
   }.freeze
   has_many :invoices, dependent: :restrict_with_error
+  has_many :invoice_groups, dependent: :restrict_with_error
   has_many :games, dependent: :restrict_with_error
   has_many :invoice_drafts, dependent: :restrict_with_error
   validates :year, uniqueness: true, numericality: { only_integer: true, in: 2000..2200 }

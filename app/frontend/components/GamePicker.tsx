@@ -25,15 +25,18 @@ export default memo(function GamePicker({
   invoiceId,
   draftId,
   invoiceTotal,
+  readOnly = false,
 }: {
   options: GameOptions;
   initialSelected: GameSummary[];
   selectedIds: number[];
   onChange: (ids: number[]) => void;
-  invoiceId: number | null;
-  draftId: number | null;
-  invoiceTotal: number;
+  invoiceId?: number | null;
+  draftId?: number | null;
+  invoiceTotal?: number;
+  readOnly?: boolean;
 }) {
+  const selectionContext = invoiceTotal === undefined ? "group" : "draft";
   const [view, setView] = useState<"linked" | "all">(
     selectedIds.length ? "linked" : "all",
   );
@@ -65,7 +68,7 @@ export default memo(function GamePicker({
   const expandedGames = selected.filter(
     (game) => (game.code?.trim() || null) === expandedCode,
   );
-  const totals = gameTotals(selectedIds, known.current, invoiceTotal);
+  const totals = gameTotals(selectedIds, known.current, invoiceTotal ?? 0);
   const codeCounts = gameCountsByCode(selectedIds, known.current);
   const linkedPages = Math.max(1, Math.ceil(selected.length / linkedPerPage));
   const currentLinkedPage = Math.min(linkedPage, linkedPages);
@@ -169,13 +172,15 @@ export default memo(function GamePicker({
   return (
     <>
       <div {...stylex.props(styles.comparison)} aria-live="polite">
-        <div {...stylex.props(styles.comparisonItem)}>
-          <span {...stylex.props(ui.small)}>Invoice total</span>
-          <strong {...stylex.props(styles.comparisonValue)}>
-            {money(invoiceTotal)}
-          </strong>
-          <span {...stylex.props(ui.small)}>From your line items · CAD</span>
-        </div>
+        {invoiceTotal !== undefined && (
+          <div {...stylex.props(styles.comparisonItem)}>
+            <span {...stylex.props(ui.small)}>Invoice total</span>
+            <strong {...stylex.props(styles.comparisonValue)}>
+              {money(invoiceTotal)}
+            </strong>
+            <span {...stylex.props(ui.small)}>From your line items · CAD</span>
+          </div>
+        )}
         <div {...stylex.props(styles.comparisonItem)}>
           <span {...stylex.props(ui.small)}>Linked game fees</span>
           <strong {...stylex.props(styles.comparisonValue)}>
@@ -188,36 +193,40 @@ export default memo(function GamePicker({
             pages
           </span>
         </div>
-        <div
-          {...stylex.props(
-            styles.comparisonItem,
-            difference === 0 && styles.matched,
-          )}
-        >
-          <span {...stylex.props(ui.small)}>Difference</span>
-          <strong {...stylex.props(styles.comparisonValue)}>
-            {difference === null
-              ? "—"
-              : `${difference > 0 ? "+" : difference < 0 ? "−" : ""}${money(Math.abs(difference))}`}
-          </strong>
-          <span {...stylex.props(ui.small)}>
-            {difference === null
-              ? totals.feesCents === null
-                ? "Game fee total unavailable"
-                : "Link games to compare totals"
-              : difference === 0
-                ? "Invoice and game fees match"
-                : difference > 0
-                  ? "Invoice is above game fees"
-                  : "Game fees exceed the invoice"}
-          </span>
-        </div>
+        {invoiceTotal !== undefined && (
+          <div
+            {...stylex.props(
+              styles.comparisonItem,
+              difference === 0 && styles.matched,
+            )}
+          >
+            <span {...stylex.props(ui.small)}>Difference</span>
+            <strong {...stylex.props(styles.comparisonValue)}>
+              {difference === null
+                ? "—"
+                : `${difference > 0 ? "+" : difference < 0 ? "−" : ""}${money(Math.abs(difference))}`}
+            </strong>
+            <span {...stylex.props(ui.small)}>
+              {difference === null
+                ? totals.feesCents === null
+                  ? "Game fee total unavailable"
+                  : "Link games to compare totals"
+                : difference === 0
+                  ? "Invoice and game fees match"
+                  : difference > 0
+                    ? "Invoice is above game fees"
+                    : "Game fees exceed the invoice"}
+            </span>
+          </div>
+        )}
       </div>
-      <p {...stylex.props(ui.paragraph, ui.hint)}>
-        {totals.feesCents === null
-          ? "Some linked games are unavailable. Reload this draft before comparing totals."
-          : "Game fees include every linked game. A difference can include assigning, travel or other line items."}
-      </p>
+      {invoiceTotal !== undefined && (
+        <p {...stylex.props(ui.paragraph, ui.hint)}>
+          {totals.feesCents === null
+            ? "Some linked games are unavailable. Reload this draft before comparing totals."
+            : "Game fees include every linked game. A difference can include assigning, travel or other line items."}
+        </p>
+      )}
       {totals.count > 0 && (
         <section
           {...stylex.props(styles.codeSummary)}
@@ -279,7 +288,8 @@ export default memo(function GamePicker({
               <GameResultsTable
                 games={expandedGames}
                 selectedIds={selectedIds}
-                onToggle={toggle}
+                onToggle={readOnly ? undefined : toggle}
+                selectionContext={selectionContext}
                 invoiceId={invoiceId}
                 draftId={draftId}
                 sort={linkedSort}
@@ -290,38 +300,40 @@ export default memo(function GamePicker({
           )}
         </section>
       )}
-      <div
-        {...stylex.props(styles.viewControls)}
-        role="group"
-        aria-label="Games shown"
-      >
-        <button
-          type="button"
-          {...stylex.props(
-            ui.nativeButton,
-            ui.button,
-            view === "linked" && ui.primary,
-          )}
-          aria-pressed={view === "linked"}
-          disabled={linkingAll}
-          onClick={() => setView("linked")}
+      {!readOnly && (
+        <div
+          {...stylex.props(styles.viewControls)}
+          role="group"
+          aria-label="Games shown"
         >
-          Linked games ({totals.count})
-        </button>
-        <button
-          type="button"
-          {...stylex.props(
-            ui.nativeButton,
-            ui.button,
-            view === "all" && ui.primary,
-          )}
-          aria-pressed={view === "all"}
-          disabled={linkingAll}
-          onClick={() => setView("all")}
-        >
-          Browse all games
-        </button>
-      </div>
+          <button
+            type="button"
+            {...stylex.props(
+              ui.nativeButton,
+              ui.button,
+              view === "linked" && ui.primary,
+            )}
+            aria-pressed={view === "linked"}
+            disabled={linkingAll}
+            onClick={() => setView("linked")}
+          >
+            Linked games ({totals.count})
+          </button>
+          <button
+            type="button"
+            {...stylex.props(
+              ui.nativeButton,
+              ui.button,
+              view === "all" && ui.primary,
+            )}
+            aria-pressed={view === "all"}
+            disabled={linkingAll}
+            onClick={() => setView("all")}
+          >
+            Browse all games
+          </button>
+        </div>
+      )}
       {view === "all" && (
         <GameFilters
           collapsible
@@ -383,7 +395,8 @@ export default memo(function GamePicker({
       <GameResultsTable
         games={games}
         selectedIds={selectedIds}
-        onToggle={toggle}
+        onToggle={readOnly ? undefined : toggle}
+        selectionContext={selectionContext}
         invoiceId={invoiceId}
         draftId={draftId}
         sort={sort}
@@ -393,7 +406,7 @@ export default memo(function GamePicker({
       {!games.length && (
         <p {...stylex.props(ui.empty)}>
           {view === "linked"
-            ? "No games linked yet. Browse all games to add them to this draft."
+            ? "No games linked yet. Browse all games to add them."
             : "No matching games. Your linked games are kept when filters change."}
         </p>
       )}

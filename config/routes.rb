@@ -43,6 +43,9 @@ Rails.application.routes.draw do
   resources :invoice_drafts, only: %i[index create edit update destroy] do
     post :preview, on: :member
   end
+  resources :invoice_groups, only: %i[index show create update] do
+    post :attach_invoice, on: :member
+  end
   resources :games, only: %i[index new] do
     collection do
       patch :filters

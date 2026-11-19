@@ -16,8 +16,21 @@ module GameBrowser
 
   def game_filter_choices = GameSearch.choices(current_season.games)
 
+  def game_picker_props
+    {
+      game_options: -> {
+        search = game_search(picker: true)
+        order = GameOrder.new(params[:game_sort], params[:game_direction])
+        page = WorkspacePage.new(order.apply(search.results), params[:game_page], params[:game_per_page])
+        { games: game_list_props(page.records), pagination: page.props, query: search.filters["q"], filters: search.filters, errors: search.errors, filter_choices: game_filter_choices, sort: order.props }
+      },
+      matching_games: InertiaRails.optional { game_list_props(game_search(picker: true).results.order(:external_id, :id)) },
+      game_detail: InertiaRails.optional { game_detail_props }
+    }
+  end
+
   def game_list_props(scope)
-    games = scope.summaries.includes(:invoices).to_a
+    games = scope.summaries.includes(:invoices, :invoice_groups).to_a
     drafts = game_workbench_references(games.map(&:id))
     games.map { |game| game_props(game, workbenches: drafts.fetch(game.id, [])) }
   end
@@ -31,7 +44,7 @@ module GameBrowser
   end
 
   def game_detail_props
-    game = current_season.games.includes(:invoices).find(params[:detail_id])
+    game = current_season.games.includes(:invoices, :invoice_groups).find(params[:detail_id])
     game_props(game, detail: true, workbenches: game_workbench_references([ game.id ]).fetch(game.id, []))
   end
 end

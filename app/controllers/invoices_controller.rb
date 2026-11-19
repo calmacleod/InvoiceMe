@@ -67,7 +67,7 @@ class InvoicesController < ApplicationController
         redirect_to @invoice, alert: "Finalized invoices and invoices being exported are retained for your records"
       else
         @invoice.destroy!
-        redirect_to root_path, notice: "Draft deleted"
+        redirect_to @invoice.invoice_group || root_path, notice: "Draft deleted"
       end
     end
   end

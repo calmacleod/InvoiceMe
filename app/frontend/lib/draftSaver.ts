@@ -2,7 +2,11 @@ import type { DraftMetadata, InvoiceForm } from "../types";
 
 export type DraftIdentity = Pick<
   DraftMetadata,
-  "client_key" | "lock_version" | "invoice_id" | "season_id"
+  | "client_key"
+  | "lock_version"
+  | "invoice_id"
+  | "invoice_group_id"
+  | "season_id"
 > & { id: number | null };
 export type DraftSaveState = {
   phase: "saved" | "waiting" | "saving" | "error";

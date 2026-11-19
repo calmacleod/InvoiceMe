@@ -23,17 +23,23 @@ class InvoiceDraftsController < ApplicationController
         return render(json: { error: "This invoice already has a workbench. Open it from Draft workbench." }, status: :conflict) if existing && existing != @draft
         @draft.invoice = invoice
       end
+      if @draft.new_record? && params[:invoice_group_id].present?
+        @draft.invoice_group = season.invoice_groups.find(params[:invoice_group_id])
+      end
       save_data
     else
       if params[:invoice_id].present?
         invoice = Invoice.find(params[:invoice_id])
         invoice.with_lock do
           return redirect_to invoice, alert: "This invoice is finalized or exporting" if invoice.editing_blocked?
-          draft = own_drafts.find_or_create_by!(invoice: invoice) { |work| work.season = invoice.season; work.client_key = SecureRandom.uuid }
+          draft = own_drafts.find_or_create_by!(invoice: invoice) do |work|
+            work.assign_attributes(season: invoice.season, invoice_group: invoice.invoice_group, client_key: SecureRandom.uuid)
+          end
           redirect_to edit_invoice_draft_path(draft)
         end
       else
-        draft = own_drafts.create!(season: current_season, client_key: SecureRandom.uuid)
+        group = InvoiceGroup.find(params[:invoice_group_id]) if params[:invoice_group_id].present?
+        draft = own_drafts.create!(season: group&.season || current_season, invoice_group: group, client_key: SecureRandom.uuid)
         redirect_to edit_invoice_draft_path(draft)
       end
     end
@@ -53,18 +59,29 @@ class InvoiceDraftsController < ApplicationController
   def preview
     invoice = @draft.invoice || @draft.season.invoices.new
     numbering = InvoiceNumbering.new(invoice)
-    unless invoice.persisted?
+    if invoice.persisted?
+      invoice.with_lock { preview_locked(invoice, numbering) }
+    else
+      group = @draft.invoice_group
+      invoice.assign_attributes(invoice_group: group, game_ids: group.game_ids) if group
       assign_draft_data(invoice)
       numbering.prepare
+      if group
+        group.with_lock do
+          invoice.game_ids = group.game_ids
+          preview_locked(invoice, numbering)
+        end
+      else
+        preview_locked(invoice, numbering)
+      end
     end
-    invoice.persisted? ? invoice.with_lock { preview_locked(invoice, numbering) } : preview_locked(invoice, numbering)
   rescue GoogleApi::Error => e
     redirect_to edit_invoice_draft_path(@draft), alert: e.message
   end
 
   def destroy
     @draft.destroy!
-    redirect_to invoice_drafts_path, notice: "Workbench draft deleted"
+    redirect_to @draft.invoice_group || invoice_drafts_path, notice: "Workbench draft deleted"
   end
 
   private
@@ -100,12 +117,23 @@ class InvoiceDraftsController < ApplicationController
   def own_drafts = InvoiceDraft.where(user: Current.user)
   def set_draft = @draft = own_drafts.find(params[:id])
   def save_data
-    @draft.invoice ? @draft.invoice.with_lock { persist_data } : persist_data
+    invoice = @draft.invoice
+    return persist_data unless invoice
+
+    invoice.with_lock do
+      @draft.invoice_group = invoice.invoice_group if @draft.new_record? && @draft.invoice_group_id.nil?
+      persist_data
+    end
   end
   def persist_data
     @draft.reload if @draft.persisted?
     return conflict if @draft.invoice&.editing_blocked?
+    if @draft.persisted? && params.key?(:invoice_group_id) && params[:invoice_group_id].to_s != @draft.invoice_group_id.to_s
+      return conflict
+    end
+
     data = params.require(:data).permit(*InvoiceDraft::FIELDS, contacts: InvoiceContacts::FIELDS, game_ids: [], line_items_attributes: [ :id, :key, :description, :quantity, :rate, :position, :amount_only, :_destroy, { private_breakdown: [ :notes, { entries: %i[key description amount] } ] } ]).to_h
+    data.delete("game_ids") if @draft.invoice_group_id
     # Retrying an acknowledged-lost request is harmless. A different payload
     # must carry the current revision; another tab's work is never overwritten.
     if @draft.persisted? && @draft.data == data

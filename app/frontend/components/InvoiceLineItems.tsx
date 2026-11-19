@@ -1,8 +1,13 @@
 import type { EditableLineItem } from "../types";
+import { useState } from "react";
 import * as stylex from "@stylexjs/stylex";
 import { ui } from "../styles/ui.stylex";
 import { Field } from "./UI";
-import { moveLineItem, changeLinePricing } from "../lib/lineItems";
+import {
+  moveLineItem,
+  moveLineItemTo,
+  changeLinePricing,
+} from "../lib/lineItems";
 import LineItemBreakdown from "./LineItemBreakdown";
 
 export default function InvoiceLineItems({
@@ -12,6 +17,12 @@ export default function InvoiceLineItems({
   items: EditableLineItem[];
   onChange: (items: EditableLineItem[]) => void;
 }) {
+  const [dragged, setDragged] = useState<number | null>(null);
+  const [dropTarget, setDropTarget] = useState<number | null>(null);
+  const clearDrag = () => {
+    setDragged(null);
+    setDropTarget(null);
+  };
   const visible = items
     .map((item, index) => ({ item, index }))
     .filter(({ item }) => !item._destroy);
@@ -43,10 +54,28 @@ export default function InvoiceLineItems({
       <div {...stylex.props(ui.lineItems)}>
         {visible.map(({ item, index }, row) => (
           <div
-            {...stylex.props(ui.lineRow)}
+            {...stylex.props(
+              ui.lineRow,
+              index === dragged && ui.lineDragging,
+              index === dropTarget &&
+                dragged !== null &&
+                (dragged < index ? ui.lineDropAfter : ui.lineDropBefore),
+            )}
             key={item.key}
             role="group"
             aria-label={`Line item ${row + 1}`}
+            onDragOver={(event) => {
+              if (dragged === null) return;
+              event.preventDefault();
+              event.dataTransfer.dropEffect = "move";
+              setDropTarget(dragged === index ? null : index);
+            }}
+            onDrop={(event) => {
+              if (dragged === null) return;
+              event.preventDefault();
+              onChange(moveLineItemTo(items, dragged, index));
+              clearDrag();
+            }}
           >
             <div {...stylex.props(ui.lineDescription)}>
               <Field
@@ -108,7 +137,23 @@ export default function InvoiceLineItems({
               max="999999.99"
               required
             />
-            <div {...stylex.props(ui.actions)}>
+            <div {...stylex.props(ui.lineActions)}>
+              {visible.length > 1 && (
+                <span
+                  {...stylex.props(ui.lineGrip)}
+                  draggable
+                  aria-hidden="true"
+                  title="Drag to reorder"
+                  onDragStart={(event) => {
+                    event.dataTransfer.setData("text/plain", String(index));
+                    event.dataTransfer.effectAllowed = "move";
+                    setDragged(index);
+                  }}
+                  onDragEnd={clearDrag}
+                >
+                  <span>⠿</span>
+                </span>
+              )}
               <button
                 type="button"
                 {...stylex.props(ui.nativeButton, ui.button, ui.lineAction)}

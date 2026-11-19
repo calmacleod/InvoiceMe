@@ -54,6 +54,26 @@ export default function Show({
         actions={
           <div {...stylex.props(ui.actions)}>
             <Badge status={invoice.status} />
+            {invoice.invoice_group_id ? (
+              <Link
+                {...stylex.props(ui.link, ui.button)}
+                href={`/invoice_groups/${invoice.invoice_group_id}`}
+              >
+                View invoice group
+              </Link>
+            ) : (
+              invoice.game_ids.length > 0 && (
+                <Link
+                  {...stylex.props(ui.link, ui.button)}
+                  href="/invoice_groups"
+                  method="post"
+                  as="button"
+                  data={{ invoice_id: invoice.id }}
+                >
+                  Group these games
+                </Link>
+              )
+            )}
             {!invoice.finalized_at && !exporting && (
               <Link
                 {...stylex.props(ui.link, ui.button)}

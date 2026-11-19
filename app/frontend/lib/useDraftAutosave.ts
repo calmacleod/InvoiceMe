@@ -9,6 +9,7 @@ export default function useDraftAutosave(
   draft: DraftMetadata | null,
   seasonId: number,
   invoiceId: number | null,
+  groupId: number | null,
 ) {
   const [state, setState] = useState<DraftSaveState>({
     phase: "saved",
@@ -28,6 +29,7 @@ export default function useDraftAutosave(
         lock_version: 0,
         season_id: seasonId,
         invoice_id: invoiceId,
+        invoice_group_id: groupId,
       },
       data,
       async (identity, snapshot) => {
@@ -171,6 +173,7 @@ export default function useDraftAutosave(
       lock_version: 0,
       season_id: seasonId,
       invoice_id: null,
+      invoice_group_id: groupId,
     };
     writer.failed = null;
     writer.saved = "";

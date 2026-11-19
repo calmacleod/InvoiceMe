@@ -32,12 +32,13 @@ class GameSearch
     scope = scope.where(date: from..) if from
     scope = scope.where(date: ..to) if to
     invoice_ids = InvoiceGame.select(:game_id)
+    group_ids = InvoiceGroupGame.select(:game_id)
     draft_ids = self.class.workbench_games(@user).select(Arel.sql("CAST(selected_games.value AS INTEGER)"))
     case filters["link_status"]
     when "invoiced" then scope.where(id: invoice_ids).or(scope.where(already_invoiced: true))
     when "workbench" then scope.where(id: draft_ids)
-    when "linked" then scope.where(id: invoice_ids).or(scope.where(id: draft_ids)).or(scope.where(already_invoiced: true))
-    when "unlinked" then scope.where(already_invoiced: false).where.not(id: invoice_ids).where.not(id: draft_ids)
+    when "linked" then scope.where(id: invoice_ids).or(scope.where(id: group_ids)).or(scope.where(id: draft_ids)).or(scope.where(already_invoiced: true))
+    when "unlinked" then scope.where(already_invoiced: false).where.not(id: invoice_ids).where.not(id: group_ids).where.not(id: draft_ids)
     else scope
     end
   end
@@ -50,6 +51,8 @@ class GameSearch
     InvoiceDraft.where(user: user).open_work.reorder(nil)
       .joins(<<~SQL.squish)
         JOIN json_each(CASE
+          WHEN invoice_drafts.invoice_group_id IS NOT NULL
+            THEN (SELECT json_group_array(game_id) FROM invoice_group_games WHERE invoice_group_id = invoice_drafts.invoice_group_id)
           WHEN json_type(invoice_drafts.data, '$.game_ids') IS NOT NULL
             THEN json_extract(invoice_drafts.data, '$.game_ids')
           ELSE (SELECT json_group_array(game_id) FROM invoice_games WHERE invoice_id = invoice_drafts.invoice_id)
