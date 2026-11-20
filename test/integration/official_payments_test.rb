@@ -1,4 +1,5 @@
 require "test_helper"
+require "pdf-reader"
 require_relative "../test_helpers/fake_google"
 
 class OfficialPaymentsTest < ActionDispatch::IntegrationTest
@@ -75,6 +76,55 @@ class OfficialPaymentsTest < ActionDispatch::IntegrationTest
     delete session_path
     get pdf_official_payment_path(payment)
     assert_redirected_to new_session_path
+  end
+
+  test "previews a draft statement with named adjustments and removes them when cleared" do
+    payment = @season.official_payments.create!(official_name: "Hollow, Riley")
+    patch official_payment_path(payment), params: { official_payment: {
+      lock_version: payment.lock_version, evaluations: "90.00",
+      adjustments: [ { label: "Training credit", amount: "12.35" }, { label: "Equipment", amount: "-4.56" } ]
+    } }, as: :json
+    assert_redirected_to edit_official_payment_path(payment)
+    assert_equal 9_779, payment.reload.net_cents
+    assert_nil payment.reviewed_at
+
+    get preview_official_payment_path(payment)
+    assert_response :success
+    assert_match(/inline/, response.headers.fetch("Content-Disposition"))
+    preview = PDF::Reader.new(StringIO.new(response.body)).pages.map(&:text).join
+    assert_includes preview, "Training credit"
+    assert_includes preview, "Equipment"
+    assert_includes preview, "$97.79"
+    assert_nil payment.reload.reviewed_at
+
+    patch official_payment_path(payment), params: { official_payment: { lock_version: payment.lock_version, adjustments: [] } }, as: :json
+    assert_empty payment.reload.adjustments
+    assert_equal 9_000, payment.net_cents
+  end
+
+  test "bulk replacement changes selected drafts atomically and preserves blank fields" do
+    first = @season.official_payments.create!(official_name: "Fable, Avery", reviewed_at: Time.current, banquet_cents: 1_234)
+    second = @season.official_payments.create!(official_name: "Birch, Riley", reviewed_at: Time.current)
+    cheque = @season.official_payments.create!(official_name: "Shore, Morgan", reviewed_at: Time.current, evaluations_cents: 2_000, cheque_number: "F-903")
+    get bulk_edit_official_payments_path
+    assert_inertia_component "official_payments/BulkEdit"
+
+    patch bulk_update_official_payments_path, params: { bulk: {
+      amounts: { registration: "45.60", banquet: "" },
+      payments: [ first, second ].map { |payment| { id: payment.id, lock_version: payment.lock_version } }
+    } }, as: :json
+    assert_redirected_to bulk_edit_official_payments_path
+    assert_equal [ 4_560, 4_560 ], [ first.reload.registration_cents, second.reload.registration_cents ]
+    assert_equal 1_234, first.banquet_cents
+    assert_nil first.reviewed_at
+    assert_nil second.reviewed_at
+
+    patch bulk_update_official_payments_path, params: { bulk: {
+      amounts: { registration: "0" },
+      payments: [ first, cheque ].map { |payment| { id: payment.id, lock_version: payment.lock_version } }
+    } }, as: :json
+    assert_equal 4_560, first.reload.registration_cents
+    assert_equal 0, cheque.reload.registration_cents
   end
 
   test "creates an editable Google Doc in treasurer Drive and updates the same file after corrections" do

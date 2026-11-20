@@ -1,9 +1,14 @@
 class OfficialPayment < ApplicationRecord
   AMOUNTS = %i[game_fee_adjustment travel_ot_adjustment evaluations prepayment_refund registration banquet next_year_prepayment other].freeze
   SIGNED_AMOUNTS = %i[game_fee_adjustment travel_ot_adjustment other].freeze
+  BULK_FIELDS = {
+    registration: "OFOA registration", banquet: "Banquet", next_year_prepayment: "Next year’s prepayment",
+    evaluations: "Evaluations", prepayment_refund: "Prepayment refund"
+  }.freeze
   CHEQUE_FIELDS = %i[cheque_number deposited_on cheque_delivery].freeze
-  EARNINGS_FIELDS = AMOUNTS.map { |field| :"#{field}_cents" } + %i[assignments official_name]
+  EARNINGS_FIELDS = AMOUNTS.map { |field| :"#{field}_cents" } + %i[assignments official_name adjustments]
   MAX_CENTS = 100_000_000
+  MAX_ADJUSTMENTS = 50
 
   belongs_to :season
 
@@ -17,12 +22,14 @@ class OfficialPayment < ApplicationRecord
   validates(*SIGNED_AMOUNTS.map { |field| :"#{field}_cents" }, numericality: { only_integer: true, in: -MAX_CENTS..MAX_CENTS })
   validates(*(AMOUNTS - SIGNED_AMOUNTS).map { |field| :"#{field}_cents" }, numericality: { only_integer: true, in: 0..MAX_CENTS })
   validate :valid_cheque
+  validate :valid_adjustments
 
   def imported_game_fees_cents = assignments.sum { |entry| entry.fetch("fee_cents") }
   def imported_travel_ot_cents = assignments.sum { |entry| entry.fetch("travel_ot_cents") }
   def horizon_deductions_cents = assignments.sum { |entry| entry.fetch("deductions_cents") }
   def game_fees_cents = imported_game_fees_cents + game_fee_adjustment_cents
   def travel_ot_cents = imported_travel_ot_cents + travel_ot_adjustment_cents
+  def miscellaneous_cents = other_cents + adjustments.sum { |item| item.fetch("amount_cents") }
 
   def association_fee_cents
     base = game_fees_cents.clamp(0, 250_000) * 8
@@ -30,10 +37,9 @@ class OfficialPayment < ApplicationRecord
     (base + upper + 50) / 100
   end
 
-  def net_cents
-    game_fees_cents + travel_ot_cents + evaluations_cents + prepayment_refund_cents + other_cents -
-      association_fee_cents - registration_cents - banquet_cents - next_year_prepayment_cents
-  end
+  def net_game_fees_cents = game_fees_cents - association_fee_cents
+  def earnings_before_deductions_cents = net_game_fees_cents + travel_ot_cents + evaluations_cents + prepayment_refund_cents + miscellaneous_cents
+  def net_cents = earnings_before_deductions_cents - registration_cents - banquet_cents - next_year_prepayment_cents
 
   def status
     if deposited_on
@@ -48,23 +54,47 @@ class OfficialPayment < ApplicationRecord
   end
 
   def update_from_form!(values)
-    amounts = values.slice(*AMOUNTS).to_h do |field, value|
-      key = :"#{field}_cents"
-      begin
-        text = value.to_s.strip
-        amount = text.blank? ? 0 : MoneyValue.cents(text.delete_prefix("-"))
-        [ key, text.start_with?("-") ? -amount : amount ]
-      rescue ArgumentError
-        errors.add(field, "must be a dollar amount with up to two decimal places")
-        raise ActiveRecord::RecordInvalid, self
-      end
-    end
-    assign_attributes(amounts.merge(values.slice(*CHEQUE_FIELDS)))
+    assign_amounts(values.slice(*AMOUNTS))
+    assign_attributes(values.slice(*CHEQUE_FIELDS))
+    assign_adjustments(values[:adjustments]) if values.key?(:adjustments)
     self.reviewed_at = values[:reviewed] ? (reviewed_at || Time.current) : nil
     save!
   end
 
+  def assign_amounts(values)
+    assign_attributes(values.to_h { |field, value| [ :"#{field}_cents", parse_amount!(field, value) ] })
+  end
+
   private
+
+  def assign_adjustments(items)
+    self.adjustments = items.filter_map do |item|
+      label = item[:label].to_s.squish
+      next if label.blank? && item[:amount].blank?
+
+      { "label" => label, "amount_cents" => parse_amount!(:adjustments, item[:amount].presence || "invalid") }
+    end
+  end
+
+  def parse_amount!(field, value)
+    text = value.to_s.strip
+    return 0 if text.blank?
+
+    sign = text.start_with?("-") ? -1 : 1
+    sign * MoneyValue.cents(text.delete_prefix("-"))
+  rescue ArgumentError
+    errors.add(field, "must use dollar amounts with up to two decimal places")
+    raise ActiveRecord::RecordInvalid, self
+  end
+
+  def valid_adjustments
+    if adjustments.length > MAX_ADJUSTMENTS
+      errors.add(:adjustments, "can contain at most #{MAX_ADJUSTMENTS} items")
+    end
+    if adjustments.any? { |item| item["label"].blank? || item["label"].length > 100 || !item["amount_cents"].between?(-MAX_CENTS, MAX_CENTS) }
+      errors.add(:adjustments, "need a name up to 100 characters and a valid amount")
+    end
+  end
 
   def valid_cheque
     if cheque_number

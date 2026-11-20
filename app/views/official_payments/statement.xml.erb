@@ -25,7 +25,7 @@
       <style:table-column-properties style:column-width="172pt"/>
     </style:style>
     <style:style style:name="Row" style:family="table-row">
-      <style:table-row-properties style:min-row-height="24pt"/>
+      <style:table-row-properties style:min-row-height="<%= @statement.additional_items? ? 21 : 24 %>pt"/>
     </style:style>
     <style:style style:name="Cell" style:family="table-cell">
       <style:table-cell-properties fo:border="0.75pt solid #000000" fo:padding="0pt" fo:padding-left="5pt" fo:padding-right="5pt" style:vertical-align="middle"/>

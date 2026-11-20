@@ -151,6 +151,8 @@ Open **Officials payments** and choose **Pull from Horizon** to populate the sel
 
 Compare the imported assignments with Horizon's payroll report before checking the review box. Use manual adjustments for fees on payable cancelled games, already-issued payments, standalone payroll adjustments, and other differences. The register applies the 2025 association-fee schedule to game fees and keeps the other deductions and credits editable. A repeat import preserves those manual amounts and recorded cheques. Reviewed statements can be downloaded as PDF or editable documents, or generated in the connected treasurer's My Drive.
 
+Use **Bulk edit amounts** to set common amounts for selected officials. Changed payments return to review, and recorded cheques lock their earnings. Add named credits and deductions under **Additional items** on each official's record. **Preview statement** opens the saved statement before review. After all officials are reviewed, **Export final Google Sheet** creates a new workbook in the treasurer's Drive with the payment register and an itemized adjustments tab.
+
 ### Horizon API and connection
 
 Set `HORIZON_APP_ID` and `HORIZON_APP_KEY` in the ignored `.kamal/secrets` file and deploy with Kamal. Never commit credentials. In **Year & settings**, choose **Connect Horizon** and approve read-only organization access. Horizon may offer multiple organizations; select only those you want to connect. InvoiceMe encrypts each authorization code and access token in SQLite using keys derived from `SECRET_KEY_BASE`, which must remain stable. Use **Test read access** for a single schedule request for today. Disconnect deletes local credentials; revoke access separately in Horizon. No game data is imported by this test.

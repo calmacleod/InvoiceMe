@@ -21,6 +21,7 @@ class OfficialPaymentStatement
   def heading = "#{@season.year} EARNINGS FOR #{@payment.official_name}"
   def cheque = "Cheque Number: #{@payment.cheque_number || '—'}"
   def email = @season.issuer.fetch("email")
+  def additional_items? = @payment.adjustments.any?
 
   def rows
     [
@@ -36,6 +37,7 @@ class OfficialPaymentStatement
       [ "#{@season.year + 1} Prepayment", @payment.next_year_prepayment_cents ],
       [ "Misc" ],
       [ "Other", @payment.other_cents ],
+      *@payment.adjustments.map { |item| item.values_at("label", "amount_cents") },
       [ "Total" ],
       [ "Net Earnings", @payment.net_cents ]
     ]
@@ -88,7 +90,9 @@ class OfficialPaymentStatement
           ]
         end
       end
-      pdf.table(table_rows, column_widths: [ 191, 172 ], cell_style: { height: 24, padding: [ 0, 5 ], valign: :center, border_width: 0.75 })
+      row_padding = additional_items? ? 4 : 6
+      pdf.table(table_rows, column_widths: [ 191, 172 ], cell_style: { padding: [ row_padding, 5 ], valign: :center, border_width: 0.75 })
+      pdf.start_new_page if pdf.cursor < 155
       pdf.move_down 30
       pdf.text CONTACT, align: :center
       pdf.formatted_text [ { text: email, link: "mailto:#{email}", color: "0563C1", styles: [ :underline, :bold ] } ], align: :center

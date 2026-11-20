@@ -48,8 +48,14 @@ Rails.application.routes.draw do
     post :attach_invoice, on: :member
   end
   resources :official_payments, only: %i[index create edit update] do
-    post :import, on: :collection
+    collection do
+      post :import
+      get :bulk_edit
+      patch :bulk_update
+      post :export_sheet
+    end
     member do
+      get :preview
       get :pdf
       get :odt
       post :google_doc

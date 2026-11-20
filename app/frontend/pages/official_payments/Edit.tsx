@@ -5,6 +5,7 @@ import { Errors, Field, Heading, Section, Stat } from "../../components/UI";
 import { date, money } from "../../lib/format";
 import { ui } from "../../styles/ui.stylex";
 import type { PaymentSummary } from "./Index";
+import { useRef } from "react";
 
 const earnings = [
   ["game_fee_adjustment", "Game fee adjustment"],
@@ -37,6 +38,7 @@ type Payment = PaymentSummary & {
   horizon_deductions_cents: number;
   amounts: Record<AmountField, number>;
   assignments: Assignment[];
+  adjustments: { label: string; amount_cents: number }[];
 };
 type Props = { payment: Payment; year: number; google_connected: boolean };
 
@@ -53,6 +55,7 @@ function PaymentEditor({ payment, year, google_connected }: Props) {
   const base = `/official_payments/${payment.id}`;
   const reviewed = payment.status !== "Needs review";
   const locked = Boolean(payment.cheque_number);
+  const nextAdjustmentId = useRef(payment.adjustments.length);
   const initialAmounts = Object.fromEntries(
     Object.entries(payment.amounts).map(([key, cents]) => [
       key,
@@ -67,10 +70,17 @@ function PaymentEditor({ payment, year, google_connected }: Props) {
       cheque_number: payment.cheque_number ?? "",
       deposited_on: payment.deposited_on ?? "",
       cheque_delivery: payment.cheque_delivery ?? "",
+      adjustments: payment.adjustments.map((item, id) => ({
+        id,
+        label: item.label,
+        amount: (item.amount_cents / 100).toFixed(2),
+      })),
     },
   });
   const google = useForm({});
   const data = form.data.official_payment;
+  const setAdjustments = (adjustments: typeof data.adjustments) =>
+    form.setData("official_payment", { ...data, adjustments, reviewed: false });
   const amountField = ([key, label]: readonly [AmountField, string]) => (
     <Field
       key={key}
@@ -138,6 +148,73 @@ function PaymentEditor({ payment, year, google_connected }: Props) {
             {deductions.map(amountField)}
           </div>
         </Section>
+        <Section
+          title="Additional items"
+          hint="Give each credit or deduction a name. Use a negative amount for a deduction."
+        >
+          {data.adjustments.map((item, index) => {
+            const change = (field: "label" | "amount", value: string) =>
+              setAdjustments(
+                data.adjustments.map((entry) =>
+                  entry.id === item.id ? { ...entry, [field]: value } : entry,
+                ),
+              );
+            return (
+              <div key={item.id}>
+                <div {...stylex.props(ui.formGrid)}>
+                  <Field
+                    label={`Item ${index + 1} name`}
+                    name={`adjustment-name-${item.id}`}
+                    value={item.label}
+                    maxLength={100}
+                    disabled={locked}
+                    onChange={(value) => change("label", value)}
+                  />
+                  <Field
+                    label={`Item ${index + 1} amount`}
+                    name={`adjustment-amount-${item.id}`}
+                    value={item.amount}
+                    type="number"
+                    step="0.01"
+                    disabled={locked}
+                    onChange={(value) => change("amount", value)}
+                  />
+                </div>
+                {!locked && (
+                  <button
+                    type="button"
+                    {...stylex.props(ui.textButton)}
+                    aria-label={`Remove item ${index + 1}`}
+                    onClick={() =>
+                      setAdjustments(
+                        data.adjustments.filter(
+                          (entry) => entry.id !== item.id,
+                        ),
+                      )
+                    }
+                  >
+                    Remove item
+                  </button>
+                )}
+              </div>
+            );
+          })}
+          {!locked && (
+            <button
+              type="button"
+              {...stylex.props(ui.button)}
+              disabled={data.adjustments.length >= 50}
+              onClick={() =>
+                setAdjustments([
+                  ...data.adjustments,
+                  { id: nextAdjustmentId.current++, label: "", amount: "" },
+                ])
+              }
+            >
+              Add item
+            </button>
+          )}
+        </Section>
         <Section title="Review and cheque">
           <label {...stylex.props(ui.label)}>
             <input
@@ -194,27 +271,44 @@ function PaymentEditor({ payment, year, google_connected }: Props) {
           </div>
         </Section>
       </form>
-      {reviewed && !form.isDirty && (
-        <Section title="Earnings statement">
-          <div {...stylex.props(ui.formActions)}>
-            <a {...stylex.props(ui.link, ui.button)} href={`${base}/pdf`}>
-              Download PDF
-            </a>
-            <a {...stylex.props(ui.link, ui.button)} href={`${base}/odt`}>
-              Download editable document
-            </a>
-            {google_connected && (
-              <button
-                {...stylex.props(ui.button, ui.primary)}
-                disabled={google.processing}
-                onClick={() => google.post(`${base}/google_doc`)}
-              >
-                Generate Google Doc
-              </button>
-            )}
-          </div>
-        </Section>
-      )}
+      <Section
+        title="Earnings statement"
+        hint={
+          form.isDirty
+            ? "Save payment to include your latest changes in the preview."
+            : undefined
+        }
+      >
+        <div {...stylex.props(ui.formActions)}>
+          <a
+            {...stylex.props(ui.link, ui.button)}
+            href={`${base}/preview`}
+            target="_blank"
+            rel="noopener"
+          >
+            Preview statement
+          </a>
+          {reviewed && !form.isDirty && (
+            <>
+              <a {...stylex.props(ui.link, ui.button)} href={`${base}/pdf`}>
+                Download PDF
+              </a>
+              <a {...stylex.props(ui.link, ui.button)} href={`${base}/odt`}>
+                Download editable document
+              </a>
+              {google_connected && (
+                <button
+                  {...stylex.props(ui.button, ui.primary)}
+                  disabled={google.processing}
+                  onClick={() => google.post(`${base}/google_doc`)}
+                >
+                  Generate Google Doc
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      </Section>
       {payment.horizon_user_id && (
         <section {...stylex.props(ui.card, ui.tableCard)}>
           <div {...stylex.props(ui.tableHeading)}>

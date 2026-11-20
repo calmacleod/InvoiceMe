@@ -36,6 +36,7 @@ export default function Index({
   last_import,
   connections,
   can_import,
+  google_connected,
 }: {
   year: number;
   payments: PaymentSummary[];
@@ -43,12 +44,14 @@ export default function Index({
   last_import: Import | null;
   connections: { id: number; organization_name: string | null }[];
   can_import: boolean;
+  google_connected: boolean;
 }) {
   const pull = useForm({
     horizon_connection_id:
       connections.length === 1 ? String(connections[0].id) : "",
   });
   const adding = useForm({ official_payment: { official_name: "" } });
+  const exportForm = useForm({});
   const [query, setQuery] = useState("");
   const busy =
     last_import?.status === "queued" || last_import?.status === "running";
@@ -170,6 +173,24 @@ export default function Index({
       <section {...stylex.props(ui.card, ui.tableCard)}>
         <div {...stylex.props(ui.tableHeading)}>
           <h2 {...stylex.props(ui.h2)}>Earnings register</h2>
+          {payments.length > 0 && (
+            <Link
+              {...stylex.props(ui.link, ui.button)}
+              href="/official_payments/bulk_edit"
+            >
+              Bulk edit amounts
+            </Link>
+          )}
+          {payments.length > 0 && google_connected && (
+            <button
+              type="button"
+              {...stylex.props(ui.button)}
+              disabled={busy || exportForm.processing}
+              onClick={() => exportForm.post("/official_payments/export_sheet")}
+            >
+              Export final Google Sheet
+            </button>
+          )}
           <input
             {...stylex.props(ui.input)}
             type="search"
