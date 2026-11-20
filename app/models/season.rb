@@ -10,6 +10,8 @@ class Season < ApplicationRecord
   has_many :invoice_groups, dependent: :restrict_with_error
   has_many :games, dependent: :restrict_with_error
   has_many :invoice_drafts, dependent: :restrict_with_error
+  has_many :official_payments, dependent: :restrict_with_error
+  has_many :official_payment_imports, dependent: :destroy
   validates :year, uniqueness: true, numericality: { only_integer: true, in: 2000..2200 }
   validates :sheet_name, presence: true
   validates :ledger_start_row, numericality: { only_integer: true, greater_than_or_equal_to: 2, less_than: 100_000 }

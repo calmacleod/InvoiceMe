@@ -96,6 +96,20 @@ export default function Layout({ children }: PropsWithChildren) {
                 {...stylex.props(
                   ui.link,
                   layout.navLink,
+                  section === "official_payments" && layout.navActive,
+                )}
+                href="/official_payments"
+                aria-current={
+                  section === "official_payments" ? "page" : undefined
+                }
+              >
+                ◈ Officials payments
+              </Link>
+              <Link
+                navigateOnMouseDown
+                {...stylex.props(
+                  ui.link,
+                  layout.navLink,
                   section === "contacts" && layout.navActive,
                 )}
                 href="/contacts"

@@ -72,7 +72,7 @@ Follow Google's [web-server OAuth guide](https://developers.google.com/identity/
 
 ## Local development
 
-This is a standard Rails 8.1 application using Ruby 4.0.9, SQLite, React 19, Inertia Rails, Vite, Bootsnap, and the default Solid Queue/Cache/Cable adapters. The production Dockerfile extends the Rails template with a Node build stage for Vite and retains Thruster on port 80. Node is not needed in the runtime container.
+This is a standard Rails 8.1 application using Ruby 4.0.10, SQLite, React 19, Inertia Rails, Vite, Bootsnap, and the default Solid Queue/Cache/Cable adapters. The production Dockerfile extends the Rails template with a Node build stage for Vite and retains Thruster on port 80. Node is not needed in the runtime container.
 
 ```sh
 bin/setup
@@ -137,13 +137,19 @@ Restore only while the InvoiceMe service is stopped, with a backup of the curren
 
 ## Horizon integration
 
-This version imports downloaded CSV/XLSX files. The native master-fees export is detected automatically, including its repeated name/position/fee groups after the fixed game fields. Every official and position is retained, the fees are summed exactly, the Paid By Team field is retained, and meeting entries are excluded with a visible count. These are fee amounts, not evidence that an official has actually been paid. It does not scrape the signed-in website and does not assume access to Horizon's Developer API. Export the complete filtered schedule/payroll report yourself and use the upload/review workflow. CSV layouts vary; explicit mapping and separate position-name/fee pairs are supported. The API service layer is available for future integration; it does not yet connect accounts, synchronize, or change this import workflow.
+InvoiceMe accepts downloaded CSV/XLSX files through the upload and review workflow. The native master-fees export is detected automatically, including its repeated name/position/fee groups after the fixed game fields. The import retains every official, position, and Paid By Team value, sums fees exactly, and shows a count of excluded meetings. CSV layouts vary, so the importer supports explicit mapping and separate position-name/fee pairs.
 
 ### Sync games from Horizon
 
 On **Games & officials**, choose **Sync from Horizon** for the connected organization. InvoiceMe fetches the selected invoice year's January–December schedule in a background job and shows a review with new, changed, and unchanged games, including before-and-after officials, fees, and cancellation information. Applying the review creates or updates games by Horizon event ID in a transaction; invoice links, invoicing marks, and existing CSV source details are retained. Games absent from a response are not deleted. Reviews expire after two hours and can be discarded. The CSV workflow remains available.
 
-Assignment fees are the sum of Horizon's fee, travel, per diem, tolls, and other fees; deductions are excluded. These amounts are reference figures, not proof of payment. Horizon's schedule response does not expose the CSV's Paid By Team field, so existing values are preserved and new games leave it unknown. Review fee changes carefully, especially for games already linked to invoices. The sync requires complete, consistent pagination, rejects duplicate or incomplete events, and refuses to apply if a game changed since the review. It makes one call per schedule page plus a token exchange when needed, with no automatic request retries. To conserve the free-tier quota, a sync stops if Horizon reports more than 10 pages; it does not apply partial results. Simultaneous syncs are limited to one per application.
+Assignment fees are the sum of Horizon's fee, travel, per diem, tolls, and other fees; deductions are excluded. These amounts are reference figures, not proof of payment. The game sync preserves existing CSV Paid By Team values and leaves that CSV field blank for new games. Review fee changes carefully, especially for games already linked to invoices. The sync requires complete, consistent pagination, rejects duplicate or incomplete events, and refuses to apply if a game changed since the review. It makes one call per schedule page plus a token exchange when needed, with no automatic request retries. To conserve the free-tier quota, a sync stops if Horizon reports more than 10 pages; it does not apply partial results. Simultaneous syncs are limited to one per application.
+
+### Officials payments
+
+Open **Officials payments** and choose **Pull from Horizon** to populate the selected year's earnings register. The import reads published, non-cancelled games through the current date and excludes games marked vouchered or paid by the team. The register shows any games with ambiguous payer or cancellation fields. Game fees are grouped by Horizon user ID, and assignment travel, per diem, tolls, and other fees populate Travel/OT.
+
+Compare the imported assignments with Horizon's payroll report before checking the review box. Use manual adjustments for fees on payable cancelled games, already-issued payments, standalone payroll adjustments, and other differences. The register applies the 2025 association-fee schedule to game fees and keeps the other deductions and credits editable. A repeat import preserves those manual amounts and recorded cheques. Reviewed statements can be downloaded as PDF or editable documents, or generated in the connected treasurer's My Drive.
 
 ### Horizon API and connection
 

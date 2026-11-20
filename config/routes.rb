@@ -47,6 +47,14 @@ Rails.application.routes.draw do
     get :add_existing, on: :member
     post :attach_invoice, on: :member
   end
+  resources :official_payments, only: %i[index create edit update] do
+    post :import, on: :collection
+    member do
+      get :pdf
+      get :odt
+      post :google_doc
+    end
+  end
   resources :games, only: %i[index new] do
     collection do
       patch :filters

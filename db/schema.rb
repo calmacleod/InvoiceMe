@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_19_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_20_180000) do
   create_table "api_keys", force: :cascade do |t|
     t.integer "user_id", null: false
     t.string "name", null: false
@@ -207,6 +207,49 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_19_120000) do
     t.index ["invoice_id"], name: "index_line_items_on_invoice_id"
   end
 
+  create_table "official_payment_imports", force: :cascade do |t|
+    t.integer "season_id", null: false
+    t.string "status", default: "queued", null: false
+    t.string "organization_name"
+    t.integer "horizon_connection_id"
+    t.string "error"
+    t.integer "official_count"
+    t.json "excluded_games", default: [], null: false
+    t.json "changed_cheques", default: [], null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index "(1)", name: "index_one_active_official_payment_import", unique: true, where: "status IN ('queued', 'running')"
+    t.index ["season_id"], name: "index_official_payment_imports_on_season_id"
+  end
+
+  create_table "official_payments", force: :cascade do |t|
+    t.integer "season_id", null: false
+    t.string "horizon_user_id"
+    t.string "official_name", null: false
+    t.json "assignments", default: [], null: false
+    t.integer "game_fee_adjustment_cents", default: 0, null: false
+    t.integer "travel_ot_adjustment_cents", default: 0, null: false
+    t.integer "evaluations_cents", default: 0, null: false
+    t.integer "prepayment_refund_cents", default: 0, null: false
+    t.integer "registration_cents", default: 0, null: false
+    t.integer "banquet_cents", default: 0, null: false
+    t.integer "next_year_prepayment_cents", default: 0, null: false
+    t.integer "other_cents", default: 0, null: false
+    t.datetime "reviewed_at"
+    t.string "cheque_number"
+    t.date "deposited_on"
+    t.string "cheque_delivery"
+    t.string "google_doc_id"
+    t.string "google_doc_digest"
+    t.integer "lock_version", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index "season_id, lower(official_name)", name: "index_manual_official_payments_on_name", unique: true, where: "horizon_user_id IS NULL"
+    t.index ["season_id", "cheque_number"], name: "index_official_payments_on_season_id_and_cheque_number", unique: true
+    t.index ["season_id", "horizon_user_id"], name: "index_official_payments_on_season_id_and_horizon_user_id", unique: true
+    t.index ["season_id"], name: "index_official_payments_on_season_id"
+  end
+
   create_table "payments", force: :cascade do |t|
     t.integer "invoice_id", null: false
     t.integer "amount_cents", null: false
@@ -272,6 +315,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_19_120000) do
   add_foreign_key "line_item_private_breakdowns", "line_items"
   add_foreign_key "line_item_private_breakdowns", "users"
   add_foreign_key "line_items", "invoices"
+  add_foreign_key "official_payment_imports", "seasons"
+  add_foreign_key "official_payments", "seasons"
   add_foreign_key "payments", "invoices"
   add_foreign_key "sessions", "users"
 end
