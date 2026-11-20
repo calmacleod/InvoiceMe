@@ -1,9 +1,10 @@
 class OfficialPayment < ApplicationRecord
   AMOUNTS = %i[game_fee_adjustment travel_ot_adjustment evaluations prepayment_refund registration banquet next_year_prepayment other].freeze
   SIGNED_AMOUNTS = %i[game_fee_adjustment travel_ot_adjustment other].freeze
-  BULK_FIELDS = {
+  REGISTER_FIELDS = {
     registration: "OFOA registration", banquet: "Banquet", next_year_prepayment: "Next year’s prepayment",
-    evaluations: "Evaluations", prepayment_refund: "Prepayment refund"
+    evaluations: "Evaluations", prepayment_refund: "Prepayment refund",
+    game_fee_adjustment: "Game fee adjustment", travel_ot_adjustment: "Travel/OT adjustment", other: "Other"
   }.freeze
   CHEQUE_FIELDS = %i[cheque_number deposited_on cheque_delivery].freeze
   EARNINGS_FIELDS = AMOUNTS.map { |field| :"#{field}_cents" } + %i[assignments official_name adjustments]
@@ -11,6 +12,8 @@ class OfficialPayment < ApplicationRecord
   MAX_ADJUSTMENTS = 50
 
   belongs_to :season
+  attr_readonly :payment_number
+  before_create :assign_payment_number
 
   normalizes :official_name, with: ->(name) { name.squish }
   normalizes :cheque_number, :cheque_delivery, with: ->(value) { value.strip.presence }
@@ -65,8 +68,6 @@ class OfficialPayment < ApplicationRecord
     assign_attributes(values.to_h { |field, value| [ :"#{field}_cents", parse_amount!(field, value) ] })
   end
 
-  private
-
   def assign_adjustments(items)
     self.adjustments = items.filter_map do |item|
       label = item[:label].to_s.squish
@@ -76,10 +77,17 @@ class OfficialPayment < ApplicationRecord
     end
   end
 
+  private
+
+  def assign_payment_number
+    self.payment_number = self.class.where(season_id: season_id).maximum(:payment_number).to_i + 1
+  end
+
   def parse_amount!(field, value)
     text = value.to_s.strip
     return 0 if text.blank?
 
+    text = "-#{text[1...-1]}" if text.start_with?("(") && text.end_with?(")")
     sign = text.start_with?("-") ? -1 : 1
     sign * MoneyValue.cents(text.delete_prefix("-"))
   rescue ArgumentError

@@ -25,7 +25,8 @@ class OfficialPaymentImport < ApplicationRecord
       changed_cheques = []
       existing = season.official_payments.where.not(horizon_user_id: nil).index_by(&:horizon_user_id)
       verify_source!(connection, existing.values, rows)
-      (existing.keys | rows.keys).each do |user_id|
+      incoming = rows.keys.sort_by { |user_id| [ rows.fetch(user_id).fetch(:name).downcase, user_id ] }
+      (existing.keys | incoming).each do |user_id|
         row = rows.fetch(user_id, {})
         payment = existing[user_id] || season.official_payments.new(horizon_user_id: user_id)
         name = row.fetch(:name, payment.official_name)

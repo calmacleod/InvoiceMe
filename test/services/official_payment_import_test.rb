@@ -23,6 +23,7 @@ class OfficialPaymentImportTest < ActiveSupport::TestCase
     editable = @season.official_payments.find_by!(horizon_user_id: "official-a")
     issued = @season.official_payments.find_by!(horizon_user_id: "official-b")
     assert_equal editable.official_name, issued.official_name
+    assert_equal [ 1, 2 ], [ editable.payment_number, issued.payment_number ]
     assert_equal 20_000, editable.game_fees_cents
     assert_equal 2_050, editable.travel_ot_cents
     assert_equal 1_600, editable.horizon_deductions_cents
@@ -38,6 +39,7 @@ class OfficialPaymentImportTest < ActiveSupport::TestCase
     assert_nil editable.reviewed_at
     assert_equal 8_000, issued.reload.game_fees_cents
     assert_equal "F1001", issued.cheque_number
+    assert_equal 2, issued.payment_number
   end
 
   test "accepts a completely empty schedule and rejects duplicates and incomplete pages" do

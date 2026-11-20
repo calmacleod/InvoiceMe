@@ -19,6 +19,7 @@ class OfficialPaymentsTest < ActionDispatch::IntegrationTest
   test "creates, reviews, records a cheque, and downloads both statement formats" do
     post official_payments_path, params: { official_payment: { official_name: "Fable, Morgan" } }
     payment = @season.official_payments.sole
+    assert_equal 1, payment.payment_number
     assert_redirected_to edit_official_payment_path(payment)
     get edit_official_payment_path(payment)
     assert_inertia_component "official_payments/Edit"
@@ -48,6 +49,7 @@ class OfficialPaymentsTest < ActionDispatch::IntegrationTest
       assert_equal 14, content.xpath("//table:table-row").size
       assert_includes content.text, "Fable, Morgan"
       assert_includes content.text, "Cheque Number: EX-901"
+      assert_includes content.text, "Payment Number: 1"
       assert_includes content.text, "2027 Prepayment"
       assert_includes content.text, "$3098.60"
     end
@@ -102,29 +104,54 @@ class OfficialPaymentsTest < ActionDispatch::IntegrationTest
     assert_equal 9_000, payment.net_cents
   end
 
-  test "bulk replacement changes selected drafts atomically and preserves blank fields" do
+  test "amount grid saves different values per official and rolls back if a row is locked" do
     first = @season.official_payments.create!(official_name: "Fable, Avery", reviewed_at: Time.current, banquet_cents: 1_234)
     second = @season.official_payments.create!(official_name: "Birch, Riley", reviewed_at: Time.current)
     cheque = @season.official_payments.create!(official_name: "Shore, Morgan", reviewed_at: Time.current, evaluations_cents: 2_000, cheque_number: "F-903")
     get bulk_edit_official_payments_path
     assert_inertia_component "official_payments/BulkEdit"
 
-    patch bulk_update_official_payments_path, params: { bulk: {
-      amounts: { registration: "45.60", banquet: "" },
-      payments: [ first, second ].map { |payment| { id: payment.id, lock_version: payment.lock_version } }
-    } }, as: :json
+    patch bulk_update_official_payments_path, params: { payments: [
+      { id: first.id, lock_version: first.lock_version, amounts: { registration: "45.60" } },
+      { id: second.id, lock_version: second.lock_version, amounts: { registration: "30.60", banquet: "3" } }
+    ] }, as: :json
     assert_redirected_to bulk_edit_official_payments_path
-    assert_equal [ 4_560, 4_560 ], [ first.reload.registration_cents, second.reload.registration_cents ]
+    assert_equal [ 4_560, 3_060 ], [ first.reload.registration_cents, second.reload.registration_cents ]
     assert_equal 1_234, first.banquet_cents
     assert_nil first.reviewed_at
     assert_nil second.reviewed_at
 
-    patch bulk_update_official_payments_path, params: { bulk: {
-      amounts: { registration: "0" },
-      payments: [ first, cheque ].map { |payment| { id: payment.id, lock_version: payment.lock_version } }
-    } }, as: :json
+    patch bulk_update_official_payments_path, params: { payments:
+      [ first, cheque ].map { |payment| { id: payment.id, lock_version: payment.lock_version, amounts: { registration: "" } } }
+    }, as: :json
     assert_equal 4_560, first.reload.registration_cents
     assert_equal 0, cheque.reload.registration_cents
+  end
+
+  test "dedicated adjustment register can add, move, and clear items across officials" do
+    first = @season.official_payments.create!(official_name: "Larch, Avery", reviewed_at: Time.current,
+      adjustments: [ { "label" => "Training waiver", "amount_cents" => 925 } ])
+    second = @season.official_payments.create!(official_name: "Brook, Riley", reviewed_at: Time.current)
+    get adjustments_official_payments_path
+    assert_inertia_component "official_payments/Adjustments"
+    patch update_adjustments_official_payments_path, params: { payments: [
+      { id: first.id, lock_version: first.lock_version, items: [] },
+      { id: second.id, lock_version: second.lock_version, items: [ { label: "Training waiver", amount: "9.25" }, { label: "Equipment", amount: "($2.10)" } ] }
+    ] }, as: :json
+    assert_redirected_to adjustments_official_payments_path
+    assert_empty first.reload.adjustments
+    assert_equal 715, second.reload.net_cents
+    assert_nil first.reviewed_at
+    assert_nil second.reviewed_at
+  end
+
+  test "payment numbers are assigned per year and separate from cheque numbers" do
+    first = @season.official_payments.create!(official_name: "Reed, Avery")
+    second = @season.official_payments.create!(official_name: "Brook, Riley", cheque_number: "0014", reviewed_at: Time.current, evaluations_cents: 3_000)
+    year = Season.create!(year: 2034, sheet_name: "Fictional Register", issuer: @season.issuer)
+    next_year = year.official_payments.create!(official_name: "Glen, Morgan")
+    assert_equal [ 1, 2, 1 ], [ first.payment_number, second.payment_number, next_year.payment_number ]
+    assert_equal "0014", second.cheque_number
   end
 
   test "creates an editable Google Doc in treasurer Drive and updates the same file after corrections" do

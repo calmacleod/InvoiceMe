@@ -52,6 +52,8 @@ Rails.application.routes.draw do
       post :import
       get :bulk_edit
       patch :bulk_update
+      get :adjustments
+      patch :update_adjustments
       post :export_sheet
     end
     member do

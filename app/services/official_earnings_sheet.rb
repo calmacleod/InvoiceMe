@@ -9,7 +9,7 @@ class OfficialEarningsSheet
   end
 
   def export!
-    payments = @season.official_payments.order(:official_name, :id).to_a
+    payments = @season.official_payments.order(:payment_number).to_a
     raise GoogleApi::Error, "Add officials before exporting earnings." if payments.empty?
     raise GoogleApi::Error, "Review every official before exporting the final earnings sheet." if payments.any? { |payment| !payment.reviewed_at }
 
@@ -31,7 +31,7 @@ class OfficialEarningsSheet
 
   def register(payments)
     headers = [ "Official", "Game Fees", "Association Fee", "Net Game Fees", "Travel/OT", "Evaluations", "Prepayment Refund", "Other",
-      "Earnings prior to Deductions", "OFOA Registration", "Banquet", "#{@season.year + 1} Prepayment", "Net Amount", "Cheque Number", "Date Deposited", "Cheque Delivery" ]
+      "Earnings prior to Deductions", "OFOA Registration", "Banquet", "#{@season.year + 1} Prepayment", "Net Amount", "Cheque Number", "Date Deposited", "Cheque Delivery", "Payment Number" ]
     rows = payments.map do |payment|
       cents = [
         payment.game_fees_cents, payment.association_fee_cents, payment.net_game_fees_cents, payment.travel_ot_cents,
@@ -39,18 +39,18 @@ class OfficialEarningsSheet
         payment.registration_cents, payment.banquet_cents, payment.next_year_prepayment_cents, payment.net_cents
       ]
       deposit = payment.deposited_on ? number((payment.deposited_on - DATE_EPOCH).to_i, DATE) : {}
-      [ string(payment.official_name), *cents.map { |value| currency(value) }, string(payment.cheque_number), deposit, string(payment.cheque_delivery) ]
+      [ string(payment.official_name), *cents.map { |value| currency(value) }, string(payment.cheque_number), deposit, string(payment.cheque_delivery), number(payment.payment_number) ]
     end
-    tab(0, "Officials Payment Amounts", headers, rows, [ 200, *Array.new(12, 125), 120, 130, 180 ])
+    tab(0, "Officials Payment Amounts", headers, rows, [ 200, *Array.new(12, 125), 120, 130, 180, 130 ])
   end
 
   def adjustments(payments)
-    rows = payments.each_with_index.flat_map do |payment, index|
+    rows = payments.flat_map do |payment|
       payment.adjustments.map do |item|
-        [ number(index + 2), string(payment.official_name), string(item.fetch("label")), currency(item.fetch("amount_cents")) ]
+        [ number(payment.payment_number), string(payment.official_name), string(item.fetch("label")), currency(item.fetch("amount_cents")) ]
       end
     end
-    tab(1, "Adjustments", [ "Register row", "Official", "Adjustment", "Amount" ], rows, [ 120, 200, 320, 125 ])
+    tab(1, "Adjustments", [ "Payment Number", "Official", "Adjustment", "Amount" ], rows, [ 130, 200, 320, 125 ])
   end
 
   def tab(sheet_id, title, headers, rows, widths)

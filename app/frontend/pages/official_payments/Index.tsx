@@ -8,6 +8,7 @@ import { ui } from "../../styles/ui.stylex";
 
 export type PaymentSummary = {
   id: number;
+  payment_number: number;
   official_name: string;
   horizon_user_id: string | null;
   status: "Needs review" | "Reviewed" | "Cheque recorded" | "Deposited";
@@ -178,7 +179,15 @@ export default function Index({
               {...stylex.props(ui.link, ui.button)}
               href="/official_payments/bulk_edit"
             >
-              Bulk edit amounts
+              Enter payment amounts
+            </Link>
+          )}
+          {payments.length > 0 && (
+            <Link
+              {...stylex.props(ui.link, ui.button)}
+              href="/official_payments/adjustments"
+            >
+              Additional items
             </Link>
           )}
           {payments.length > 0 && google_connected && (
@@ -205,6 +214,9 @@ export default function Index({
             <thead>
               <tr>
                 <th {...stylex.props(ui.th)} scope="col">
+                  Payment #
+                </th>
+                <th {...stylex.props(ui.th)} scope="col">
                   Official
                 </th>
                 <th {...stylex.props(ui.th, ui.numeric)} scope="col">
@@ -230,6 +242,7 @@ export default function Index({
             <tbody>
               {shown.map((payment) => (
                 <tr key={payment.id}>
+                  <td {...stylex.props(ui.td)}>{payment.payment_number}</td>
                   <td {...stylex.props(ui.td)}>
                     <Link
                       {...stylex.props(ui.link)}
@@ -272,7 +285,7 @@ export default function Index({
               ))}
               {!shown.length && (
                 <tr>
-                  <td {...stylex.props(ui.td, ui.muted)} colSpan={7}>
+                  <td {...stylex.props(ui.td, ui.muted)} colSpan={8}>
                     {payments.length
                       ? "No officials match this search."
                       : "Pull from Horizon to start the register, or add an official below."}

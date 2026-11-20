@@ -32,6 +32,8 @@ class OfficialEarningsSheetTest < ActiveSupport::TestCase
     assert_equal 6.98, register_row.dig(7, :userEnteredValue, :numberValue)
     assert_equal official.net_cents.fdiv(100), register_row.dig(12, :userEnteredValue, :numberValue)
     assert_equal "0019", register_row.dig(13, :userEnteredValue, :stringValue)
+    assert_equal 1, register_row.dig(16, :userEnteredValue, :numberValue)
+    assert_equal 1, details.dig(:rows, 1, :values, 0, :userEnteredValue, :numberValue)
     assert_equal "=Training", details.dig(:rows, 1, :values, 2, :userEnteredValue, :stringValue)
     assert_equal "#{season.year} Final Officials Earnings", google.writes.last.dig(:updateSpreadsheetProperties, :properties, :title)
   end

@@ -19,6 +19,9 @@ class OfficialPaymentStatement
   def filename = "#{@season.year}-earnings-#{@payment.official_name.parameterize}"
   def organization = @season.issuer.fetch("name").upcase
   def heading = "#{@season.year} EARNINGS FOR #{@payment.official_name}"
+  def payment_number_label
+    "Payment Number: #{@payment.payment_number}" if @payment.payment_number
+  end
   def cheque = "Cheque Number: #{@payment.cheque_number || '—'}"
   def email = @season.issuer.fetch("email")
   def additional_items? = @payment.adjustments.any?
@@ -78,6 +81,7 @@ class OfficialPaymentStatement
       pdf.text_box organization, at: [ 71, pdf.bounds.top - 10 ], width: 407, height: 38, valign: :center, size: 15, style: :bold, overflow: :shrink_to_fit
       pdf.move_down 93
       pdf.text heading, style: :bold
+      pdf.text payment_number_label, style: :bold if payment_number_label
       pdf.text cheque, style: :bold
       pdf.move_cursor_to([ pdf.cursor - 14, pdf.bounds.top - 137 ].min)
       table_rows = rows.map do |label, cents|

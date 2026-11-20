@@ -151,7 +151,7 @@ Open **Officials payments** and choose **Pull from Horizon** to populate the sel
 
 Compare the imported assignments with Horizon's payroll report before checking the review box. Use manual adjustments for fees on payable cancelled games, already-issued payments, standalone payroll adjustments, and other differences. The register applies the 2025 association-fee schedule to game fees and keeps the other deductions and credits editable. A repeat import preserves those manual amounts and recorded cheques. Reviewed statements can be downloaded as PDF or editable documents, or generated in the connected treasurer's My Drive.
 
-Use **Bulk edit amounts** to set common amounts for selected officials. Changed payments return to review, and recorded cheques lock their earnings. Add named credits and deductions under **Additional items** on each official's record. **Preview statement** opens the saved statement before review. After all officials are reviewed, **Export final Google Sheet** creates a new workbook in the treasurer's Drive with the payment register and an itemized adjustments tab.
+Use **Enter payment amounts** to edit individual cells or paste a range from a spreadsheet. Use **Additional items** to add or edit named credits and deductions across officials. Changed payments return to review, and recorded cheques lock their earnings. Payment numbers start at 1 each year and stay with the official's record. **Preview statement** opens the saved statement before review. After all officials are reviewed, **Export final Google Sheet** creates a new workbook in the treasurer's Drive with the payment register and an itemized adjustments tab.
 
 ### Horizon API and connection
 

@@ -55,6 +55,9 @@
   <office:body><office:text>
     <text:p text:style-name="Banner"><draw:frame draw:style-name="Logo" text:anchor-type="as-char" svg:width="72pt" svg:height="70pt"><draw:image xlink:href="Pictures/logo.jpg" xlink:type="simple" xlink:show="embed" xlink:actuate="onLoad"/></draw:frame><text:s/><%= @statement.organization %></text:p>
     <text:p text:style-name="StatementHeading"><%= @statement.heading %></text:p>
+    <% if @statement.payment_number_label %>
+      <text:p text:style-name="StatementHeading"><%= @statement.payment_number_label %></text:p>
+    <% end %>
     <text:p text:style-name="StatementCheque"><%= @statement.cheque %></text:p>
     <table:table table:name="Earnings" table:style-name="Statement">
       <table:table-column table:style-name="Labels"/>

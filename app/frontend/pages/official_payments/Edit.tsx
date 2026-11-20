@@ -106,7 +106,7 @@ function PaymentEditor({ payment, year, google_connected }: Props) {
         ← Officials payments
       </Link>
       <Heading title={payment.official_name}>
-        {year} earnings · {payment.status}
+        {year} earnings · Payment #{payment.payment_number} · {payment.status}
       </Heading>
       <div {...stylex.props(ui.stats)}>
         <Stat label="Net earnings" value={money(payment.net_cents)} dark />

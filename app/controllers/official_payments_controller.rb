@@ -4,7 +4,7 @@ class OfficialPaymentsController < ApplicationController
   before_action :load_payment, only: %i[edit update preview pdf odt google_doc]
 
   def index
-    payments = current_season.official_payments.order(:official_name, :id).to_a
+    payments = numbered_payments.to_a
     last_import = current_season.official_payment_imports.order(id: :desc).first
     connections = HorizonConnection.order(:id).select(:id, :organization_name)
     render inertia: "official_payments/Index", props: {
@@ -61,43 +61,35 @@ class OfficialPaymentsController < ApplicationController
   end
 
   def bulk_edit
-    payments = current_season.official_payments.order(:official_name, :id)
     render inertia: "official_payments/BulkEdit", props: {
       year: current_season.year,
-      fields: OfficialPayment::BULK_FIELDS.map { |field, label| { key: field, label: label } },
-      payments: payments.map do |payment|
-        {
-          id: payment.id, name: payment.official_name, lock_version: payment.lock_version, locked: payment.cheque_number.present?,
-          amounts: OfficialPayment::BULK_FIELDS.keys.index_with { |field| payment.public_send("#{field}_cents") }
-        }
+      fields: OfficialPayment::REGISTER_FIELDS.map { |field, label| { key: field, label: label } },
+      payments: numbered_payments.map do |payment|
+        register_row(payment).merge(amounts: OfficialPayment::REGISTER_FIELDS.keys.index_with { |field| payment.public_send("#{field}_cents") })
       end
     }
   end
 
   def bulk_update
-    bulk = params.expect(bulk: [ { amounts: OfficialPayment::BULK_FIELDS.keys }, { payments: [ %i[id lock_version] ] } ])
-    amounts = bulk.fetch(:amounts, {}).to_h.symbolize_keys.select { |_field, value| value.present? }
-    selected = bulk.fetch(:payments, []).to_h { |row| [ row[:id].to_s, row[:lock_version].to_s ] }
-    return redirect_to bulk_edit_official_payments_path, alert: "Select officials and enter at least one amount.", status: :see_other if amounts.empty? || selected.empty?
-
-    changed = OfficialPayment.transaction do
-      payments = current_season.official_payments.where(id: selected.keys).to_a
-      unless payments.size == selected.size && payments.all? { |payment| !payment.cheque_number && payment.lock_version.to_s == selected[payment.id.to_s] }
-        raise ActiveRecord::StaleObjectError.new(OfficialPayment.new, "bulk update")
-      end
-
-      payments.count do |payment|
-        payment.assign_amounts(amounts)
-        next false unless payment.has_changes_to_save?
-
-        payment.update!(reviewed_at: nil)
-      end
+    rows = params.expect(payments: [ [ :id, :lock_version, { amounts: OfficialPayment::REGISTER_FIELDS.keys } ] ])
+    save_register(rows, bulk_edit_official_payments_path) do |payment, row|
+      payment.assign_amounts(row.fetch(:amounts, {}).to_h.symbolize_keys)
     end
-    redirect_to bulk_edit_official_payments_path, status: :see_other, notice: "Updated #{helpers.pluralize(changed, 'official')}."
-  rescue ActiveRecord::RecordInvalid => error
-    redirect_to bulk_edit_official_payments_path, status: :see_other, inertia: { errors: error.record.errors }
-  rescue ActiveRecord::StaleObjectError
-    redirect_to bulk_edit_official_payments_path, status: :see_other, alert: "A selected payment changed or has a recorded cheque. Select the officials again."
+  end
+
+  def adjustments
+    render inertia: "official_payments/Adjustments", props: {
+      year: current_season.year,
+      payments: numbered_payments.map { |payment| register_row(payment).merge(adjustments: payment.adjustments) }
+    }
+  end
+
+  def update_adjustments
+    rows = params.expect(payments: [ [ :id, :lock_version, { items: [ %i[label amount] ] } ] ])
+    save_register(rows, adjustments_official_payments_path) do |payment, row|
+      items = row.to_h.deep_symbolize_keys.fetch(:items) { raise ActionController::BadRequest, "Missing adjustment rows" }
+      payment.assign_adjustments(items)
+    end
   end
 
   def export_sheet
@@ -157,6 +149,39 @@ class OfficialPaymentsController < ApplicationController
 
   private
 
+  def numbered_payments = current_season.official_payments.order(:payment_number)
+
+  def register_row(payment)
+    { id: payment.id, name: payment.official_name, payment_number: payment.payment_number, lock_version: payment.lock_version, locked: payment.cheque_number.present? }
+  end
+
+  def save_register(rows, location)
+    inputs = rows.index_by { |row| row[:id].to_s }
+    changed = OfficialPayment.transaction do
+      payments = numbered_payments.where(id: inputs.keys).to_a
+      if inputs.size != rows.size || payments.size != inputs.size
+        raise ActiveRecord::StaleObjectError.new(OfficialPayment.new, "edit register")
+      end
+
+      payments.count do |payment|
+        row = inputs.fetch(payment.id.to_s)
+        if payment.cheque_number || payment.lock_version.to_s != row[:lock_version].to_s
+          raise ActiveRecord::StaleObjectError.new(payment, "edit register")
+        end
+        yield payment, row
+        next false unless payment.has_changes_to_save?
+
+        payment.update!(reviewed_at: nil)
+      end
+    end
+    redirect_to location, status: :see_other, notice: "Updated #{helpers.pluralize(changed, 'official')}."
+  rescue ActiveRecord::RecordInvalid => error
+    errors = { base: "#{error.record.official_name}: #{error.record.errors.full_messages.to_sentence}" }
+    redirect_to location, status: :see_other, inertia: { errors: errors }
+  rescue ActiveRecord::StaleObjectError
+    redirect_to location, status: :see_other, inertia: { errors: { base: "A payment changed or a cheque was recorded. Open the latest register before reapplying your edits." } }
+  end
+
   def load_payment
     @payment = current_season.official_payments.find(params[:id])
   end
@@ -164,7 +189,7 @@ class OfficialPaymentsController < ApplicationController
   def google_connected? = GoogleApi.configured? && GoogleConnection.exists?
 
   def payment_summary(payment)
-    payment.as_json(only: %i[id official_name horizon_user_id cheque_number deposited_on]).merge(
+    payment.as_json(only: %i[id official_name horizon_user_id cheque_number deposited_on payment_number]).merge(
       status: payment.status, game_fees_cents: payment.game_fees_cents, travel_ot_cents: payment.travel_ot_cents,
       association_fee_cents: payment.association_fee_cents, net_cents: payment.net_cents
     )
