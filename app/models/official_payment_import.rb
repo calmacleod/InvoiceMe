@@ -13,7 +13,7 @@ class OfficialPaymentImport < ApplicationRecord
   def self.start!(season, connection)
     expire_stalled!
     import = season.official_payment_imports.create!
-    through = [ Date.current, Date.new(season.year, 12, 31) ].min
+    through = Date.new(season.year, 12, 31)
     job = OfficialPaymentImportJob.perform_later(import.id, connection.id, through.iso8601)
     raise ActiveJob::EnqueueError unless job&.successfully_enqueued?
 

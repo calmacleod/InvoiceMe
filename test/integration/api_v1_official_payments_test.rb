@@ -190,7 +190,7 @@ class ApiV1OfficialPaymentsTest < ActionDispatch::IntegrationTest
     %w[HORIZON_APP_ID HORIZON_APP_KEY].each { |key| ENV[key] = previous[key] }
   end
 
-  test "pulls revised Horizon fees and travel while retaining manual entries and recorded cheques" do
+  test "pulls upcoming assignments and refreshes revised Horizon amounts while retaining manual entries and recorded cheques" do
     previous = ENV.to_h.slice("HORIZON_APP_ID", "HORIZON_APP_KEY")
     original = Horizon::Client.method(:new)
     ENV.update("HORIZON_APP_ID" => "fictional-app", "HORIZON_APP_KEY" => "fictional-key")
@@ -214,6 +214,7 @@ class ApiV1OfficialPaymentsTest < ActionDispatch::IntegrationTest
       assert_equal [ "completed", 2, [] ], initial.values_at("status", "official_count", "changed_cheques")
       draft = @season.official_payments.find_by!(horizon_user_id: "fictional-draft")
       locked = @season.official_payments.find_by!(horizon_user_id: "fictional-cheque")
+      assert_equal "#{@season.year}-10-04", draft.assignments.sole.fetch("date")
       assert_equal [ 20_000, 1000 ], [ draft.imported_game_fees_cents, draft.imported_travel_ot_cents ]
       manual = { game_fee_adjustment_cents: 235, travel_ot_adjustment_cents: -175, evaluations_cents: 4100,
         prepayment_refund_cents: 4200, registration_cents: 4375, banquet_cents: 6500, next_year_prepayment_cents: 4700, other_cents: 123,
@@ -240,6 +241,8 @@ class ApiV1OfficialPaymentsTest < ActionDispatch::IntegrationTest
       assert_equal "completed", pull_horizon(connection).fetch("status")
       assert_equal draft_before, draft.reload.attributes
       assert_equal [ 1, 1, 1 ], requests.pluck(:page)
+      assert_equal Array.new(3, [ "#{@season.year}-01-01", "#{@season.year}-12-31" ]),
+        requests.map { |request| request.values_at(:start_date, :end_date) }
       assert_empty replies
     end
   ensure
@@ -263,7 +266,7 @@ class ApiV1OfficialPaymentsTest < ActionDispatch::IntegrationTest
 
   def horizon_schedule_response(fee:, travel:, locked_fee:)
     event = {
-      "event_id" => "fictional-event", "event_start" => "#{@season.year}-08-15 12:00:00", "vouchered" => false, "cancelled" => "No",
+      "event_id" => "fictional-event", "event_start" => "#{@season.year}-10-04 12:00:00", "vouchered" => false, "cancelled" => "No",
       "assignment_count" => 2, "assignment" => [
         { "assignment_id" => "fictional-a", "user_id" => "fictional-draft", "first_name" => "Avery", "last_name" => "Example",
           "fee" => fee, "travel_fee" => travel, "accepted" => true },

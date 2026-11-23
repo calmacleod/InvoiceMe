@@ -147,7 +147,7 @@ Assignment fees are the sum of Horizon's fee, travel, per diem, tolls, and other
 
 ### Officials payments
 
-Open **Officials payments** and choose **Pull from Horizon** to populate the selected year's earnings register. The import reads published, non-cancelled games through the current date and excludes games marked vouchered or paid by the team. The register shows any games with ambiguous payer or cancellation fields. Game fees are grouped by Horizon user ID, and assignment travel, per diem, tolls, and other fees populate Travel/OT.
+Open **Officials payments** and choose **Pull from Horizon** to populate the selected year's earnings register. The import reads published, non-cancelled games from January 1 through December 31, including upcoming games in the selected year. It excludes games marked vouchered or paid by the team. The register shows any games with ambiguous payer or cancellation fields. Game fees are grouped by Horizon user ID, and assignment travel, per diem, tolls, and other fees populate Travel/OT.
 
 Choose **Pull from Horizon** again any time the source fees or travel amounts change. InvoiceMe replaces the imported amounts on draft payments and returns changed drafts to review. Manual fees, deductions, named adjustments, and recorded cheques are retained. The register flags cheques whose underlying Horizon assignments changed.
 
