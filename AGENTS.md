@@ -10,4 +10,6 @@ Use React with strict TypeScript, StyleX, and Inertia Rails with Vite for applic
 
 Use StyleX tokens and stylex.props for application UI. Retain the scoped invoice CSS for the shared React/document appearance; only minimal reset CSS belongs outside StyleX. Keep StyleX extraction in the Vite build, without runtime style injection.
 
+Add or update the authenticated `/api/v1` endpoints alongside every new application feature. Cover the feature's data and workflows, reuse server-side business rules and authorization, document the API in `docs/api.md`, and test the API in the same change.
+
 Run bin/ci for Rails' standard checks. Use synthetic fixtures for automated tests and do not import supplied production data into the live app merely to test parsing.

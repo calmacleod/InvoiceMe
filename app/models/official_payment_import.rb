@@ -10,6 +10,19 @@ class OfficialPaymentImport < ApplicationRecord
     active.where(updated_at: ...TIMEOUT.ago).update_all(status: "failed", error: TIMEOUT_MESSAGE, updated_at: Time.current)
   end
 
+  def self.start!(season, connection)
+    expire_stalled!
+    import = season.official_payment_imports.create!
+    through = [ Date.current, Date.new(season.year, 12, 31) ].min
+    job = OfficialPaymentImportJob.perform_later(import.id, connection.id, through.iso8601)
+    raise ActiveJob::EnqueueError unless job&.successfully_enqueued?
+
+    import
+  rescue ActiveJob::EnqueueError
+    import&.update!(status: "failed", error: "The import could not be queued.")
+    raise
+  end
+
   def props
     fields = as_json(only: %i[status error organization_name official_count excluded_games changed_cheques updated_at])
     if status.in?(%w[queued running]) && updated_at < TIMEOUT.ago

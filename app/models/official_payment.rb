@@ -27,6 +27,28 @@ class OfficialPayment < ApplicationRecord
   validate :valid_cheque
   validate :valid_adjustments
 
+  def self.update_register!(scope, rows)
+    inputs = rows.index_by { |row| row[:id].to_s }
+    transaction do
+      payments = scope.where(id: inputs.keys).order(:payment_number).to_a
+      if inputs.size != rows.size || payments.size != inputs.size
+        raise ActiveRecord::StaleObjectError.new(new, "edit register")
+      end
+
+      payments.select do |payment|
+        row = inputs.fetch(payment.id.to_s)
+        if payment.cheque_number || payment.lock_version.to_s != row[:lock_version].to_s
+          raise ActiveRecord::StaleObjectError.new(payment, "edit register")
+        end
+
+        yield payment, row
+        next false unless payment.has_changes_to_save?
+
+        payment.update!(reviewed_at: nil)
+      end
+    end
+  end
+
   def imported_game_fees_cents = assignments.sum { |entry| entry.fetch("fee_cents") }
   def imported_travel_ot_cents = assignments.sum { |entry| entry.fetch("travel_ot_cents") }
   def horizon_deductions_cents = assignments.sum { |entry| entry.fetch("deductions_cents") }
@@ -60,7 +82,11 @@ class OfficialPayment < ApplicationRecord
     assign_amounts(values.slice(*AMOUNTS))
     assign_attributes(values.slice(*CHEQUE_FIELDS))
     assign_adjustments(values[:adjustments]) if values.key?(:adjustments)
-    self.reviewed_at = values[:reviewed] ? (reviewed_at || Time.current) : nil
+    if values.key?(:reviewed)
+      self.reviewed_at = values[:reviewed] ? (reviewed_at || Time.current) : nil
+    elsif EARNINGS_FIELDS.any? { |field| will_save_change_to_attribute?(field) }
+      self.reviewed_at = nil
+    end
     save!
   end
 

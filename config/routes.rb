@@ -22,6 +22,21 @@ Rails.application.routes.draw do
           post :import
         end
       end
+      resources :official_payments, only: %i[index show create update] do
+        collection do
+          patch :bulk_update
+          get :imports
+          post :imports, action: :start_import
+          get "imports/:import_id", action: :show_import, as: :import
+          post :export_sheet
+        end
+        member do
+          get :preview
+          get :pdf
+          get :odt
+          post :google_doc
+        end
+      end
     end
   end
   resource :session

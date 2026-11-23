@@ -107,17 +107,11 @@ class OfficialPaymentsController < ApplicationController
     year = current_season.year
     return redirect_to official_payments_path, status: :see_other, alert: "The selected year has not started." if year > Date.current.year
 
-    through = [ Date.current, Date.new(year, 12, 31) ].min
-    OfficialPaymentImport.expire_stalled!
-    import_record = current_season.official_payment_imports.create!
-    job = OfficialPaymentImportJob.perform_later(import_record.id, connection.id, through.iso8601)
-    raise ActiveJob::EnqueueError unless job&.successfully_enqueued?
-
+    OfficialPaymentImport.start!(current_season, connection)
     redirect_to official_payments_path, status: :see_other
   rescue ActiveRecord::RecordNotUnique
     redirect_to official_payments_path, status: :see_other, alert: "An officials payments import is already running."
   rescue ActiveJob::EnqueueError
-    import_record&.update!(status: "failed", error: "The import could not be queued.")
     redirect_to official_payments_path, status: :see_other
   end
 
@@ -156,25 +150,8 @@ class OfficialPaymentsController < ApplicationController
   end
 
   def save_register(rows, location)
-    inputs = rows.index_by { |row| row[:id].to_s }
-    changed = OfficialPayment.transaction do
-      payments = numbered_payments.where(id: inputs.keys).to_a
-      if inputs.size != rows.size || payments.size != inputs.size
-        raise ActiveRecord::StaleObjectError.new(OfficialPayment.new, "edit register")
-      end
-
-      payments.count do |payment|
-        row = inputs.fetch(payment.id.to_s)
-        if payment.cheque_number || payment.lock_version.to_s != row[:lock_version].to_s
-          raise ActiveRecord::StaleObjectError.new(payment, "edit register")
-        end
-        yield payment, row
-        next false unless payment.has_changes_to_save?
-
-        payment.update!(reviewed_at: nil)
-      end
-    end
-    redirect_to location, status: :see_other, notice: "Updated #{helpers.pluralize(changed, 'official')}."
+    changed = OfficialPayment.update_register!(current_season.official_payments, rows) { |payment, row| yield payment, row }
+    redirect_to location, status: :see_other, notice: "Updated #{helpers.pluralize(changed.size, 'official')}."
   rescue ActiveRecord::RecordInvalid => error
     errors = { base: "#{error.record.official_name}: #{error.record.errors.full_messages.to_sentence}" }
     redirect_to location, status: :see_other, inertia: { errors: errors }
