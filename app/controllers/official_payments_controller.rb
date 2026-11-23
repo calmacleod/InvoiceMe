@@ -8,6 +8,7 @@ class OfficialPaymentsController < ApplicationController
     last_import = current_season.official_payment_imports.order(id: :desc).first
     connections = HorizonConnection.order(:id).select(:id, :organization_name)
     summaries = payments.map { |payment| payment_summary(payment) }
+    horizon_configured = Horizon::Client.configured?
     render inertia: "official_payments/Index", props: {
       year: current_season.year,
       payments: summaries,
@@ -15,7 +16,8 @@ class OfficialPaymentsController < ApplicationController
       last_import: last_import&.props,
       connections: connections.as_json,
       google_connected: google_connected?,
-      can_import: Horizon::Client.configured? && connections.any? && current_season.year <= Date.current.year
+      horizon_configured: horizon_configured,
+      can_import: horizon_configured && connections.any? && current_season.year <= Date.current.year
     }
   end
 
@@ -101,8 +103,12 @@ class OfficialPaymentsController < ApplicationController
   end
 
   def import
+    unless Horizon::Client.configured?
+      return redirect_to official_payments_path, status: :see_other, alert: "This InvoiceMe deployment is missing its Horizon credentials."
+    end
+
     connection = HorizonConnection.find_by(id: params[:horizon_connection_id])
-    unless connection && Horizon::Client.configured?
+    unless connection
       return redirect_to official_payments_path, status: :see_other, alert: "Connect Horizon in Year & settings first."
     end
     year = current_season.year

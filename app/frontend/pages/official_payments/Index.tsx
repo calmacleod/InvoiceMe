@@ -26,6 +26,7 @@ export default function Index({
   last_import,
   connections,
   can_import,
+  horizon_configured,
   google_connected,
 }: {
   year: number;
@@ -34,6 +35,7 @@ export default function Index({
   last_import: Import | null;
   connections: { id: number; organization_name: string | null }[];
   can_import: boolean;
+  horizon_configured: boolean;
   google_connected: boolean;
 }) {
   const pull = useForm({
@@ -108,9 +110,11 @@ export default function Index({
       </Heading>
       {!can_import && (
         <p {...stylex.props(ui.flash)}>
-          {year > new Date().getFullYear()
-            ? "Horizon imports open once the selected year starts."
-            : "Connect Horizon in Year & settings to pull earnings."}
+          {!horizon_configured
+            ? "This InvoiceMe deployment is missing its Horizon credentials."
+            : connections.length === 0
+              ? "Connect Horizon in Year & settings to pull earnings."
+              : "Horizon imports open once the selected year starts."}
         </p>
       )}
       {busy && (

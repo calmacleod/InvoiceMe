@@ -170,7 +170,109 @@ class ApiV1OfficialPaymentsTest < ActionDispatch::IntegrationTest
     %w[HORIZON_APP_ID HORIZON_APP_KEY].each { |key| ENV[key] = previous[key] }
   end
 
+  test "reports a missing deployment credential even when an organization is connected" do
+    previous = ENV.to_h.slice("HORIZON_APP_ID", "HORIZON_APP_KEY")
+    ENV.delete("HORIZON_APP_KEY")
+    connection = HorizonConnection.create!(organization_name: "Fictional association", authorization_code: "fictional-code")
+    args = { season_id: @season.id, horizon_connection_id: connection.id }
+
+    get imports_api_v1_official_payments_path, params: { season_id: @season.id }, headers: @headers
+    assert_response :success
+    assert_equal [ false, false ], response.parsed_body.values_at("horizon_configured", "can_import")
+    assert_equal connection.id, response.parsed_body.fetch("connections").sole.fetch("id")
+
+    assert_no_difference "OfficialPaymentImport.count" do
+      post imports_api_v1_official_payments_path, params: args, headers: @headers, as: :json
+      assert_response :unprocessable_entity
+      assert_match(/deployment is missing its Horizon credentials/, response.parsed_body.fetch("error"))
+    end
+  ensure
+    %w[HORIZON_APP_ID HORIZON_APP_KEY].each { |key| ENV[key] = previous[key] }
+  end
+
+  test "pulls revised Horizon fees and travel while retaining manual entries and recorded cheques" do
+    previous = ENV.to_h.slice("HORIZON_APP_ID", "HORIZON_APP_KEY")
+    original = Horizon::Client.method(:new)
+    ENV.update("HORIZON_APP_ID" => "fictional-app", "HORIZON_APP_KEY" => "fictional-key")
+
+    travel_to Time.zone.local(@season.year, 10, 1) do
+      connection = HorizonConnection.create!(authorization_code: "fictional-code", organization_name: "Fictional association",
+        access_token: "fictional-token", access_token_expires_at: 20.minutes.from_now)
+      first = horizon_schedule_response(fee: 200, travel: 10, locked_fee: 300)
+      revised = horizon_schedule_response(fee: 235.25, travel: 18.75, locked_fee: 325)
+      replies = [ first, revised, revised ]
+      requests = []
+      client = Object.new
+      client.define_singleton_method(:schedule) { self }
+      client.define_singleton_method(:list) do |**filters|
+        requests << filters
+        replies.shift || raise("Unexpected Horizon request")
+      end
+      Horizon::Client.define_singleton_method(:new) { |**| client }
+
+      initial = pull_horizon(connection)
+      assert_equal [ "completed", 2, [] ], initial.values_at("status", "official_count", "changed_cheques")
+      draft = @season.official_payments.find_by!(horizon_user_id: "fictional-draft")
+      locked = @season.official_payments.find_by!(horizon_user_id: "fictional-cheque")
+      assert_equal [ 20_000, 1000 ], [ draft.imported_game_fees_cents, draft.imported_travel_ot_cents ]
+      manual = { game_fee_adjustment_cents: 235, travel_ot_adjustment_cents: -175, evaluations_cents: 4100,
+        prepayment_refund_cents: 4200, registration_cents: 4375, banquet_cents: 6500, next_year_prepayment_cents: 4700, other_cents: 123,
+        adjustments: [ { "label" => "Fictional credit", "amount_cents" => 975 } ] }
+      draft.update!(manual.merge(reviewed_at: Time.current))
+      locked.update!(cheque_number: "FX-472", reviewed_at: Time.current)
+      standalone = payment("Fictional, Taylor", evaluations_cents: 5300, reviewed_at: Time.current)
+      original_numbers = [ draft, locked, standalone ].map(&:payment_number)
+      locked_before = locked.attributes
+      standalone_before = standalone.attributes
+
+      refresh = pull_horizon(connection)
+      assert_equal [ "completed", 2, [ locked.id ] ], refresh.values_at("status", "official_count", "changed_cheques")
+      assert_equal 3, @season.official_payments.count
+      assert_equal [ 23_525, 1875 ], [ draft.reload.imported_game_fees_cents, draft.imported_travel_ot_cents ]
+      assert_equal manual.stringify_keys, draft.attributes.slice(*manual.keys.map(&:to_s))
+      assert_nil draft.reviewed_at
+      assert_equal locked_before, locked.reload.attributes
+      assert_equal standalone_before, standalone.reload.attributes
+      assert_equal original_numbers, [ draft, locked, standalone ].map(&:payment_number)
+
+      draft.update!(reviewed_at: Time.current)
+      draft_before = draft.attributes
+      assert_equal "completed", pull_horizon(connection).fetch("status")
+      assert_equal draft_before, draft.reload.attributes
+      assert_equal [ 1, 1, 1 ], requests.pluck(:page)
+      assert_empty replies
+    end
+  ensure
+    Horizon::Client.define_singleton_method(:new, original) if original
+    %w[HORIZON_APP_ID HORIZON_APP_KEY].each { |key| ENV[key] = previous[key] }
+  end
+
   private
+
+  def pull_horizon(connection)
+    perform_enqueued_jobs(only: OfficialPaymentImportJob) do
+      post imports_api_v1_official_payments_path,
+        params: { season_id: @season.id, horizon_connection_id: connection.id }, headers: @headers, as: :json
+      assert_response :accepted
+    end
+    id = response.parsed_body.fetch("id")
+    get import_api_v1_official_payments_path(id), params: { season_id: @season.id }, headers: @headers
+    assert_response :success
+    response.parsed_body
+  end
+
+  def horizon_schedule_response(fee:, travel:, locked_fee:)
+    event = {
+      "event_id" => "fictional-event", "event_start" => "#{@season.year}-08-15 12:00:00", "vouchered" => false, "cancelled" => "No",
+      "assignment_count" => 2, "assignment" => [
+        { "assignment_id" => "fictional-a", "user_id" => "fictional-draft", "first_name" => "Avery", "last_name" => "Example",
+          "fee" => fee, "travel_fee" => travel, "accepted" => true },
+        { "assignment_id" => "fictional-b", "user_id" => "fictional-cheque", "first_name" => "River", "last_name" => "Fable",
+          "fee" => locked_fee, "accepted" => true }
+      ]
+    }
+    { "current_page" => 1, "total_pages" => 1, "result_count" => 1, "result" => [ event ] }
+  end
 
   def payment(name, **attributes)
     @season.official_payments.create!(official_name: name, game_fee_adjustment_cents: 20_000, **attributes)

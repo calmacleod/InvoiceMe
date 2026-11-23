@@ -59,8 +59,10 @@ module Api
       def imports
         records = season.official_payment_imports.order(id: :desc)
         connections = HorizonConnection.order(:id).select(:id, :organization_name)
+        horizon_configured = Horizon::Client.configured?
         render json: paginate(records) { |record| import_json(record) }.merge(
-          connections: connections.as_json, can_import: Horizon::Client.configured? && connections.any? && season.year <= Date.current.year
+          connections: connections.as_json, horizon_configured: horizon_configured,
+          can_import: horizon_configured && connections.any? && season.year <= Date.current.year
         )
       end
 
@@ -70,7 +72,7 @@ module Api
 
       def start_import
         raise ArgumentError, "The selected year has not started" if season.year > Date.current.year
-        raise ArgumentError, "Configure Horizon in Year & settings first" unless Horizon::Client.configured?
+        raise ArgumentError, "This InvoiceMe deployment is missing its Horizon credentials" unless Horizon::Client.configured?
 
         connection = HorizonConnection.find(params.require(:horizon_connection_id))
         render json: import_json(OfficialPaymentImport.start!(season, connection)), status: :accepted
