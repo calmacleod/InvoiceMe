@@ -16,6 +16,12 @@ Rails.application.routes.draw do
           get :pdf
         end
       end
+      resources :invoice_groups, only: %i[index show create update] do
+        member do
+          get :attachment
+          post :attach_invoice
+        end
+      end
       resources :games, only: %i[index show] do
         collection do
           patch :invoicing_status

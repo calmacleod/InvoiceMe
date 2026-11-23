@@ -33,16 +33,10 @@ class InvoiceGroupsController < ApplicationController
     invoice = draft ? draft.invoice : Invoice.find_by(id: params[:invoice_id])
     raise ActiveRecord::RecordNotFound if params[:invoice_id].present? && !invoice
 
-    group = if invoice
-      invoice.with_lock { group_invoice(invoice, draft&.id) }
-    elsif draft
-      draft.with_lock do
-        raise ActiveRecord::StaleObjectError.new(draft, "group") if draft.invoice_id
-
-        draft.invoice_group || InvoiceGroup.start!(season: draft.season, game_ids: draft.data["game_ids"]).tap do |new_group|
-          draft.update!(invoice_group: new_group, data: draft.data.except("game_ids"))
-        end
-      end
+    group = if draft
+      InvoiceGroup.for_workbench!(draft)
+    elsif invoice
+      InvoiceGroup.for_invoice!(invoice)
     else
       InvoiceGroup.start!(season: current_season, game_ids: params.permit(game_ids: [])[:game_ids])
     end
@@ -86,21 +80,7 @@ class InvoiceGroupsController < ApplicationController
 
   def attach_invoice
     invoice = @group.season.invoices.find(params.require(:invoice_id))
-    @group.with_lock do
-      invoice.with_lock do
-        unless invoice.invoice_group_id == @group.id
-          original_ids, shared_ids = invoice.game_ids.sort, @group.game_ids.sort
-          blocker = attachment_blocker(invoice, original_ids, shared_ids)
-          reject_attachment!(invoice, blocker) if blocker
-          token = params[:review_token].to_s.presence
-          if (token || original_ids != shared_ids) && attachment_verifier.verified(token.to_s) != [ @group.id, invoice.id, original_ids, shared_ids ]
-            reject_attachment!(invoice, "Review the current game changes before adding this invoice")
-          end
-          verify_workbench_selections!(invoice, [ original_ids, shared_ids ])
-          link_invoice!(invoice, @group)
-        end
-      end
-    end
+    @group.attach_invoice!(invoice, review_token: params[:review_token])
     redirect_to @group, notice: "Invoice added to the group"
   rescue ActiveRecord::RecordInvalid => e
     redirect_to add_existing_invoice_group_path(@group, invoice_id: invoice.id), alert: e.record.errors.full_messages.to_sentence
@@ -109,22 +89,12 @@ class InvoiceGroupsController < ApplicationController
   private
 
   def attachment_review(invoice)
-    original_ids, shared_ids = invoice.game_ids.sort, @group.game_ids.sort
-    {
+    review = @group.attachment_review(invoice)
+    review.merge(
       invoice: invoice_props(invoice),
-      shared_game_count: shared_ids.size,
-      games_added: game_references(shared_ids - original_ids),
-      games_removed: game_references(original_ids - shared_ids),
-      blocked_reason: attachment_blocker(invoice, original_ids, shared_ids),
-      token: attachment_verifier.generate([ @group.id, invoice.id, original_ids, shared_ids ], expires_in: 30.minutes)
-    }
-  end
-
-  def attachment_blocker(invoice, original_ids, shared_ids)
-    return "This invoice already belongs to an invoice group." if invoice.invoice_group_id
-    return if original_ids == shared_ids
-    return "Wait for the current export to finish before updating this invoice’s linked games." if invoice.exporting?
-    "This invoice has been finalized. Its existing game links must match the group’s games." if invoice.locked_game_history? && original_ids.any?
+      games_added: game_references(review.fetch(:games_added)),
+      games_removed: game_references(review.fetch(:games_removed))
+    )
   end
 
   def game_references(ids)
@@ -133,47 +103,10 @@ class InvoiceGroupsController < ApplicationController
     end
   end
 
-  def attachment_verifier = Rails.application.message_verifier(:invoice_group_attachment)
-
-  def reject_attachment!(invoice, message)
-    invoice.errors.add(:base, message)
-    raise ActiveRecord::RecordInvalid.new(invoice)
-  end
-
   def set_group
     @group = InvoiceGroup.find(params[:id])
     @current_season = @group.season
     session[:season_id] = @group.season_id
-  end
-
-  def group_invoice(invoice, draft_id)
-    return invoice.invoice_group if invoice.invoice_group_id
-
-    drafts = invoice.invoice_drafts.to_a
-    source = drafts.find { |draft| draft.id == draft_id }
-    original_ids = invoice.game_ids.sort
-    ids = source&.data&.fetch("game_ids", nil)&.map(&:to_i)&.sort || original_ids
-    if ids != original_ids && (invoice.ever_finalized? || invoice.editing_blocked?)
-      invoice.errors.add(:games, "must match the saved games on invoices that have been finalized or are exporting")
-    end
-    raise ActiveRecord::RecordInvalid.new(invoice) if invoice.errors.any?
-    verify_workbench_selections!(invoice, [ original_ids, ids ])
-
-    group = InvoiceGroup.start!(season: invoice.season, game_ids: ids)
-    link_invoice!(invoice, group)
-    group
-  end
-
-  def verify_workbench_selections!(invoice, allowed_sets)
-    return unless invoice.invoice_drafts.any? { |draft| draft.data.key?("game_ids") && !allowed_sets.include?(draft.data["game_ids"].map(&:to_i).sort) }
-
-    invoice.errors.add(:games, "have pending changes in a workbench. Save and preview that selection before grouping this invoice.")
-    raise ActiveRecord::RecordInvalid.new(invoice)
-  end
-
-  def link_invoice!(invoice, group)
-    invoice.attach_to_group!(group)
-    invoice.invoice_drafts.update_all(invoice_group_id: group.id, updated_at: Time.current)
   end
 
   def group_creation_origin(draft, invoice)

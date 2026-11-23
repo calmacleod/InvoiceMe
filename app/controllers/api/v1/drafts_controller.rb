@@ -14,8 +14,9 @@ module Api
         season = Season.find(params.require(:season_id))
         record = @api_key.user.invoice_drafts.new(season: season, client_key: params[:client_key].presence || SecureRandom.uuid)
         record.invoice = season.invoices.find(params[:invoice_id]) if params[:invoice_id].present?
+        group = season.invoice_groups.find(params[:invoice_group_id]) if params[:invoice_group_id].present?
         save = -> do
-          record.invoice_group = record.invoice&.invoice_group
+          record.invoice_group = group || record.invoice&.invoice_group
           record.data = draft_data(record)
           record.save!
         end

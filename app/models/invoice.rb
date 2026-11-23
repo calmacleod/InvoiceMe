@@ -33,9 +33,19 @@ class Invoice < ApplicationRecord
   # An unlinked finalized invoice can gain game references when joining a group.
   def attach_to_group!(group)
     @backfilling_group_games = finalized_at_in_database && invoice_group_id.nil? && game_ids.empty?
-    update!(invoice_group: group, game_ids: group.game_ids)
+    transaction do
+      update!(invoice_group: group, game_ids: group.game_ids)
+      invoice_drafts.update_all(invoice_group_id: group.id, updated_at: Time.current)
+    end
   ensure
     @backfilling_group_games = false
+  end
+
+  def verify_group_workbenches!(allowed_game_sets)
+    return unless invoice_drafts.any? { |draft| draft.data.key?("game_ids") && !allowed_game_sets.include?(draft.data["game_ids"].map(&:to_i).sort) }
+
+    errors.add(:games, "have pending changes in a workbench. Save and preview that selection before grouping this invoice.")
+    raise ActiveRecord::RecordInvalid.new(self)
   end
 
   def backfilling_group_game?(game_id)
