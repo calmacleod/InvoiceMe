@@ -10,6 +10,10 @@ module Api
         render json: paginate(season.official_payments.order(:payment_number)) { |payment| payment_summary(payment) }
       end
 
+      def totals
+        render json: { season_id: season.id, totals: OfficialPayment.register_totals(season.official_payments.find_each) }
+      end
+
       def show
         render json: payment_details(@payment)
       end
@@ -116,11 +120,8 @@ module Api
       end
 
       def payment_summary(payment)
-        amount_fields = OfficialPayment::AMOUNTS.map { |field| :"#{field}_cents" }
-        payment.as_json(only: %i[id season_id payment_number official_name horizon_user_id lock_version reviewed_at cheque_number deposited_on cheque_delivery adjustments] + amount_fields)
-          .merge(status: payment.status, game_fees_cents: payment.game_fees_cents, travel_ot_cents: payment.travel_ot_cents,
-            association_fee_cents: payment.association_fee_cents, earnings_before_deductions_cents: payment.earnings_before_deductions_cents,
-            net_cents: payment.net_cents)
+        payment.as_json(only: %i[id season_id payment_number official_name horizon_user_id lock_version reviewed_at cheque_number deposited_on cheque_delivery adjustments])
+          .merge(payment.register_amounts, status: payment.status)
       end
 
       def payment_details(payment)

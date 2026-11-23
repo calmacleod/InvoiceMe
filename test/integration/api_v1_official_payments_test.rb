@@ -56,6 +56,27 @@ class ApiV1OfficialPaymentsTest < ActionDispatch::IntegrationTest
     assert_equal 6000, OfficialPayment.find(id).banquet_cents
   end
 
+  test "returns season totals for every earnings and deduction field" do
+    payment("Arden Example", travel_ot_adjustment_cents: 235, evaluations_cents: 707, prepayment_refund_cents: 333,
+      registration_cents: 2800, banquet_cents: 6000, next_year_prepayment_cents: 1222, other_cents: -69,
+      adjustments: [ { "label" => "Fictional credit", "amount_cents" => 1200 }, { "label" => "Fictional deduction", "amount_cents" => -400 } ])
+    payment("Blair Fiction", travel_ot_adjustment_cents: -50, banquet_cents: 12_000,
+      adjustments: [ { "label" => "Fictional deduction", "amount_cents" => -200 } ])
+    other_year = Season.create!(year: @season.year - 1, sheet_name: "Fictional register", issuer: @season.issuer)
+    other_year.official_payments.create!(official_name: "Cameron Fable", evaluations_cents: 40_000)
+
+    get totals_api_v1_official_payments_path, params: { season_id: @season.id }, headers: @headers
+    assert_response :success
+    assert_equal @season.id, response.parsed_body.fetch("season_id")
+    assert_equal({
+      "game_fee_adjustment_cents" => 40_000, "game_fees_cents" => 40_000,
+      "travel_ot_adjustment_cents" => 185, "travel_ot_cents" => 185,
+      "evaluations_cents" => 707, "prepayment_refund_cents" => 333, "other_cents" => -69, "additional_items_cents" => 600,
+      "association_fee_cents" => 3200, "registration_cents" => 2800, "banquet_cents" => 18_000, "next_year_prepayment_cents" => 1222,
+      "earnings_before_deductions_cents" => 38_556, "net_cents" => 16_534
+    }, response.parsed_body.fetch("totals"))
+  end
+
   test "bulk edits apply only the requested fields and replace or clear adjustments explicitly" do
     first = payment("Arden Example", registration_cents: 3500, reviewed_at: Time.current,
       adjustments: [ { "label" => "Existing fictional credit", "amount_cents" => 1250 } ])

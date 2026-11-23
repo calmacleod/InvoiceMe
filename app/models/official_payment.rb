@@ -7,7 +7,9 @@ class OfficialPayment < ApplicationRecord
     game_fee_adjustment: "Game fee adjustment", travel_ot_adjustment: "Travel/OT adjustment", other: "Other"
   }.freeze
   CHEQUE_FIELDS = %i[cheque_number deposited_on cheque_delivery].freeze
-  EARNINGS_FIELDS = AMOUNTS.map { |field| :"#{field}_cents" } + %i[assignments official_name adjustments]
+  AMOUNT_COLUMNS = AMOUNTS.map { |field| :"#{field}_cents" }.freeze
+  REGISTER_AMOUNT_FIELDS = (AMOUNT_COLUMNS + %i[game_fees_cents travel_ot_cents association_fee_cents additional_items_cents earnings_before_deductions_cents net_cents]).freeze
+  EARNINGS_FIELDS = (AMOUNT_COLUMNS + %i[assignments official_name adjustments]).freeze
   MAX_CENTS = 100_000_000
   MAX_ADJUSTMENTS = 50
 
@@ -54,7 +56,18 @@ class OfficialPayment < ApplicationRecord
   def horizon_deductions_cents = assignments.sum { |entry| entry.fetch("deductions_cents") }
   def game_fees_cents = imported_game_fees_cents + game_fee_adjustment_cents
   def travel_ot_cents = imported_travel_ot_cents + travel_ot_adjustment_cents
-  def miscellaneous_cents = other_cents + adjustments.sum { |item| item.fetch("amount_cents") }
+  def additional_items_cents = adjustments.sum { |item| item.fetch("amount_cents") }
+  def miscellaneous_cents = other_cents + additional_items_cents
+
+  def register_amounts
+    REGISTER_AMOUNT_FIELDS.index_with { |field| public_send(field) }
+  end
+
+  def self.register_totals(payments)
+    payments.each_with_object(REGISTER_AMOUNT_FIELDS.index_with(0)) do |payment, totals|
+      payment.register_amounts.each { |field, cents| totals[field] += cents }
+    end
+  end
 
   def association_fee_cents
     base = game_fees_cents.clamp(0, 250_000) * 8

@@ -2,23 +2,12 @@ import { Head, router, useForm } from "@inertiajs/react";
 import * as stylex from "@stylexjs/stylex";
 import { useEffect, useState } from "react";
 import Link from "../../components/AppLink";
-import { Errors, Field, Heading, Stat } from "../../components/UI";
+import { Errors, Field, Heading } from "../../components/UI";
 import { date, money } from "../../lib/format";
 import { ui } from "../../styles/ui.stylex";
 
-export type PaymentSummary = {
-  id: number;
-  payment_number: number;
-  official_name: string;
-  horizon_user_id: string | null;
-  status: "Needs review" | "Reviewed" | "Cheque recorded" | "Deposited";
-  game_fees_cents: number;
-  travel_ot_cents: number;
-  association_fee_cents: number;
-  net_cents: number;
-  cheque_number: string | null;
-  deposited_on: string | null;
-};
+import EarningsRegister, { type PaymentSummary } from "./EarningsRegister";
+import { overview } from "./register.stylex";
 
 type Import = {
   status: "queued" | "running" | "completed" | "failed";
@@ -56,10 +45,9 @@ export default function Index({
   const [query, setQuery] = useState("");
   const busy =
     last_import?.status === "queued" || last_import?.status === "running";
+  const search = query.trim().toLocaleLowerCase();
   const shown = payments.filter((payment) =>
-    payment.official_name
-      .toLocaleLowerCase()
-      .includes(query.trim().toLocaleLowerCase()),
+    payment.official_name.toLocaleLowerCase().includes(search),
   );
   useEffect(() => {
     if (!busy) return;
@@ -164,16 +152,32 @@ export default function Index({
           )}
         </div>
       )}
-      <div {...stylex.props(ui.stats)}>
-        <Stat label="Net earnings" value={money(totals.net_cents)} dark />
-        <Stat label="Needs review" value={totals.needs_review}>
-          {payments.length} officials
-        </Stat>
-        <Stat label="Cheques deposited" value={totals.deposited} />
-      </div>
+      <dl {...stylex.props(overview.summary)}>
+        <div {...stylex.props(overview.stat)}>
+          <dt {...stylex.props(ui.muted)}>Season net earnings</dt>
+          <dd {...stylex.props(overview.statValue)}>
+            {money(totals.net_cents)}
+          </dd>
+        </div>
+        <div {...stylex.props(overview.stat)}>
+          <dt {...stylex.props(ui.muted)}>Needs review</dt>
+          <dd {...stylex.props(overview.statValue)}>
+            {totals.needs_review} of {payments.length}
+          </dd>
+        </div>
+        <div {...stylex.props(overview.stat)}>
+          <dt {...stylex.props(ui.muted)}>Cheques deposited</dt>
+          <dd {...stylex.props(overview.statValue)}>{totals.deposited}</dd>
+        </div>
+      </dl>
       <section {...stylex.props(ui.card, ui.tableCard)}>
-        <div {...stylex.props(ui.tableHeading)}>
-          <h2 {...stylex.props(ui.h2)}>Earnings register</h2>
+        <div {...stylex.props(ui.tableHeading, overview.toolbar)}>
+          <h2
+            id="earnings-register-heading"
+            {...stylex.props(ui.h2, overview.registerTitle)}
+          >
+            Earnings register
+          </h2>
           {payments.length > 0 && (
             <Link
               {...stylex.props(ui.link, ui.button)}
@@ -201,7 +205,7 @@ export default function Index({
             </button>
           )}
           <input
-            {...stylex.props(ui.input)}
+            {...stylex.props(ui.input, ui.searchInput)}
             type="search"
             aria-label="Search officials"
             placeholder="Search officials"
@@ -209,92 +213,7 @@ export default function Index({
             onChange={(event) => setQuery(event.target.value)}
           />
         </div>
-        <div {...stylex.props(ui.tableScroll)}>
-          <table {...stylex.props(ui.table)}>
-            <thead>
-              <tr>
-                <th {...stylex.props(ui.th)} scope="col">
-                  Payment #
-                </th>
-                <th {...stylex.props(ui.th)} scope="col">
-                  Official
-                </th>
-                <th {...stylex.props(ui.th, ui.numeric)} scope="col">
-                  Game fees
-                </th>
-                <th {...stylex.props(ui.th, ui.numeric)} scope="col">
-                  Travel/OT
-                </th>
-                <th {...stylex.props(ui.th, ui.numeric)} scope="col">
-                  Net earnings
-                </th>
-                <th {...stylex.props(ui.th)} scope="col">
-                  Cheque
-                </th>
-                <th {...stylex.props(ui.th)} scope="col">
-                  Deposited
-                </th>
-                <th {...stylex.props(ui.th)} scope="col">
-                  Status
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {shown.map((payment) => (
-                <tr key={payment.id}>
-                  <td {...stylex.props(ui.td)}>{payment.payment_number}</td>
-                  <td {...stylex.props(ui.td)}>
-                    <Link
-                      {...stylex.props(ui.link)}
-                      href={`/official_payments/${payment.id}/edit`}
-                    >
-                      {payment.official_name}
-                    </Link>
-                    {!payment.horizon_user_id && (
-                      <small {...stylex.props(ui.small, ui.muted)}>
-                        Manual entry
-                      </small>
-                    )}
-                  </td>
-                  <td {...stylex.props(ui.td, ui.numeric)}>
-                    {money(payment.game_fees_cents)}
-                  </td>
-                  <td {...stylex.props(ui.td, ui.numeric)}>
-                    {money(payment.travel_ot_cents)}
-                  </td>
-                  <td {...stylex.props(ui.td, ui.numeric, ui.strong)}>
-                    {money(payment.net_cents)}
-                  </td>
-                  <td {...stylex.props(ui.td)}>
-                    {payment.cheque_number || "—"}
-                  </td>
-                  <td {...stylex.props(ui.td)}>
-                    {date(payment.deposited_on) || "—"}
-                  </td>
-                  <td {...stylex.props(ui.td)}>
-                    <span
-                      {...stylex.props(
-                        ui.badge,
-                        Boolean(payment.deposited_on) && ui.badgePaid,
-                      )}
-                    >
-                      {payment.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-              {!shown.length && (
-                <tr>
-                  <td {...stylex.props(ui.td, ui.muted)} colSpan={8}>
-                    {payments.length
-                      ? "No officials match this search."
-                      : "Pull from Horizon to start the register, or add an official below."}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        <EarningsRegister payments={shown} filtered={Boolean(search)} />
       </section>
       <section {...stylex.props(ui.card)}>
         <h2 {...stylex.props(ui.h2)}>Add an official manually</h2>

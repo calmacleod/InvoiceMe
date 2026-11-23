@@ -4,7 +4,7 @@ import Link from "../../components/AppLink";
 import { Errors, Field, Heading, Section, Stat } from "../../components/UI";
 import { date, money } from "../../lib/format";
 import { ui } from "../../styles/ui.stylex";
-import type { PaymentSummary } from "./Index";
+import type { PaymentSummary } from "./EarningsRegister";
 import { useRef } from "react";
 
 const earnings = [
@@ -38,7 +38,6 @@ type Payment = PaymentSummary & {
   horizon_deductions_cents: number;
   amounts: Record<AmountField, number>;
   assignments: Assignment[];
-  adjustments: { label: string; amount_cents: number }[];
 };
 type Props = { payment: Payment; year: number; google_connected: boolean };
 

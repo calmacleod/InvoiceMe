@@ -7,10 +7,11 @@ class OfficialPaymentsController < ApplicationController
     payments = numbered_payments.to_a
     last_import = current_season.official_payment_imports.order(id: :desc).first
     connections = HorizonConnection.order(:id).select(:id, :organization_name)
+    summaries = payments.map { |payment| payment_summary(payment) }
     render inertia: "official_payments/Index", props: {
       year: current_season.year,
-      payments: payments.map { |payment| payment_summary(payment) },
-      totals: { net_cents: payments.sum(&:net_cents), needs_review: payments.count { |payment| !payment.reviewed_at }, deposited: payments.count { |payment| payment.deposited_on } },
+      payments: summaries,
+      totals: { net_cents: summaries.sum { |payment| payment.fetch(:net_cents) }, needs_review: payments.count { |payment| !payment.reviewed_at }, deposited: payments.count { |payment| payment.deposited_on } },
       last_import: last_import&.props,
       connections: connections.as_json,
       google_connected: google_connected?,
@@ -30,7 +31,7 @@ class OfficialPaymentsController < ApplicationController
   def edit
     render inertia: "official_payments/Edit", props: {
       payment: payment_summary(@payment).merge(
-        @payment.as_json(only: %i[lock_version cheque_delivery assignments adjustments]),
+        @payment.as_json(only: %i[lock_version cheque_delivery assignments]),
         imported_game_fees_cents: @payment.imported_game_fees_cents,
         imported_travel_ot_cents: @payment.imported_travel_ot_cents,
         horizon_deductions_cents: @payment.horizon_deductions_cents,
@@ -166,9 +167,7 @@ class OfficialPaymentsController < ApplicationController
   def google_connected? = GoogleApi.configured? && GoogleConnection.exists?
 
   def payment_summary(payment)
-    payment.as_json(only: %i[id official_name horizon_user_id cheque_number deposited_on payment_number]).merge(
-      status: payment.status, game_fees_cents: payment.game_fees_cents, travel_ot_cents: payment.travel_ot_cents,
-      association_fee_cents: payment.association_fee_cents, net_cents: payment.net_cents
-    )
+    payment.as_json(only: %i[id official_name horizon_user_id cheque_number deposited_on payment_number adjustments])
+      .merge(payment.register_amounts, status: payment.status)
   end
 end

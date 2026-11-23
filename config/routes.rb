@@ -24,6 +24,7 @@ Rails.application.routes.draw do
       end
       resources :official_payments, only: %i[index show create update] do
         collection do
+          get :totals
           patch :bulk_update
           get :imports
           post :imports, action: :start_import

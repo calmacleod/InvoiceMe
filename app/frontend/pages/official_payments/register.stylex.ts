@@ -1,5 +1,5 @@
 import * as stylex from "@stylexjs/stylex";
-import { colors } from "../../styles/tokens.stylex";
+import { colors, space } from "../../styles/tokens.stylex";
 
 export const register = stylex.create({
   table: { borderCollapse: "separate", borderSpacing: 0 },
@@ -41,4 +41,73 @@ export const register = stylex.create({
   },
   numeric: { textAlign: "right", fontVariantNumeric: "tabular-nums" },
   pending: { backgroundColor: "#eff6ea" },
+});
+
+export const overview = stylex.create({
+  toolbar: {
+    flexWrap: "wrap",
+    gap: space.md,
+    padding: space.lg,
+  },
+  registerTitle: { margin: 0, marginRight: "auto" },
+  summary: {
+    display: "flex",
+    flexWrap: "wrap",
+    columnGap: space.xxl,
+    rowGap: space.sm,
+    margin: "0 0 18px",
+  },
+  stat: { display: "flex", alignItems: "baseline", gap: space.sm },
+  statValue: { margin: 0, fontWeight: 600, color: colors.text },
+  scroll: {
+    outlineColor: colors.focus,
+    outlineOffset: -2,
+    outlineWidth: 2,
+    outlineStyle: { default: "none", ":focus-visible": "solid" },
+  },
+  header: { position: "sticky", top: 0, zIndex: 3 },
+  heading: {
+    padding: "9px 6px",
+    color: colors.secondary,
+    letterSpacing: "0.25px",
+    lineHeight: 1.3,
+    verticalAlign: "bottom",
+  },
+  official: {
+    position: "sticky",
+    left: 0,
+    zIndex: 1,
+    minWidth: { default: 136, "@media (max-width: 560px)": 115 },
+    maxWidth: 200,
+    overflowWrap: "anywhere",
+    backgroundColor: colors.surface,
+    borderRight: `1px solid ${colors.border}`,
+  },
+  officialHeading: { backgroundColor: colors.canvas },
+  paymentNumber: { margin: 0 },
+  cell: { padding: "7px 6px", verticalAlign: "top", color: colors.text },
+  divider: { borderLeft: `1px solid ${colors.border}` },
+  net: {
+    backgroundColor: colors.notice,
+    color: colors.accent,
+    fontWeight: 700,
+  },
+  zero: { color: colors.muted },
+  additional: { minWidth: 132, maxWidth: 210 },
+  items: {
+    listStyle: "none",
+    padding: 0,
+    margin: "3px 0 0",
+    fontSize: 10,
+    color: colors.secondary,
+  },
+  item: { display: "flex", justifyContent: "space-between", gap: space.xs },
+  itemLabel: { textAlign: "left", overflowWrap: "anywhere" },
+  footer: { position: "sticky", bottom: 0, zIndex: 2 },
+  total: {
+    borderTop: `1px solid ${colors.border}`,
+    backgroundColor: colors.canvas,
+    fontWeight: 700,
+  },
+  netTotal: { backgroundColor: colors.accent, color: colors.surface },
 });

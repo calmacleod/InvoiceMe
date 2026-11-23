@@ -28,6 +28,42 @@ class OfficialPaymentsSystemTest < ActionDispatch::SystemTestCase
     assert_field "Evaluations", disabled: true
   end
 
+  test "shows all amount columns, named items and totals for the displayed officials" do
+    season = seasons(:current)
+    season.official_payments.create!(official_name: "Birch, Riley", game_fee_adjustment_cents: 20_000,
+      evaluations_cents: 7000, registration_cents: 1975, banquet_cents: 6000, other_cents: -1040,
+      adjustments: [ { "label" => "Fictional training credit", "amount_cents" => 2000 }, { "label" => "Fictional equipment deduction", "amount_cents" => -800 } ])
+    season.official_payments.create!(official_name: "River, Morgan", banquet_cents: 12_000)
+
+    visit new_session_path
+    fill_in "Email address", with: users(:one).email_address
+    fill_in "Password", with: "password"
+    click_button "Sign in"
+    click_link "Officials payments"
+
+    within '[aria-labelledby="earnings-register-heading"]' do
+      headings = [
+        "Official", "Game fees incl. adj.", "Game fee adj.", "Travel/OT incl. adj.", "Travel/OT adj.", "Evaluations", "Prepayment refund", "Other", "Additional items",
+        "Association fee", "OFOA registration", "Banquet", "Next year’s prepayment", "Net earnings", "Cheque", "Deposited", "Status"
+      ]
+      assert_equal headings.map(&:upcase), all("thead th").map { |heading| heading.text.squish.upcase }
+      assert_selector "tbody tr", count: 2
+      assert_text "Fictional training credit"
+      assert_text "Fictional equipment deduction"
+      assert_text "-$8.00"
+      assert_selector "tfoot th", text: "Season totals"
+      assert_selector "tfoot td", exact_text: "$180.00"
+      assert_selector "tfoot td", exact_text: "$12.00"
+      assert_equal "sticky", evaluate_script("getComputedStyle(document.querySelector('tfoot')).position")
+    end
+
+    fill_in "Search officials", with: "Birch"
+    assert_selector "tfoot th", text: "Search totals"
+    assert_selector "tfoot td", exact_text: "$60.00"
+    assert_no_selector "tfoot td", exact_text: "$180.00"
+    assert_no_link "River, Morgan"
+  end
+
   test "pastes different amounts into the payment grid and navigates by keyboard" do
     season = seasons(:current)
     first = season.official_payments.create!(official_name: "Birch, Riley")
