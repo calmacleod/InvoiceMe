@@ -42,6 +42,7 @@ class OfficialPaymentImport < ApplicationRecord
       (existing.keys | incoming).each do |user_id|
         row = rows.fetch(user_id, {})
         payment = existing[user_id] || season.official_payments.new(horizon_user_id: user_id)
+        payment.reload if payment.persisted?
         name = row.fetch(:name, payment.official_name)
         assignments = row.fetch(:assignments, [])
         if payment.cheque_number

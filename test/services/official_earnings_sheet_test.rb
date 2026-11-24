@@ -23,6 +23,7 @@ class OfficialEarningsSheetTest < ActiveSupport::TestCase
     official = season.official_payments.create!(official_name: "Harper, Casey", game_fee_adjustment_cents: 13_573,
       registration_cents: 4_075, other_cents: 123, reviewed_at: Time.current, cheque_number: "0019",
       adjustments: [ { "label" => "=Training", "amount_cents" => 575 } ])
+    season.official_payments.create!(official_name: "Lane, Riley", registration_cents: 500, reviewed_at: Time.current)
     google = Google.new
     assert_equal "fictional-earnings-sheet", OfficialEarningsSheet.new(season, api: google).export!
     register = google.payload.fetch(:sheets).first
@@ -33,6 +34,8 @@ class OfficialEarningsSheetTest < ActiveSupport::TestCase
     assert_equal official.net_cents.fdiv(100), register_row.dig(12, :userEnteredValue, :numberValue)
     assert_equal "0019", register_row.dig(13, :userEnteredValue, :stringValue)
     assert_equal 1, register_row.dig(16, :userEnteredValue, :numberValue)
+    assert_equal "Lane, Riley", register_data.dig(:rows, 2, :values, 0, :userEnteredValue, :stringValue)
+    assert_equal({}, register_data.dig(:rows, 2, :values, 16))
     assert_equal 1, details.dig(:rows, 1, :values, 0, :userEnteredValue, :numberValue)
     assert_equal "=Training", details.dig(:rows, 1, :values, 2, :userEnteredValue, :stringValue)
     assert_equal "#{season.year} Final Officials Earnings", google.writes.last.dig(:updateSpreadsheetProperties, :properties, :title)

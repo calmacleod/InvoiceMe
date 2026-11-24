@@ -7,7 +7,14 @@ module Api
       rescue_from ActiveRecord::RecordNotUnique, with: -> { render_error("An official payment or cheque number was recorded concurrently. Reload the register and retry.", :conflict) }
 
       def index
-        render json: paginate(season.official_payments.order(:payment_number)) { |payment| payment_summary(payment) }
+        payments = season.official_payments.in_payment_order
+        payments = case params[:payable]
+        when "true" then payments.where.not(payment_number: nil)
+        when "false" then payments.where(payment_number: nil)
+        when nil then payments
+        else raise ArgumentError, "payable must be true or false"
+        end
+        render json: paginate(payments) { |payment| payment_summary(payment) }
       end
 
       def totals

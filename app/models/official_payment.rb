@@ -16,8 +16,12 @@ class OfficialPayment < ApplicationRecord
 
   belongs_to :season
   has_many :private_notes, class_name: "OfficialPaymentPrivateNote", dependent: :destroy, inverse_of: :official_payment
-  attr_readonly :payment_number
-  before_create :assign_payment_number
+
+  scope :in_payment_order, -> { order(arel_table[:payment_number].asc.nulls_last, :id) }
+
+  before_save :assign_payment_number
+  after_save :compact_draft_sequence, if: -> { saved_change_to_payment_number? && payment_number.nil? }
+  after_destroy :compact_draft_sequence, if: -> { payment_number && cheque_number.nil? }
 
   normalizes :official_name, with: ->(name) { name.squish }
   normalizes :cheque_number, :cheque_delivery, with: ->(value) { value.strip.presence }
@@ -37,22 +41,36 @@ class OfficialPayment < ApplicationRecord
   def self.update_register!(scope, rows)
     inputs = rows.index_by { |row| row[:id].to_s }
     transaction do
-      payments = scope.where(id: inputs.keys).order(:payment_number).to_a
+      payments = scope.where(id: inputs.keys).in_payment_order.to_a
       if inputs.size != rows.size || payments.size != inputs.size
         raise ActiveRecord::StaleObjectError.new(new, "edit register")
       end
 
-      payments.select do |payment|
+      payments.each do |payment|
         row = inputs.fetch(payment.id.to_s)
         if payment.cheque_number || payment.lock_version.to_s != row[:lock_version].to_s
           raise ActiveRecord::StaleObjectError.new(payment, "edit register")
         end
+      end
 
-        yield payment, row
+      changed = payments.select do |payment|
+        # An earlier edit in this batch can move this payment up in the sequence.
+        payment.reload
+        yield payment, inputs.fetch(payment.id.to_s)
         next false unless payment.has_changes_to_save?
 
         payment.update!(reviewed_at: nil)
       end
+      changed.each(&:reload)
+    end
+  end
+
+  def self.compact_draft_sequence!(season_id)
+    payments = where(season_id: season_id)
+    last_recorded = payments.where.not(cheque_number: nil).maximum(:payment_number).to_i
+    drafts = payments.where(cheque_number: nil, payment_number: (last_recorded + 1)..)
+    drafts.order(:payment_number).pluck(:id, :payment_number).each.with_index(last_recorded + 1) do |(id, number), next_number|
+      payments.where(id: id).update_all(payment_number: next_number) if number != next_number
     end
   end
 
@@ -83,6 +101,7 @@ class OfficialPayment < ApplicationRecord
   def net_game_fees_cents = game_fees_cents - association_fee_cents
   def earnings_before_deductions_cents = net_game_fees_cents + travel_ot_cents + evaluations_cents + prepayment_refund_cents + miscellaneous_cents
   def net_cents = earnings_before_deductions_cents - registration_cents - banquet_cents - next_year_prepayment_cents
+  def payable? = net_cents.positive?
 
   def status
     if deposited_on
@@ -154,7 +173,15 @@ class OfficialPayment < ApplicationRecord
   end
 
   def assign_payment_number
-    self.payment_number = self.class.where(season_id: season_id).maximum(:payment_number).to_i + 1
+    if payable?
+      self.payment_number ||= self.class.where(season_id: season_id).maximum(:payment_number).to_i + 1
+    else
+      self.payment_number = nil
+    end
+  end
+
+  def compact_draft_sequence
+    self.class.compact_draft_sequence!(season_id)
   end
 
   def parse_amount!(field, value)
@@ -180,7 +207,7 @@ class OfficialPayment < ApplicationRecord
 
   def valid_cheque
     if cheque_number
-      errors.add(:cheque_number, "requires reviewed earnings and a positive net amount") unless reviewed_at && net_cents.positive?
+      errors.add(:cheque_number, "requires reviewed earnings and a positive net amount") unless reviewed_at && payable?
     elsif deposited_on || cheque_delivery
       errors.add(:cheque_number, "is required for deposit or delivery details")
     end

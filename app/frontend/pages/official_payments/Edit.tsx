@@ -137,7 +137,11 @@ function PaymentEditor({ payment, year, google_connected }: Props) {
             </>
           }
         >
-          {year} earnings · Payment #{payment.payment_number} · {payment.status}
+          {year} earnings ·{" "}
+          {payment.payment_number === null
+            ? "No cheque due"
+            : `Payment #${payment.payment_number}`}{" "}
+          · {payment.status}
         </Heading>
       </header>
       <div {...stylex.props(ui.stats)}>

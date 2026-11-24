@@ -9,7 +9,7 @@ class OfficialEarningsSheet
   end
 
   def export!
-    payments = @season.official_payments.order(:payment_number).to_a
+    payments = @season.official_payments.in_payment_order.to_a
     raise GoogleApi::Error, "Add officials before exporting earnings." if payments.empty?
     raise GoogleApi::Error, "Review every official before exporting the final earnings sheet." if payments.any? { |payment| !payment.reviewed_at }
 
@@ -72,6 +72,8 @@ class OfficialEarningsSheet
   def currency(cents) = number(cents.fdiv(100), CURRENCY)
 
   def number(value, format = nil)
+    return {} if value.nil?
+
     cell = { userEnteredValue: { numberValue: value } }
     cell[:userEnteredFormat] = { numberFormat: format } if format
     cell

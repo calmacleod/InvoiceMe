@@ -4,7 +4,7 @@ class OfficialPaymentsController < ApplicationController
   before_action :load_payment, only: %i[edit update preview pdf odt google_doc]
 
   def index
-    payments = numbered_payments.to_a
+    payments = payments_in_register_order.to_a
     last_import = current_season.official_payment_imports.order(id: :desc).first
     connections = HorizonConnection.order(:id).select(:id, :organization_name)
     summaries = payments.map { |payment| payment_summary(payment) }
@@ -67,7 +67,7 @@ class OfficialPaymentsController < ApplicationController
     render inertia: "official_payments/BulkEdit", props: {
       year: current_season.year,
       fields: OfficialPayment::REGISTER_FIELDS.map { |field, label| { key: field, label: label } },
-      payments: numbered_payments.map do |payment|
+      payments: payments_in_register_order.map do |payment|
         register_row(payment).merge(amounts: OfficialPayment::REGISTER_FIELDS.keys.index_with { |field| payment.public_send("#{field}_cents") })
       end
     }
@@ -83,7 +83,7 @@ class OfficialPaymentsController < ApplicationController
   def adjustments
     render inertia: "official_payments/Adjustments", props: {
       year: current_season.year,
-      payments: numbered_payments.map { |payment| register_row(payment).merge(adjustments: payment.adjustments) }
+      payments: payments_in_register_order.map { |payment| register_row(payment).merge(adjustments: payment.adjustments) }
     }
   end
 
@@ -150,7 +150,7 @@ class OfficialPaymentsController < ApplicationController
 
   private
 
-  def numbered_payments = current_season.official_payments.order(:payment_number)
+  def payments_in_register_order = current_season.official_payments.in_payment_order
 
   def register_row(payment)
     { id: payment.id, name: payment.official_name, payment_number: payment.payment_number, lock_version: payment.lock_version, locked: payment.cheque_number.present? }

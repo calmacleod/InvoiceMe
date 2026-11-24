@@ -19,7 +19,7 @@ class OfficialPaymentsTest < ActionDispatch::IntegrationTest
   test "creates, reviews, records a cheque, and downloads both statement formats" do
     post official_payments_path, params: { official_payment: { official_name: "Fable, Morgan" } }
     payment = @season.official_payments.sole
-    assert_equal 1, payment.payment_number
+    assert_nil payment.payment_number
     assert_redirected_to edit_official_payment_path(payment)
     get edit_official_payment_path(payment)
     assert_inertia_component "official_payments/Edit"
@@ -35,6 +35,7 @@ class OfficialPaymentsTest < ActionDispatch::IntegrationTest
     assert_equal "Deposited", payment.reload.status
     assert_equal 22_881, payment.association_fee_cents
     assert_equal 309_860, payment.net_cents
+    assert_equal 1, payment.payment_number
     assert_equal "Mailed", payment.cheque_delivery
 
     get pdf_official_payment_path(payment)
@@ -158,8 +159,8 @@ class OfficialPaymentsTest < ActionDispatch::IntegrationTest
     first = @season.official_payments.create!(official_name: "Reed, Avery")
     second = @season.official_payments.create!(official_name: "Brook, Riley", cheque_number: "0014", reviewed_at: Time.current, evaluations_cents: 3_000)
     year = Season.create!(year: 2034, sheet_name: "Fictional Register", issuer: @season.issuer)
-    next_year = year.official_payments.create!(official_name: "Glen, Morgan")
-    assert_equal [ 1, 2, 1 ], [ first.payment_number, second.payment_number, next_year.payment_number ]
+    next_year = year.official_payments.create!(official_name: "Glen, Morgan", evaluations_cents: 1_000)
+    assert_equal [ nil, 1, 1 ], [ first.payment_number, second.payment_number, next_year.payment_number ]
     assert_equal "0014", second.cheque_number
   end
 

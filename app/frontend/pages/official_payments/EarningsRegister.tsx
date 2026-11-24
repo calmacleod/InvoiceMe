@@ -38,7 +38,7 @@ export type PaymentSummary = Record<
   number
 > & {
   id: number;
-  payment_number: number;
+  payment_number: number | null;
   official_name: string;
   horizon_user_id: string | null;
   status: "Needs review" | "Reviewed" | "Cheque recorded" | "Deposited";
@@ -51,10 +51,16 @@ export default function EarningsRegister({
   payments,
   filtered,
   breakdown,
+  headingId,
+  totalsLabel,
+  emptyMessage,
 }: {
   payments: PaymentSummary[];
   filtered: boolean;
   breakdown: boolean;
+  headingId: string;
+  totalsLabel: string;
+  emptyMessage?: string;
 }) {
   const columns = breakdown
     ? moneyColumns
@@ -66,7 +72,7 @@ export default function EarningsRegister({
     <div
       {...stylex.props(ui.tableScroll, register.scroll, overview.scroll)}
       role="region"
-      aria-labelledby="earnings-register-heading"
+      aria-labelledby={headingId}
       tabIndex={0}
     >
       <table
@@ -130,10 +136,18 @@ export default function EarningsRegister({
                 >
                   {payment.official_name}
                 </Link>
-                <small {...stylex.props(ui.small, overview.paymentNumber)}>
-                  #{payment.payment_number}
-                  {!payment.horizon_user_id && " · Manual entry"}
-                </small>
+                {(payment.payment_number !== null ||
+                  !payment.horizon_user_id) && (
+                  <small {...stylex.props(ui.small, overview.paymentNumber)}>
+                    {payment.payment_number === null
+                      ? ""
+                      : `#${payment.payment_number}`}
+                    {!payment.horizon_user_id &&
+                      (payment.payment_number === null
+                        ? "Manual entry"
+                        : " · Manual entry")}
+                  </small>
+                )}
               </th>
               {columns.map((column) => {
                 const cents = payment[column.field];
@@ -216,9 +230,7 @@ export default function EarningsRegister({
                 {...stylex.props(ui.td, ui.muted)}
                 colSpan={1 + columns.length + otherHeadings.length}
               >
-                {filtered
-                  ? "No officials match this search."
-                  : "Pull from Horizon to start the register, or add an official below."}
+                {emptyMessage}
               </td>
             </tr>
           )}
@@ -234,7 +246,7 @@ export default function EarningsRegister({
               )}
               scope="row"
             >
-              {filtered ? "Search totals" : "Season totals"}
+              {filtered ? "Search totals" : totalsLabel}
             </th>
             {columns.map((column) => (
               <td

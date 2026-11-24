@@ -10,7 +10,7 @@ import { register } from "./register.stylex";
 type Payment = {
   id: number;
   name: string;
-  payment_number: number;
+  payment_number: number | null;
   lock_version: number;
   locked: boolean;
   amounts: Record<string, number>;
@@ -179,7 +179,9 @@ export default function BulkEdit({
                         {...stylex.props(ui.link)}
                         href={`/official_payments/${payment.id}/edit`}
                       >
-                        {payment.payment_number}. {payment.name}
+                        {payment.payment_number === null
+                          ? payment.name
+                          : `${payment.payment_number}. ${payment.name}`}
                       </Link>
                       {payment.locked && (
                         <small {...stylex.props(ui.small)}>

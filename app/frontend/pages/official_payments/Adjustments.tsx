@@ -11,7 +11,7 @@ type Row = Item & { key: number; officialId: number | null };
 type Payment = {
   id: number;
   name: string;
-  payment_number: number;
+  payment_number: number | null;
   lock_version: number;
   locked: boolean;
   adjustments: { label: string; amount_cents: number }[];
@@ -145,7 +145,9 @@ export default function Adjustments({
                               value={payment.id}
                               disabled={payment.locked}
                             >
-                              {payment.payment_number}. {payment.name}
+                              {payment.payment_number === null
+                                ? payment.name
+                                : `${payment.payment_number}. ${payment.name}`}
                             </option>
                           ))}
                         </select>

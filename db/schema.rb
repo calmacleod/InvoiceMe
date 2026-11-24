@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_24_180000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_24_190000) do
   create_table "api_keys", force: :cascade do |t|
     t.integer "user_id", null: false
     t.string "name", null: false
@@ -315,7 +315,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_24_180000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.json "adjustments", default: [], null: false
-    t.integer "payment_number", null: false
+    t.integer "payment_number"
     t.text "visible_note"
     t.index "season_id, lower(official_name)", name: "index_manual_official_payments_on_name", unique: true, where: "horizon_user_id IS NULL"
     t.index ["season_id", "cheque_number"], name: "index_official_payments_on_season_id_and_cheque_number", unique: true

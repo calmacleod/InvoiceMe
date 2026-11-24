@@ -54,6 +54,7 @@ class OfficialPaymentsSystemTest < ActionDispatch::SystemTestCase
       evaluations_cents: 7000, registration_cents: 1975, banquet_cents: 6000, other_cents: -1040,
       adjustments: [ { "label" => "Fictional training credit", "amount_cents" => 2000 }, { "label" => "Fictional equipment deduction", "amount_cents" => -800 } ])
     season.official_payments.create!(official_name: "River, Morgan", banquet_cents: 12_000)
+    season.official_payments.create!(official_name: "Linden, Casey")
 
     visit new_session_path
     fill_in "Email address", with: users(:one).email_address
@@ -64,6 +65,8 @@ class OfficialPaymentsSystemTest < ActionDispatch::SystemTestCase
     within '[aria-labelledby="earnings-register-heading"]' do
       assert_equal [ "Official", "Net earnings", "Payment" ], all("thead th").map(&:text)
       assert_link "Birch, Riley"
+      assert_no_link "River, Morgan"
+      assert_no_link "Linden, Casey"
       assert_no_text "Fictional training credit"
     end
     find('button[aria-pressed="true"]', text: "Summary").send_keys(:arrow_right, :space)
@@ -75,14 +78,21 @@ class OfficialPaymentsSystemTest < ActionDispatch::SystemTestCase
         "Association fee", "OFOA registration", "Banquet", "Next year’s prepayment", "Net earnings", "Cheque", "Deposited", "Status"
       ]
       assert_equal headings.map(&:upcase), all("thead th").map { |heading| heading.text.squish.upcase }
-      assert_selector "tbody tr", count: 2
+      assert_selector "tbody tr", count: 1
       assert_text "Fictional training credit"
       assert_text "Fictional equipment deduction"
       assert_text "-$8.00"
-      assert_selector "tfoot th", text: "Season totals"
-      assert_selector "tfoot td", exact_text: "$180.00"
+      assert_selector "tfoot th", text: "Payable totals"
+      assert_selector "tfoot td", exact_text: "$60.00"
       assert_selector "tfoot td", exact_text: "$12.00"
       assert_equal "sticky", evaluate_script("getComputedStyle(document.querySelector('tfoot')).position")
+    end
+    within '[aria-labelledby="no-cheque-due-heading"]' do
+      assert_link "River, Morgan"
+      assert_link "Linden, Casey"
+      assert_text "-$120.00"
+      assert_text "$0.00"
+      assert_no_text "#"
     end
 
     fill_in "Search officials", with: "Birch"
@@ -90,6 +100,12 @@ class OfficialPaymentsSystemTest < ActionDispatch::SystemTestCase
     assert_selector "tfoot td", exact_text: "$60.00"
     assert_no_selector "tfoot td", exact_text: "$180.00"
     assert_no_link "River, Morgan"
+    fill_in "Search officials", with: "River"
+    assert_text "No payable officials match this search."
+    within '[aria-labelledby="no-cheque-due-heading"]' do
+      assert_link "River, Morgan"
+      assert_no_link "Linden, Casey"
+    end
   end
 
   test "pastes different amounts into the payment grid and navigates by keyboard" do
@@ -128,12 +144,12 @@ class OfficialPaymentsSystemTest < ActionDispatch::SystemTestCase
     click_link "Officials payments"
     click_link "Additional items"
     click_button "Add row"
-    find('[aria-label="Official for item 1"]').select("1. Birch, Riley")
+    find('[aria-label="Official for item 1"]').select("Birch, Riley")
     find('[aria-label="Item 1 reason"]').send_keys("Mileage correction")
     find('[aria-label="Item 1 amount"]').send_keys("14.60")
     assert_selector '[aria-label="Item 1 amount"][value="14.60"]'
     click_button "Add row"
-    find('[aria-label="Official for item 2"]').select("2. River, Morgan")
+    find('[aria-label="Official for item 2"]').select("River, Morgan")
     find('[aria-label="Item 2 reason"]').send_keys("Equipment")
     find('[aria-label="Item 2 amount"]').send_keys("-7.20")
     assert_selector '[aria-label="Item 2 amount"][value="-7.20"]'

@@ -37,11 +37,12 @@ class ApiV1OfficialPaymentsTest < ActionDispatch::IntegrationTest
     post api_v1_official_payments_path, params: { season_id: @season.id, official_payment: { official_name: "Cameron Fable" } }, headers: @headers, as: :json
     assert_response :created
     id, version = response.parsed_body.values_at("id", "lock_version")
-    assert_equal 1, response.parsed_body.fetch("payment_number")
+    assert_nil response.parsed_body.fetch("payment_number")
 
     update_payment(id, version, evaluations: "200.00", banquet: "60.00", reviewed: true,
       adjustments: [ { label: "Fictional credit", amount: "12.50" } ])
     assert_response :success
+    assert_equal 1, response.parsed_body.fetch("payment_number")
     assert_equal 15_250, response.parsed_body.fetch("net_cents")
     assert_equal "Reviewed", response.parsed_body.fetch("status")
 
@@ -55,6 +56,35 @@ class ApiV1OfficialPaymentsTest < ActionDispatch::IntegrationTest
     update_payment(id, response.parsed_body.fetch("lock_version"), cheque_number: nil, deposited_on: nil, banquet: "120.00")
     assert_response :unprocessable_entity
     assert_equal 6000, OfficialPayment.find(id).banquet_cents
+  end
+
+  test "only positive balances use a payment number and bulk edits close draft gaps" do
+    zero = @season.official_payments.create!(official_name: "Rowan Zero")
+    issued = payment("Rowan Issued", reviewed_at: Time.current, cheque_number: "EX-IF-01")
+    first = payment("Rowan First")
+    negative = payment("Rowan Negative", registration_cents: 20_000)
+    next_payment = payment("Rowan Next")
+    assert_equal [ nil, 1, 2, nil, 3 ], [ zero, issued, first, negative, next_payment ].map(&:payment_number)
+
+    get api_v1_official_payments_path, params: { season_id: @season.id, payable: true }, headers: @headers
+    assert_response :success
+    assert_equal [ issued.id, first.id, next_payment.id ], response.parsed_body.fetch("data").pluck("id")
+
+    get api_v1_official_payments_path, params: { season_id: @season.id, payable: false }, headers: @headers
+    assert_response :success
+    assert_equal [ [ zero.id, nil ], [ negative.id, nil ] ], response.parsed_body.fetch("data").map { |row| row.values_at("id", "payment_number") }
+
+    previous_version = next_payment.lock_version
+    batch(row(first, amounts: { registration: "184.00" }), row(next_payment, amounts: { evaluations: "15.00" }))
+    assert_response :success
+    assert_equal [ [ first.id, nil ], [ next_payment.id, 2 ] ], response.parsed_body.fetch("data").map { |row| row.values_at("id", "payment_number") }
+    assert_equal [ 1, "EX-IF-01" ], [ issued.reload.payment_number, issued.cheque_number ]
+    update_payment(next_payment, previous_version, private_note: "An edit from the old order")
+    assert_response :conflict
+
+    update_payment(zero, zero.lock_version, evaluations: "5.00")
+    assert_response :success
+    assert_equal 3, response.parsed_body.fetch("payment_number")
   end
 
   test "returns season totals for every earnings and deduction field" do

@@ -50,6 +50,22 @@ class OfficialPaymentImportTest < ActiveSupport::TestCase
     assert_raises(Horizon::Client::ResponseError) { fetch(fake_schedule(page(1, 1, event.merge("assignment_count" => 2)))) }
   end
 
+  test "releases a draft number when Horizon clears earnings and refreshes the next official" do
+    first = assignment("assignment-a", "official-a", fee: 80)
+    second = assignment("assignment-b", "official-b", fee: 120)
+    rows, excluded = fetch(fake_schedule(page(1, 1, game("fictional-1", first, second))))
+    @season.official_payment_imports.create!(status: "running").apply!(rows, excluded, connection: @connection)
+    before = @season.official_payments.in_payment_order.pluck(:payment_number)
+    assert_equal [ 1, 2 ], before
+
+    changed = assignment("assignment-b", "official-b", fee: 130)
+    rows, excluded = fetch(fake_schedule(page(1, 1, game("fictional-1", changed))))
+    @season.official_payment_imports.create!(status: "running").apply!(rows, excluded, connection: @connection)
+
+    assert_equal [ [ "official-b", 1 ], [ "official-a", nil ] ], @season.official_payments.in_payment_order.pluck(:horizon_user_id, :payment_number)
+    assert_equal 13_000, @season.official_payments.find_by!(horizon_user_id: "official-b").game_fees_cents
+  end
+
   test "only one queued or running import can exist even across seasons" do
     first = @season.official_payment_imports.create!
     first.update!(status: "running")

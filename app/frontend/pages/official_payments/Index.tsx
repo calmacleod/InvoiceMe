@@ -54,6 +54,8 @@ export default function Index({
   const shown = payments.filter((payment) =>
     payment.official_name.toLocaleLowerCase().includes(search),
   );
+  const payable = shown.filter((payment) => payment.net_cents > 0);
+  const noChequeDue = shown.filter((payment) => payment.net_cents <= 0);
   useEffect(() => {
     if (!busy) return;
     const timer = window.setInterval(() => {
@@ -248,11 +250,36 @@ export default function Index({
           </div>
         )}
         <EarningsRegister
-          payments={shown}
+          payments={payable}
           filtered={Boolean(search)}
           breakdown={breakdown}
+          headingId="earnings-register-heading"
+          totalsLabel="Payable totals"
+          emptyMessage={
+            search
+              ? "No payable officials match this search."
+              : payments.length
+                ? "No officials have positive net earnings."
+                : "Pull from Horizon to start the register, or add an official below."
+          }
         />
       </section>
+      {noChequeDue.length > 0 && (
+        <section {...stylex.props(ui.card, ui.tableCard)}>
+          <div {...stylex.props(ui.tableHeading)}>
+            <h2 id="no-cheque-due-heading" {...stylex.props(ui.h2)}>
+              No cheque due
+            </h2>
+          </div>
+          <EarningsRegister
+            payments={noChequeDue}
+            filtered={Boolean(search)}
+            breakdown={breakdown}
+            headingId="no-cheque-due-heading"
+            totalsLabel="Total"
+          />
+        </section>
+      )}
       <section {...stylex.props(ui.card)}>
         <h2 {...stylex.props(ui.h2)}>Add an official manually</h2>
         <p {...stylex.props(ui.paragraph)}>
