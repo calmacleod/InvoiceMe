@@ -40,9 +40,18 @@ class ExpensesSystemTest < ActionDispatch::SystemTestCase
       assert_text "$24.59"
       assert_text "$75.06"
     end
+    page.driver.browser.execute_cdp("Emulation.setDeviceMetricsOverride", width: 390, height: 844, deviceScaleFactor: 1, mobile: false)
+    within("table[aria-label='Expenses']") do
+      assert_text "Cheque 007"
+      assert_text "Training"
+      assert_text "$99.65"
+      assert evaluate_script("document.querySelector('[aria-label=Expenses]').parentElement.scrollWidth === document.querySelector('[aria-label=Expenses]').parentElement.clientWidth")
+    end
     expense = Expense.find_by!(description: "Fall volunteer workshop")
     assert_equal [ Date.new(2026, 11, 5), true, Date.new(2026, 11, 8), "007" ],
       [ expense.incurred_on, expense.paid?, expense.paid_on, expense.cheque_number ]
+  ensure
+    page.driver.browser.execute_cdp("Emulation.clearDeviceMetricsOverride")
   end
 
   private

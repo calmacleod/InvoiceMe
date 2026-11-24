@@ -19,22 +19,29 @@ class GameFiltersSystemTest < ActionDispatch::SystemTestCase
     [ games_path, new_invoice_path ].each do |path|
       visit path
       prefix = path == games_path ? "master" : "picker"
-      click_button "More filters" if path == games_path
-      find('summary[aria-label="Game code options"]').click
-      fill_in "#{prefix}-code", with: "Code"
-      check "Example Code 0"
-      check "Example Code 1"
-      find('summary[aria-label="Home team options"]').click
-      fill_in "#{prefix}-home_team", with: "Home 1"
-      check "Example Home 1"
-      find('summary[aria-label="Away team options"]').click
-      fill_in "#{prefix}-away_team", with: "Away 1"
-      check "Example Away 1"
+      click_button "More filters"
+      find("##{prefix}-code").click
+      code_search = find('input[aria-label="Search game code"]')
+      code_search.send_keys("Code 0", :arrow_down, :enter)
+      assert_selector '[role="option"][aria-selected="true"]', text: "Example Code 0"
+      assert_text "3 matching games"
+      code_search.set("Code 1")
+      find('[role="option"]', text: "Example Code 1").click
+      code_search.send_keys(:escape)
+      assert_selector "##{prefix}-code:focus", text: "2 selected"
+
+      find("##{prefix}-home_team").click
+      find('input[aria-label="Search home team"]').set("Home 1")
+      find('[role="option"]', text: "Example Home 1").click
+      find("##{prefix}-away_team").click
+      find('input[aria-label="Search away team"]').set("Away 1")
+      find('[role="option"]', text: "Example Away 1").click
       click_button "Apply filters"
       assert_text "1 matching game"
-      if path == new_invoice_path
-        find("summary", text: "Filters ·").click
-      end
+      assert_text "Game code · Example Code 0 +1"
+      find('button[aria-label="Remove game code filter"]').click
+      assert_no_selector 'button[aria-label="Remove game code filter"]'
+      assert_selector 'button[aria-label="Remove home team filter"]'
       click_button "Clear filters"
       assert_text "3 matching games"
     end
@@ -130,17 +137,17 @@ class GameFiltersSystemTest < ActionDispatch::SystemTestCase
     end
     visit new_invoice_path
     find('input[aria-label="Select game EXAMPLE-ALL-00"]').set(true)
-    find('summary[aria-label="Game code options"]').click
-    check "EXAMPLE-BETA"
+    click_button "More filters"
+    find("#picker-code").click
+    find('[role="option"]', text: "EXAMPLE-BETA").click
     click_button "Apply filters"
     assert_text "5 matching games"
     click_button "Link all matching games (5)"
     assert_button "Linked games (6)"
-    find("summary", text: "Filters ·").click
-    code_options = find('summary[aria-label="Game code options"]')
-    code_options.click unless code_options.find(:xpath, "..")[:open]
-    uncheck "EXAMPLE-BETA"
-    check "EXAMPLE-ALPHA"
+    click_button "More filters (1)"
+    find("#picker-code").click
+    find('[role="option"][aria-selected="true"]', text: "EXAMPLE-BETA").click
+    find('[role="option"]', text: "EXAMPLE-ALPHA").click
     click_button "Apply filters"
     assert_text "30 matching games"
     within('nav[aria-label="Game browser pagination"]') { select "10", from: "Per page" }
@@ -156,7 +163,7 @@ class GameFiltersSystemTest < ActionDispatch::SystemTestCase
     assert_button "Linked games (35)"
     click_button "Link all matching games (30)"
     assert_button "Linked games (35)"
-    click_button "EXAMPLE-ALPHA"
+    within('section[aria-label="Games by game code"]') { click_button "EXAMPLE-ALPHA" }
     within('section[aria-label="Linked games for EXAMPLE-ALPHA"]') do
       assert_selector "tbody tr", count: 30
       assert_text "EXAMPLE-ALL-00"
@@ -173,7 +180,7 @@ class GameFiltersSystemTest < ActionDispatch::SystemTestCase
     visit games_path
     visit draft_path
     assert_button "Linked games (35)"
-    click_button "EXAMPLE-BETA"
+    within('section[aria-label="Games by game code"]') { click_button "EXAMPLE-BETA" }
     within('section[aria-label="Linked games for EXAMPLE-BETA"]') { assert_selector "tbody tr", count: 5 }
   end
 
@@ -183,8 +190,9 @@ class GameFiltersSystemTest < ActionDispatch::SystemTestCase
     end
     visit games_path
     click_button "More filters"
-    find('summary[aria-label="Game code options"]').click
-    check "EXAMPLE-CODE-0"
+    find("#master-code").click
+    find('[role="option"]', text: "EXAMPLE-CODE-0").click
+    find('input[aria-label="Search game code"]').send_keys(:escape)
     fill_in "master-q", with: "EXAMPLE-REMEMBER"
     click_button "Apply filters"
     assert_text "1 matching game"
@@ -194,7 +202,7 @@ class GameFiltersSystemTest < ActionDispatch::SystemTestCase
     assert_text "1 matching game"
     assert_selector :field, "master-q", with: "EXAMPLE-REMEMBER"
     click_button "More filters (1)"
-    assert_selector 'summary[aria-label="Game code options"]', text: "EXAMPLE-CODE-0"
+    assert_selector "#master-code", text: "EXAMPLE-CODE-0"
     page.refresh
     assert_text "1 matching game"
     click_button "Clear filters"
@@ -205,7 +213,7 @@ class GameFiltersSystemTest < ActionDispatch::SystemTestCase
     within('nav[aria-label="Main navigation"]') { click_link "Games & officials" }
     assert_text "2 matching games"
     click_button "More filters"
-    assert_selector 'summary[aria-label="Game code options"]', text: "Any game code"
+    assert_selector "#master-code", text: "Any"
   end
 
   test "master bulk invoicing supports selections across pages all filtered games and clearing a mark" do
@@ -242,8 +250,81 @@ class GameFiltersSystemTest < ActionDispatch::SystemTestCase
     assert_equal 0, Invoice.count
     visit new_invoice_path
     assert_text "Already invoiced"
+    click_button "More filters"
     select "Not invoiced or selected in a workbench", from: "picker-link-status"
     click_button "Apply filters"
     assert_text "0 matching games"
+  end
+
+  test "linking matching games keeps the response when the first autosave completes" do
+    2.times do |index|
+      seasons(:current).games.create!(external_id: "EXAMPLE-RACE-#{index}", date: "2031-09-15")
+    end
+    visit new_invoice_path
+    execute_script(<<~JS)
+      const fetch = window.fetch.bind(window);
+      let resolveSave;
+      const saved = new Promise((resolve) => { resolveSave = resolve; });
+
+      window.fetch = async (url, options) => {
+        const response = await fetch(url, options);
+        if (url === "/invoice_drafts" && options?.method === "POST") {
+          document.body.dataset.draftReady = "true";
+          await saved;
+        }
+        return response;
+      };
+
+      const requestHeader = XMLHttpRequest.prototype.setRequestHeader;
+      XMLHttpRequest.prototype.setRequestHeader = function (name, value) {
+        if (name.toLowerCase() === "x-inertia-partial-data" && value === "matching_games") {
+          this.matchesGames = true;
+        }
+        return requestHeader.call(this, name, value);
+      };
+
+      const send = XMLHttpRequest.prototype.send;
+      XMLHttpRequest.prototype.send = function (...args) {
+        if (!this.matchesGames) return send.apply(this, args);
+
+        resolveSave();
+        setTimeout(() => send.apply(this, args), 250);
+      };
+    JS
+    find('input[aria-label="Select game EXAMPLE-RACE-0"]').set(true)
+    assert_selector "body[data-draft-ready=true]"
+    click_button "Link all matching games (2)"
+    assert_button "Linked games (2)"
+    assert_current_path %r{/invoice_drafts/\d+/edit}
+    assert_text "All changes saved"
+    assert_equal 2, users(:one).invoice_drafts.last.data.fetch("game_ids").size
+  end
+
+  test "games fit a phone viewport and keep sort options and fees reachable" do
+    season = seasons(:current)
+    season.games.create!(external_id: "EXAMPLE-PHONE-1", date: "2031-09-15", fees_cents: 12_000, code: "League", home_team: "North Example", away_team: "South Example")
+    season.games.create!(external_id: "EXAMPLE-PHONE-2", date: "2031-09-16", fees_cents: 6_000)
+    page.driver.browser.execute_cdp("Emulation.setDeviceMetricsOverride", width: 390, height: 844, deviceScaleFactor: 1, mobile: false)
+    visit games_path
+
+    assert_selector "tbody tr", count: 2
+    assert_equal 390, evaluate_script("window.innerWidth")
+    assert evaluate_script("document.querySelector('table').parentElement.scrollWidth === document.querySelector('table').parentElement.clientWidth")
+    assert_selector "tbody tr", text: "North Example"
+    click_button "Sort by date"
+    find('[role="menuitem"]', text: "Total fees").click
+    assert_selector "tbody tr:first-child", text: "EXAMPLE-PHONE-2"
+    trigger = find('button[aria-label="View fees for game EXAMPLE-PHONE-1"]')
+    trigger.click
+    within('[role="dialog"]') do
+      assert_text "Fees for game #EXAMPLE-PHONE-1"
+      assert_text "Crew fee breakdown"
+      assert_text "$120.00"
+      find("button", text: "Close").send_keys(:escape)
+    end
+    assert_no_selector '[role="dialog"]'
+    assert_selector 'button[aria-label="View fees for game EXAMPLE-PHONE-1"]:focus'
+  ensure
+    page.driver.browser.execute_cdp("Emulation.clearDeviceMetricsOverride")
   end
 end

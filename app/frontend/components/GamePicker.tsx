@@ -336,7 +336,6 @@ export default memo(function GamePicker({
       )}
       {view === "all" && (
         <GameFilters
-          collapsible
           id="picker"
           applied={options.filters}
           choices={options.filter_choices}

@@ -140,22 +140,22 @@ export default function Index({
             <table {...stylex.props(ui.table)} aria-label="Expenses">
               <thead>
                 <tr>
-                  <th {...stylex.props(ui.th)}>Date</th>
+                  <th {...stylex.props(ui.th, ui.desktopOnly)}>Date</th>
                   <th {...stylex.props(ui.th)}>Expense</th>
-                  <th {...stylex.props(ui.th)}>Category</th>
+                  <th {...stylex.props(ui.th, ui.desktopOnly)}>Category</th>
                   <th {...stylex.props(ui.th, ui.numeric)}>Total</th>
                   <th {...stylex.props(ui.th)}>Payment</th>
-                  <th {...stylex.props(ui.th)}>Paid on</th>
-                  <th {...stylex.props(ui.th)}>Cheque</th>
+                  <th {...stylex.props(ui.th, ui.desktopOnly)}>Paid on</th>
+                  <th {...stylex.props(ui.th, ui.desktopOnly)}>Cheque</th>
                 </tr>
               </thead>
               <tbody>
                 {expenses.map((expense) => (
                   <tr {...stylex.props(ui.row)} key={expense.id}>
-                    <td {...stylex.props(ui.td, ui.nowrap)}>
+                    <td {...stylex.props(ui.td, ui.nowrap, ui.desktopOnly)}>
                       {date(expense.incurred_on)}
                     </td>
-                    <td {...stylex.props(ui.td)}>
+                    <td {...stylex.props(ui.td, ui.breakText)}>
                       <Link
                         {...stylex.props(ui.link, ui.strong)}
                         href={`/expenses/${expense.id}/edit${seasonQuery}`}
@@ -163,18 +163,33 @@ export default function Index({
                         {expense.description}
                       </Link>
                       <div {...stylex.props(ui.muted)}>{expense.payee}</div>
+                      <small {...stylex.props(ui.small, ui.mobileDetail)}>
+                        {expense.category} · {date(expense.incurred_on)}
+                      </small>
                     </td>
-                    <td {...stylex.props(ui.td)}>{expense.category}</td>
+                    <td {...stylex.props(ui.td, ui.desktopOnly)}>
+                      {expense.category}
+                    </td>
                     <td {...stylex.props(ui.td, ui.numeric)}>
                       {money(expense.total_cents)}
                     </td>
                     <td {...stylex.props(ui.td)}>
                       <Badge status={expense.paid ? "Paid" : "Outstanding"} />
+                      {expense.paid_on && (
+                        <small {...stylex.props(ui.small, ui.mobileDetail)}>
+                          {date(expense.paid_on)}
+                        </small>
+                      )}
+                      {expense.cheque_number && (
+                        <small {...stylex.props(ui.small, ui.mobileDetail)}>
+                          Cheque {expense.cheque_number}
+                        </small>
+                      )}
                     </td>
-                    <td {...stylex.props(ui.td)}>
+                    <td {...stylex.props(ui.td, ui.desktopOnly)}>
                       {date(expense.paid_on) || "—"}
                     </td>
-                    <td {...stylex.props(ui.td)}>
+                    <td {...stylex.props(ui.td, ui.desktopOnly)}>
                       {expense.cheque_number || "—"}
                     </td>
                   </tr>

@@ -206,7 +206,6 @@ export default function Index({
         </div>
         <GameFilters
           id="master"
-          compact
           applied={filters}
           choices={filter_choices}
           errors={filter_errors}

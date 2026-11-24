@@ -1,3 +1,5 @@
+import { Toggle } from "@base-ui/react/toggle";
+import { ToggleGroup } from "@base-ui/react/toggle-group";
 import { Head, router, useForm } from "@inertiajs/react";
 import * as stylex from "@stylexjs/stylex";
 import { useEffect, useState } from "react";
@@ -45,6 +47,7 @@ export default function Index({
   const adding = useForm({ official_payment: { official_name: "" } });
   const exportForm = useForm({});
   const [query, setQuery] = useState("");
+  const [breakdown, setBreakdown] = useState(false);
   const busy =
     last_import?.status === "queued" || last_import?.status === "running";
   const search = query.trim().toLocaleLowerCase();
@@ -176,6 +179,37 @@ export default function Index({
           >
             Earnings register
           </h2>
+          <ToggleGroup
+            {...stylex.props(overview.viewSwitch)}
+            aria-label="Earnings register view"
+            value={[breakdown ? "breakdown" : "summary"]}
+            onValueChange={([view]) => {
+              if (view) setBreakdown(view === "breakdown");
+            }}
+          >
+            <Toggle
+              value="summary"
+              {...stylex.props(
+                ui.nativeButton,
+                ui.button,
+                overview.viewOption,
+                !breakdown && overview.viewActive,
+              )}
+            >
+              Summary
+            </Toggle>
+            <Toggle
+              value="breakdown"
+              {...stylex.props(
+                ui.nativeButton,
+                ui.button,
+                overview.viewOption,
+                breakdown && overview.viewActive,
+              )}
+            >
+              Breakdown
+            </Toggle>
+          </ToggleGroup>
           <input
             {...stylex.props(ui.input, ui.searchInput)}
             type="search"
@@ -213,7 +247,11 @@ export default function Index({
             )}
           </div>
         )}
-        <EarningsRegister payments={shown} filtered={Boolean(search)} />
+        <EarningsRegister
+          payments={shown}
+          filtered={Boolean(search)}
+          breakdown={breakdown}
+        />
       </section>
       <section {...stylex.props(ui.card)}>
         <h2 {...stylex.props(ui.h2)}>Add an official manually</h2>

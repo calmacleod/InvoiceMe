@@ -1,5 +1,5 @@
 import * as stylex from "@stylexjs/stylex";
-import { colors, space } from "../../styles/tokens.stylex";
+import { colors, shape, space } from "../../styles/tokens.stylex";
 
 export const register = stylex.create({
   table: { borderCollapse: "separate", borderSpacing: 0 },
@@ -46,6 +46,27 @@ export const register = stylex.create({
 export const overview = stylex.create({
   toolbar: { gap: space.sm, padding: "8px 12px" },
   registerTitle: { margin: 0, marginRight: "auto" },
+  viewSwitch: {
+    display: "inline-flex",
+    borderRadius: shape.control,
+    padding: 2,
+    gap: 2,
+    backgroundColor: colors.canvas,
+    border: `1px solid ${colors.border}`,
+  },
+  viewOption: {
+    backgroundColor: { default: "transparent", ":hover": colors.accentSoft },
+    minHeight: 30,
+    padding: "4px 9px",
+    borderColor: "transparent",
+  },
+  viewActive: {
+    backgroundColor: { default: colors.surface, ":hover": colors.surface },
+    borderColor: colors.border,
+    color: colors.accent,
+  },
+  breakdownTable: { minWidth: 1260 },
+  moneyWidth: { minWidth: 73 },
   registerActions: {
     display: "flex",
     flexWrap: "wrap",

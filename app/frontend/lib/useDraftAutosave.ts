@@ -4,6 +4,12 @@ import type { DraftMetadata, InvoiceForm } from "../types";
 import { DraftSaver, DraftSaveError } from "./draftSaver";
 import type { DraftSaveState } from "./draftSaver";
 
+const gameOnly = (only: string[]) =>
+  only.length > 0 &&
+  only.every((key) =>
+    ["game_options", "game_detail", "matching_games"].includes(key),
+  );
+
 export default function useDraftAutosave(
   data: InvoiceForm,
   draft: DraftMetadata | null,
@@ -21,6 +27,30 @@ export default function useDraftAutosave(
   const navigation = useRef(false);
   const saver = useRef<DraftSaver | null>(null);
   const address = useRef(draft?.id ?? null);
+  const gameVisits = useRef(new Set<string>());
+  const pendingAddress = useRef<number | null>(null);
+  const changingAddress = useRef<Promise<void> | null>(null);
+
+  function updateAddress() {
+    const id = pendingAddress.current;
+    if (!id || changingAddress.current || gameVisits.current.size) return;
+    pendingAddress.current = null;
+    address.current = id;
+    // Inertia drops a partial response if the editor's pathname changes mid-request.
+    changingAddress.current = new Promise<void>((resolve) => {
+      router.replace({
+        url: `/invoice_drafts/${id}/edit`,
+        preserveState: true,
+        preserveScroll: true,
+        onFinish: () => {
+          changingAddress.current = null;
+          resolve();
+          if (alive.current) updateAddress();
+        },
+      });
+    });
+  }
+
   if (!saver.current) {
     saver.current = new DraftSaver(
       draft ?? {
@@ -76,12 +106,8 @@ export default function useDraftAutosave(
         if (next.metadata) {
           router.flushAll();
           if (address.current !== next.metadata.id) {
-            address.current = next.metadata.id;
-            router.replace({
-              url: `/invoice_drafts/${next.metadata.id}/edit`,
-              preserveState: true,
-              preserveScroll: true,
-            });
+            pendingAddress.current = next.metadata.id;
+            updateAddress();
           }
         }
       },
@@ -104,16 +130,28 @@ export default function useDraftAutosave(
   }, [data]);
   useEffect(() => {
     alive.current = true;
-    const remove = router.on("before", (event) => {
+    const removeStart = router.on("start", ({ detail: { visit } }) => {
+      if (!visit.prefetch && gameOnly(visit.only))
+        gameVisits.current.add(visit.id);
+    });
+    const removeFinish = router.on("finish", ({ detail: { visit } }) => {
+      if (gameVisits.current.delete(visit.id) && alive.current) updateAddress();
+    });
+    const removeBefore = router.on("before", (event) => {
       const visit = event.detail.visit;
-      if (
-        visit.prefetch ||
-        (visit.only.length > 0 &&
-          visit.only.every((key) =>
-            ["game_options", "game_detail", "matching_games"].includes(key),
-          ))
-      )
+      if (visit.prefetch) return;
+      if (gameOnly(visit.only)) {
+        if (changingAddress.current) {
+          event.preventDefault();
+          void changingAddress.current.then(() => {
+            if (!alive.current) return;
+            const url = new URL(visit.url);
+            url.pathname = window.location.pathname;
+            router.visit(url, visit);
+          });
+        }
         return;
+      }
       saver.current!.change(latest.current);
       if (!saver.current!.dirty && !saver.current!.pending) return;
       event.preventDefault();
@@ -139,7 +177,9 @@ export default function useDraftAutosave(
     window.addEventListener("beforeunload", unload);
     return () => {
       alive.current = false;
-      remove();
+      removeBefore();
+      removeStart();
+      removeFinish();
       window.removeEventListener("beforeunload", unload);
       // Browser back/forward does not emit Inertia's cancellable before event.
       saver.current!.change(latest.current);

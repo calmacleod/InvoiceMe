@@ -6,18 +6,24 @@ import { browserStyles as styles } from "./GameBrowser.stylex";
 import { Field } from "./UI";
 import SearchableMultiSelect from "./SearchableMultiSelect";
 
-const labels: [Exclude<keyof Values, keyof GameFilterChoices>, string][] = [
-  ["q", "Search games"],
+const textFields = [
   ["location", "Venue"],
   ["official", "Official name"],
   ["date_from", "From date"],
   ["date_to", "To date"],
-];
-const multiLabels: [keyof GameFilterChoices, string][] = [
+] as const;
+const choiceFields = [
   ["code", "Game code"],
   ["home_team", "Home team"],
   ["away_team", "Away team"],
-];
+] as const;
+const statuses = {
+  unlinked: "Not invoiced or selected in a workbench",
+  linked: "Invoiced or selected in a workbench",
+  invoiced: "Invoiced or linked to a saved invoice",
+  workbench: "Selected in a workbench",
+};
+
 export const emptyGameFilters: Values = {
   q: "",
   home_team: [],
@@ -30,6 +36,12 @@ export const emptyGameFilters: Values = {
   link_status: "",
 };
 
+const filterLabels = [
+  ...choiceFields,
+  ...textFields,
+  ["link_status", "Invoice status"],
+] as const;
+
 export default function GameFilters({
   applied,
   choices,
@@ -37,8 +49,6 @@ export default function GameFilters({
   busy,
   onApply,
   id,
-  collapsible = false,
-  compact = false,
 }: {
   applied: Values;
   choices: GameFilterChoices;
@@ -46,35 +56,32 @@ export default function GameFilters({
   busy: boolean;
   onApply: (values: Values) => void;
   id: string;
-  collapsible?: boolean;
-  compact?: boolean;
 }) {
   const advancedId = useId();
   const [values, setValues] = useState(applied);
-  const active = Object.values(applied).filter((value) =>
-    Array.isArray(value) ? value.length > 0 : Boolean(value),
-  ).length;
-  const [expanded, setExpanded] = useState(
-    !compact && (!collapsible || active === 0),
-  );
-  const advanced = Object.values({ ...applied, q: "" }).filter((value) =>
-    Array.isArray(value) ? value.length > 0 : Boolean(value),
-  ).length;
+  const [expanded, setExpanded] = useState(false);
+  const active = filterLabels.filter(([key]) => applied[key].length > 0);
+
   useEffect(() => setValues(applied), [applied]);
   useEffect(() => {
     if (errors.length) setExpanded(true);
   }, [errors]);
-  const apply = (next: Values) => {
+
+  function apply(next: Values) {
+    if (busy) return;
+    setValues(next);
+    setExpanded(false);
     onApply(next);
-    if (collapsible || compact) setExpanded(false);
-  };
-  const fields = (
+  }
+
+  return (
     <fieldset
       {...stylex.props(styles.filters)}
       disabled={busy}
       onKeyDown={(event) => {
         if (
           event.key === "Enter" &&
+          !event.defaultPrevented &&
           event.target instanceof HTMLInputElement &&
           !event.nativeEvent.isComposing
         ) {
@@ -84,19 +91,17 @@ export default function GameFilters({
       }}
     >
       <legend {...stylex.props(ui.srOnly)}>Filter games</legend>
-      {compact && (
-        <div {...stylex.props(styles.quickFilters)}>
-          <input
-            {...stylex.props(ui.input, styles.filterSearch)}
-            id={`${id}-q`}
-            type="search"
-            aria-label="Search games"
-            placeholder="Game ID, team, code or venue"
-            value={values.q}
-            onChange={(event) =>
-              setValues({ ...values, q: event.target.value })
-            }
-          />
+      <div {...stylex.props(styles.quickFilters)}>
+        <input
+          {...stylex.props(ui.input, styles.filterSearch)}
+          id={`${id}-q`}
+          type="search"
+          aria-label="Search games"
+          placeholder="Game ID, team, code or venue"
+          value={values.q}
+          onChange={(event) => setValues({ ...values, q: event.target.value })}
+        />
+        {!expanded && (
           <button
             type="button"
             {...stylex.props(ui.nativeButton, ui.button, ui.primary)}
@@ -104,135 +109,138 @@ export default function GameFilters({
           >
             Apply filters
           </button>
-          <button
-            type="button"
-            {...stylex.props(ui.nativeButton, ui.button)}
-            aria-expanded={expanded}
-            aria-controls={advancedId}
-            onClick={() => setExpanded(!expanded)}
-          >
-            More filters{advanced ? ` (${advanced})` : ""}
-          </button>
-          {(active > 0 || expanded) && (
-            <button
-              type="button"
-              {...stylex.props(ui.nativeButton, ui.button)}
-              onClick={() => apply(emptyGameFilters)}
-            >
-              Clear filters
-            </button>
-          )}
-        </div>
-      )}
-      <div
-        id={advancedId}
-        {...stylex.props(
-          styles.filterGrid,
-          compact && styles.extraFilters,
-          compact && !expanded && styles.hiddenFilters,
         )}
-      >
-        {multiLabels.map(([key, label]) => (
-          <SearchableMultiSelect
-            key={key}
-            id={`${id}-${key}`}
-            label={label}
-            options={choices[key]}
-            value={values[key]}
-            onChange={(value) =>
-              setValues((previous) => ({ ...previous, [key]: value }))
-            }
-          />
-        ))}
-        {labels
-          .filter(([key]) => !compact || key !== "q")
-          .map(([key, label]) => (
-            <Field
-              key={key}
-              name={`${id}-${key}`}
-              label={label}
-              value={values[key]}
-              type={key.startsWith("date_") ? "date" : "search"}
-              placeholder={
-                key === "q" ? "Game ID, team, code or venue…" : "Any"
-              }
-              onChange={(value) =>
-                setValues((previous) => ({ ...previous, [key]: value }))
-              }
-            />
-          ))}
-        <div>
-          <label {...stylex.props(ui.label)} htmlFor={`${id}-link-status`}>
-            Invoice link status
-          </label>
-          <select
-            {...stylex.props(ui.input)}
-            id={`${id}-link-status`}
-            value={values.link_status}
-            onChange={(event) =>
-              setValues((previous) => ({
-                ...previous,
-                link_status: event.target.value,
-              }))
-            }
-          >
-            <option value="">All games</option>
-            <option value="unlinked">
-              Not invoiced or selected in a workbench
-            </option>
-            <option value="linked">Invoiced or selected in a workbench</option>
-            <option value="invoiced">
-              Invoiced or linked to a saved invoice
-            </option>
-            <option value="workbench">Selected in a workbench</option>
-          </select>
-        </div>
-      </div>
-      {!compact && (
-        <div {...stylex.props(styles.filterActions)}>
+        <button
+          type="button"
+          {...stylex.props(ui.nativeButton, ui.button)}
+          aria-expanded={expanded}
+          aria-controls={advancedId}
+          onClick={() => setExpanded(!expanded)}
+        >
+          {expanded ? "Hide filters" : "More filters"}
+          {active.length > 0 ? ` (${active.length})` : ""}
+        </button>
+        {(active.length > 0 || applied.q || expanded) && (
           <button
             type="button"
-            {...stylex.props(ui.nativeButton, ui.button, ui.primary)}
-            onClick={() => apply(values)}
-          >
-            Apply filters
-          </button>
-          <button
-            type="button"
-            {...stylex.props(ui.nativeButton, ui.button)}
-            onClick={() => {
-              setValues(emptyGameFilters);
-              apply(emptyGameFilters);
-            }}
+            {...stylex.props(
+              ui.nativeButton,
+              ui.textButton,
+              styles.clearFilters,
+            )}
+            onClick={() => apply(emptyGameFilters)}
           >
             Clear filters
           </button>
-          <span {...stylex.props(ui.hint)}>
-            Select any matching codes or teams. Venue and official filters match
-            part of the name.
-          </span>
+        )}
+      </div>
+      <div id={advancedId} hidden={!expanded}>
+        {expanded && (
+          <>
+            <div {...stylex.props(styles.filterGrid, styles.extraFilters)}>
+              {choiceFields.map(([key, label]) => (
+                <SearchableMultiSelect
+                  key={key}
+                  id={`${id}-${key}`}
+                  label={label}
+                  options={choices[key]}
+                  value={values[key]}
+                  disabled={busy}
+                  onChange={(value) =>
+                    setValues((previous) => ({ ...previous, [key]: value }))
+                  }
+                />
+              ))}
+              {textFields.map(([key, label]) => (
+                <Field
+                  key={key}
+                  name={`${id}-${key}`}
+                  label={label}
+                  value={values[key]}
+                  type={key.startsWith("date_") ? "date" : "search"}
+                  onChange={(value) =>
+                    setValues((previous) => ({ ...previous, [key]: value }))
+                  }
+                />
+              ))}
+              <div>
+                <label
+                  {...stylex.props(ui.label)}
+                  htmlFor={`${id}-link-status`}
+                >
+                  Invoice link status
+                </label>
+                <select
+                  {...stylex.props(ui.input)}
+                  id={`${id}-link-status`}
+                  value={values.link_status}
+                  onChange={(event) =>
+                    setValues({ ...values, link_status: event.target.value })
+                  }
+                >
+                  <option value="">All games</option>
+                  {Object.entries(statuses).map(([value, text]) => (
+                    <option key={value} value={value}>
+                      {text}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div {...stylex.props(styles.advancedActions)}>
+              <button
+                type="button"
+                {...stylex.props(ui.nativeButton, ui.button, ui.primary)}
+                onClick={() => apply(values)}
+              >
+                Apply filters
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+      {!expanded && active.length > 0 && (
+        <div
+          {...stylex.props(styles.appliedFilters)}
+          aria-label="Applied game filters"
+          role="group"
+        >
+          {active.map(([key, label]) => {
+            const value = applied[key];
+            const display = Array.isArray(value)
+              ? value.length > 1
+                ? `${value[0]} +${value.length - 1}`
+                : value[0]
+              : key === "link_status"
+                ? statuses[value as keyof typeof statuses]
+                : value;
+            return (
+              <button
+                type="button"
+                key={key}
+                {...stylex.props(ui.nativeButton, styles.filterToken)}
+                aria-label={`Remove ${label.toLowerCase()} filter`}
+                onClick={() =>
+                  apply({
+                    ...applied,
+                    q: values.q,
+                    [key]: emptyGameFilters[key],
+                  })
+                }
+              >
+                {label} · {display} <span aria-hidden="true">×</span>
+              </button>
+            );
+          })}
         </div>
       )}
       {errors.length > 0 && (
-        <ul {...stylex.props(ui.danger)} role="alert">
+        <ul {...stylex.props(ui.danger, ui.errorList)} role="alert">
           {errors.map((error) => (
             <li key={error}>{error}</li>
           ))}
         </ul>
       )}
     </fieldset>
-  );
-  return collapsible ? (
-    <details
-      open={expanded}
-      onToggle={(event) => setExpanded(event.currentTarget.open)}
-    >
-      <summary {...stylex.props(styles.filterSummary)}>
-        Filters · {active} active · change
-      </summary>
-      {fields}
-    </details>
-  ) : (
-    fields
   );
 }

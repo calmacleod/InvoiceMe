@@ -42,6 +42,14 @@ class OfficialPaymentsSystemTest < ActionDispatch::SystemTestCase
     click_link "Officials payments"
 
     within '[aria-labelledby="earnings-register-heading"]' do
+      assert_equal [ "Official", "Net earnings", "Payment" ], all("thead th").map(&:text)
+      assert_link "Birch, Riley"
+      assert_no_text "Fictional training credit"
+    end
+    find('button[aria-pressed="true"]', text: "Summary").send_keys(:arrow_right, :space)
+    assert_selector 'button[aria-pressed="true"]', text: "Breakdown"
+
+    within '[aria-labelledby="earnings-register-heading"]' do
       headings = [
         "Official", "Game fees incl. adj.", "Game fee adj.", "Travel/OT incl. adj.", "Travel/OT adj.", "Evaluations", "Prepayment refund", "Other", "Additional items",
         "Association fee", "OFOA registration", "Banquet", "Next year’s prepayment", "Net earnings", "Cheque", "Deposited", "Status"

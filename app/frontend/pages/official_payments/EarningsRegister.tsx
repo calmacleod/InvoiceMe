@@ -50,10 +50,18 @@ export type PaymentSummary = Record<
 export default function EarningsRegister({
   payments,
   filtered,
+  breakdown,
 }: {
   payments: PaymentSummary[];
   filtered: boolean;
+  breakdown: boolean;
 }) {
+  const columns = breakdown
+    ? moneyColumns
+    : moneyColumns.filter((column) => column.field === "net_cents");
+  const otherHeadings = breakdown
+    ? ["Cheque", "Deposited", "Status"]
+    : ["Payment"];
   return (
     <div
       {...stylex.props(ui.tableScroll, register.scroll, overview.scroll)}
@@ -61,7 +69,13 @@ export default function EarningsRegister({
       aria-labelledby="earnings-register-heading"
       tabIndex={0}
     >
-      <table {...stylex.props(ui.table, register.table)}>
+      <table
+        {...stylex.props(
+          ui.table,
+          register.table,
+          breakdown && overview.breakdownTable,
+        )}
+      >
         <thead {...stylex.props(overview.header)}>
           <tr>
             <th
@@ -75,14 +89,15 @@ export default function EarningsRegister({
             >
               Official
             </th>
-            {moneyColumns.map((column) => (
+            {columns.map((column) => (
               <th
                 key={column.field}
                 {...stylex.props(
                   ui.th,
                   ui.numeric,
                   overview.heading,
-                  "divider" in column && overview.divider,
+                  breakdown && overview.moneyWidth,
+                  "divider" in column && breakdown && overview.divider,
                   column.field === "net_cents" && overview.net,
                 )}
                 scope="col"
@@ -91,7 +106,7 @@ export default function EarningsRegister({
                 {column.label}
               </th>
             ))}
-            {["Cheque", "Deposited", "Status"].map((label) => (
+            {otherHeadings.map((label) => (
               <th
                 key={label}
                 {...stylex.props(ui.th, overview.heading)}
@@ -120,7 +135,7 @@ export default function EarningsRegister({
                   {!payment.horizon_user_id && " · Manual entry"}
                 </small>
               </th>
-              {moneyColumns.map((column) => {
+              {columns.map((column) => {
                 const cents = payment[column.field];
                 const additional =
                   column.field === "additional_items_cents" &&
@@ -161,13 +176,17 @@ export default function EarningsRegister({
                   </td>
                 );
               })}
-              <td {...stylex.props(ui.td, overview.cell, ui.nowrap)}>
-                {payment.cheque_number || "—"}
-              </td>
-              <td {...stylex.props(ui.td, overview.cell, ui.nowrap)}>
-                {date(payment.deposited_on) || "—"}
-              </td>
-              <td {...stylex.props(ui.td, overview.cell, ui.nowrap)}>
+              {breakdown && (
+                <>
+                  <td {...stylex.props(ui.td, overview.cell, ui.nowrap)}>
+                    {payment.cheque_number || "—"}
+                  </td>
+                  <td {...stylex.props(ui.td, overview.cell, ui.nowrap)}>
+                    {date(payment.deposited_on) || "—"}
+                  </td>
+                </>
+              )}
+              <td {...stylex.props(ui.td, overview.cell)}>
                 <span
                   {...stylex.props(
                     ui.badge,
@@ -176,6 +195,18 @@ export default function EarningsRegister({
                 >
                   {payment.status}
                 </span>
+                {!breakdown &&
+                  (payment.cheque_number || payment.deposited_on) && (
+                    <small {...stylex.props(ui.small)}>
+                      {[
+                        payment.cheque_number &&
+                          `Cheque ${payment.cheque_number}`,
+                        date(payment.deposited_on),
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </small>
+                  )}
               </td>
             </tr>
           ))}
@@ -183,7 +214,7 @@ export default function EarningsRegister({
             <tr>
               <td
                 {...stylex.props(ui.td, ui.muted)}
-                colSpan={moneyColumns.length + 4}
+                colSpan={1 + columns.length + otherHeadings.length}
               >
                 {filtered
                   ? "No officials match this search."
@@ -205,7 +236,7 @@ export default function EarningsRegister({
             >
               {filtered ? "Search totals" : "Season totals"}
             </th>
-            {moneyColumns.map((column) => (
+            {columns.map((column) => (
               <td
                 key={column.field}
                 {...stylex.props(
@@ -228,7 +259,7 @@ export default function EarningsRegister({
             ))}
             <td
               {...stylex.props(ui.td, overview.cell, overview.total)}
-              colSpan={3}
+              colSpan={otherHeadings.length}
             />
           </tr>
         </tfoot>

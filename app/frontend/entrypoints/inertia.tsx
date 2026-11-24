@@ -1,5 +1,6 @@
 import type { PageModule } from "../types";
 import React from "react";
+import { CSPProvider } from "@base-ui/react/csp-provider";
 import { createRoot } from "react-dom/client";
 import { createInertiaApp, router } from "@inertiajs/react";
 import Layout from "../components/Layout";
@@ -27,7 +28,9 @@ createInertiaApp({
     if (!el) throw new Error("Missing Inertia root element");
     createRoot(el).render(
       <React.StrictMode>
-        <App {...props} />
+        <CSPProvider disableStyleElements>
+          <App {...props} />
+        </CSPProvider>
       </React.StrictMode>,
     );
   },

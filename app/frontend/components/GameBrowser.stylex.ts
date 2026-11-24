@@ -1,5 +1,5 @@
 import * as stylex from "@stylexjs/stylex";
-import { colors, space } from "../styles/tokens.stylex";
+import { colors, shape, space } from "../styles/tokens.stylex";
 
 export const browserStyles = stylex.create({
   bulkActions: {
@@ -17,7 +17,11 @@ export const browserStyles = stylex.create({
     alignItems: "center",
   },
   extraFilters: { marginTop: space.md },
-  hiddenFilters: { display: "none" },
+  advancedActions: {
+    display: "flex",
+    justifyContent: "end",
+    marginTop: space.md,
+  },
   filterSearch: {
     flex: "1 1 220px",
     width: "auto",
@@ -29,16 +33,25 @@ export const browserStyles = stylex.create({
     },
   },
   filters: { borderWidth: 0, margin: 0, padding: space.md },
-  filterSummary: {
-    padding: space.md,
-    cursor: "pointer",
-    fontSize: 12,
-    fontWeight: 600,
-    color: colors.accent,
-    borderBottomWidth: 1,
-    borderBottomStyle: "solid",
-    borderBottomColor: colors.border,
+  appliedFilters: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: space.xs,
+    marginTop: space.sm,
   },
+  filterToken: {
+    minHeight: 28,
+    maxWidth: "100%",
+    backgroundColor: { default: colors.accentSoft, ":hover": colors.notice },
+    color: colors.accent,
+    padding: "3px 8px",
+    textAlign: "left",
+    overflowWrap: "anywhere",
+    border: `1px solid ${colors.border}`,
+    borderRadius: 12,
+    fontSize: 12,
+  },
+  clearFilters: { minHeight: 36, paddingInline: space.xs },
   filterGrid: {
     display: "grid",
     gridTemplateColumns: {
@@ -47,13 +60,6 @@ export const browserStyles = stylex.create({
       "@media (max-width: 480px)": "1fr",
     },
     gap: space.sm,
-  },
-  filterActions: {
-    display: "flex",
-    flexWrap: "wrap",
-    alignItems: "center",
-    gap: space.sm,
-    marginTop: space.md,
   },
   comparison: {
     display: "grid",
@@ -111,16 +117,77 @@ export const browserStyles = stylex.create({
     marginTop: space.md,
     marginBottom: space.md,
   },
-  detail: {
-    padding: space.md,
-    borderWidth: 1,
-    borderStyle: "solid",
-    borderColor: colors.borderSoft,
-    borderRadius: 6,
-    marginTop: space.sm,
-    minWidth: 220,
-    backgroundColor: colors.canvas,
+  feeBackdrop: {
+    position: "fixed",
+    inset: 0,
+    backgroundColor: "#18251a55",
+    zIndex: 30,
   },
+  feeDialog: {
+    position: "fixed",
+    zIndex: 31,
+    inset: "50% auto auto 50%",
+    transform: "translate(-50%, -50%)",
+    width: "min(550px, calc(100% - 24px))",
+    maxHeight: "calc(100dvh - 24px)",
+    overflow: "auto",
+    overscrollBehavior: "contain",
+    padding: space.lg,
+    backgroundColor: colors.surface,
+    color: colors.text,
+    fontFamily: shape.font,
+    fontSize: 14,
+    lineHeight: 1.5,
+    borderRadius: shape.card,
+    boxShadow: "0 16px 60px #17251a40",
+  },
+  feeDialogHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "start",
+    gap: space.md,
+  },
+  gameTable: { tableLayout: "fixed" },
+  selectionColumn: { width: 40, paddingInline: space.sm },
+  gameColumn: {
+    width: { default: "18%", "@media (max-width: 980px)": "auto" },
+  },
+  gameDateColumn: { width: "17%" },
+  gameFeesColumn: {
+    width: { default: "14%", "@media (max-width: 980px)": "24%" },
+  },
+  gameLinksColumn: { width: "22%" },
+  gameWide: { display: { "@media (max-width: 980px)": "none" } },
+  gameNarrow: {
+    display: { default: "none", "@media (max-width: 980px)": "block" },
+    marginTop: space.xs,
+  },
+  gameOverflow: { overflowWrap: "anywhere" },
+  compactSort: {
+    display: { default: "none", "@media (max-width: 980px)": "flex" },
+    justifyContent: "end",
+    padding: "0 12px 8px",
+  },
+  sortPositioner: { zIndex: 25 },
+  sortMenu: {
+    minWidth: 180,
+    maxHeight: "var(--available-height)",
+    overflowY: "auto",
+    padding: space.xs,
+    backgroundColor: colors.surface,
+    border: `1px solid ${colors.border}`,
+    borderRadius: shape.card,
+    boxShadow: "0 6px 24px #17251a26",
+    fontFamily: shape.font,
+    fontSize: 13,
+  },
+  sortMenuItem: {
+    borderRadius: shape.control,
+    padding: "7px 9px",
+    color: colors.text,
+    cursor: "default",
+  },
+  sortHighlight: { backgroundColor: colors.accentSoft },
   feeTable: {
     width: "100%",
     borderCollapse: "collapse",
