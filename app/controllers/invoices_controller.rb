@@ -12,8 +12,13 @@ class InvoicesController < ApplicationController
         totals = InvoiceTotals.new(current_season.invoices).call
         totals.merge(drafts: totals[:drafts] + open_workbenches.where(invoice_id: nil).count)
       },
-      workbenches: -> { open_workbenches.summaries.limit(6).map(&:metadata) }
+      workbenches: -> { open_workbenches.summaries.limit(6).map(&:metadata) },
+      payment_check: -> { InvoicePaymentCheck.for_season(current_season) }
     }
+  end
+  def check_payments
+    InvoicePaymentCheck.enqueue_for(current_season)
+    redirect_to root_path(params.permit(:q, :page, :per_page).merge(season_id: current_season.id))
   end
   def new
     render_invoice_editor(fresh_invoice)

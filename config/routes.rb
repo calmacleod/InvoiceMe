@@ -4,6 +4,7 @@ Rails.application.routes.draw do
       resource :google, only: %i[show destroy]
       resources :seasons, only: %i[index show create update] do
         resource :expense_sheet, only: %i[show create]
+        resource :invoice_payment_check, only: %i[show create]
       end
       resources :expenses, only: %i[index show create update destroy]
       resources :contacts, only: %i[index show create update destroy]
@@ -63,6 +64,7 @@ Rails.application.routes.draw do
     post :sync, on: :collection
   end
   resources :invoices do
+    post :check_payments, on: :collection
     post :publish, on: :member
     post :reopen, on: :member
     post :payment, on: :member

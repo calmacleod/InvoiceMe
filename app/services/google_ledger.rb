@@ -1,4 +1,12 @@
 class GoogleLedger
+  def self.with_lock
+    FileUtils.mkdir_p(Rails.root.join("storage/locks"))
+    File.open(Rails.root.join("storage/locks/google-publish.lock"), "w") do |lock|
+      lock.flock(File::LOCK_EX)
+      yield
+    end
+  end
+
   def initialize(api, destination)
     @api, @destination = api, destination
     @spreadsheet = destination.fetch("spreadsheet_id")
@@ -20,6 +28,17 @@ class GoogleLedger
     @end -= 1 if @table&.dig("rowsProperties", "footerColorStyle")
     @width = @table ? @table.fetch("range").fetch("endColumnIndex") : 9
     @last_column = column_name(@width)
+  end
+
+  def payment_rows(numbers)
+    matches = read_rows.each_with_index.filter_map do |values, index|
+      [ values, index + @start ] if numbers.include?(values[0])
+    end.group_by { |values, _| values[0] }
+
+    matches.filter_map do |number, entries|
+      values, row = entries.first
+      [ number, values ] if entries.one? && inside?(row)
+    end.to_h
   end
 
   def check_number_available!(invoice)

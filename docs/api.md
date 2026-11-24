@@ -18,6 +18,12 @@ JSON requests use `Content-Type: application/json`. Errors have an `error` strin
 
 To add a saved contact to a draft, search `GET /contacts?q=...` or create the contact with `POST /contacts`. Append its `name` and `email` to the draft’s ordered `data.contacts` and send the updated draft data and current `lock_version` to `PATCH /drafts/:id`. For the first billing contact, also set `recipient` to the organization or contact name and copy the address into `recipient_address`. The draft stores a snapshot of those fields.
 
+## Google invoice payment checks
+
+- `GET /seasons/:id/invoice_payment_check` returns the latest check status. `POST /seasons/:id/invoice_payment_check` requires a write-enabled key and a connected Google account. It queues a check for the selected year, returns 202, and shares any check already in progress. Poll the GET endpoint until `active` is false.
+- Status fields are `ready`, `active`, `status` (`idle`, `queued`, `running`, `succeeded` or `failed`), `checked_count`, `imported_count`, `review_count`, `finished_at` and `error`. The counts cover the current check. A failed check can still report payments imported from a destination that was reachable.
+- Production checks hourly. The check matches published, outstanding invoices to unique invoice numbers in their original ledger tabs. It records the remaining local balance when the ledger confirms full payment for the same total and contains a payment method and valid deposit date. Unmatched, ambiguous or inconsistent paid rows count toward `review_count`. Repeating a check does not duplicate payments. The check reads Google Sheets and records payments in InvoiceMe.
+
 ## Association expenses
 
 - `GET /expenses?season_id=...` lists the selected year's expenses with `data`, `pagination`, `categories` and `summary`. Optional filters are `query` (payee, description, reference or cheque number), `category` (expense or item category, case-insensitive) and `status` (`paid` or `unpaid`). Summary amounts and `by_category` always cover the entire selected year.

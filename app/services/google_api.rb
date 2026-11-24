@@ -87,6 +87,10 @@ class GoogleApi
       file = request(:get, "https://www.googleapis.com/drive/v3/files/#{destination[field]}?fields=mimeType,capabilities(canAddChildren)", operation: "checking the Drive folder")
       raise Error, "The configured #{field.humanize} is not a writable Google Drive folder" unless file["mimeType"] == "application/vnd.google-apps.folder" && file.dig("capabilities", "canAddChildren")
     end
+    validate_ledger_headers(destination)
+  end
+
+  def validate_ledger_headers(destination)
     tab = "'#{destination.fetch('sheet_name').gsub("'", "''")}'"
     header_row = destination.fetch("ledger_start_row").to_i - 1
     headers = values(destination.fetch("spreadsheet_id"), "#{tab}!A#{header_row}:I#{header_row}").first.to_a.map { |h| h.to_s.downcase.gsub(/[^a-z]/, "") }

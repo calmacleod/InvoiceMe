@@ -17,6 +17,7 @@ class FakeGoogle
   end
 
   def validate_destination(_) = true
+  def validate_ledger_headers(_) = true
 
   def sheet_metadata(_, _) = @sheet
 

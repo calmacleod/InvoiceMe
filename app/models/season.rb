@@ -8,6 +8,7 @@ class Season < ApplicationRecord
   }.freeze
   has_many :expenses, dependent: :restrict_with_error
   has_one :expense_sheet_sync, dependent: :destroy
+  has_one :invoice_payment_check, dependent: :destroy
   has_many :invoices, dependent: :restrict_with_error
   has_many :invoice_groups, dependent: :restrict_with_error
   has_many :games, dependent: :restrict_with_error

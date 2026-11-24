@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_24_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_24_130000) do
   create_table "api_keys", force: :cascade do |t|
     t.integer "user_id", null: false
     t.string "name", null: false
@@ -198,6 +198,20 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_24_120000) do
     t.index ["season_id"], name: "index_invoice_groups_on_season_id"
   end
 
+  create_table "invoice_payment_checks", force: :cascade do |t|
+    t.integer "season_id", null: false
+    t.string "status", default: "idle", null: false
+    t.string "run_token"
+    t.integer "checked_count", default: 0, null: false
+    t.integer "imported_count", default: 0, null: false
+    t.integer "review_count", default: 0, null: false
+    t.datetime "finished_at"
+    t.string "error"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["season_id"], name: "index_invoice_payment_checks_on_season_id", unique: true
+  end
+
   create_table "invoices", force: :cascade do |t|
     t.integer "season_id", null: false
     t.string "number", null: false
@@ -363,6 +377,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_24_120000) do
   add_foreign_key "invoice_group_games", "games"
   add_foreign_key "invoice_group_games", "invoice_groups"
   add_foreign_key "invoice_groups", "seasons"
+  add_foreign_key "invoice_payment_checks", "seasons"
   add_foreign_key "invoices", "invoice_groups"
   add_foreign_key "invoices", "seasons"
   add_foreign_key "line_item_private_breakdowns", "line_items"

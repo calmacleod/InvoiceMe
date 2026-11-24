@@ -4,9 +4,7 @@ class PublishInvoice
   end
   def call
     # Cross-process file lock avoids concurrent remote writes without holding a SQLite write transaction over HTTP.
-    FileUtils.mkdir_p(Rails.root.join("storage/locks"))
-    File.open(Rails.root.join("storage/locks/google-publish.lock"), "w") do |lock|
-      lock.flock(File::LOCK_EX)
+    GoogleLedger.with_lock do
       @invoice.reload
       @invoice.ensure_previewed_for_export!
       @progress&.call("validating")

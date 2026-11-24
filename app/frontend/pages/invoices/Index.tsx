@@ -7,7 +7,8 @@ import type {
 } from "../../types";
 import * as stylex from "@stylexjs/stylex";
 import { ui } from "../../styles/ui.stylex";
-import { Head, usePage } from "@inertiajs/react";
+import { Head, useForm, usePage, usePoll } from "@inertiajs/react";
+import { useEffect } from "react";
 import {
   Badge,
   Heading,
@@ -17,6 +18,43 @@ import {
 } from "../../components/UI";
 import { date, money } from "../../lib/format";
 import { DraftShelf } from "../../components/DraftWorkbench";
+type PaymentCheck = {
+  ready: boolean;
+  active: boolean;
+  status: "idle" | "queued" | "running" | "succeeded" | "failed";
+  imported_count: number;
+  review_count: number;
+  finished_at: string | null;
+  error: string | null;
+};
+
+const checkTime = new Intl.DateTimeFormat("en-CA", {
+  month: "short",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+  timeZone: "America/Toronto",
+});
+
+function paymentCheckMessage(check: PaymentCheck) {
+  if (check.active) return "Checking the invoice ledger…";
+  if (!check.ready)
+    return "Connect the treasurer Google account to check payments.";
+  if (check.status === "idle") return "InvoiceMe checks the ledger hourly.";
+  const result = check.imported_count
+    ? `${check.imported_count} ${check.imported_count === 1 ? "payment" : "payments"} recorded.`
+    : "No new payments.";
+  const review = check.review_count
+    ? ` ${check.review_count} ${check.review_count === 1 ? "row needs" : "rows need"} review in the ledger.`
+    : "";
+  if (check.error)
+    return check.imported_count ? `${check.error} ${result}` : check.error;
+  const time = check.finished_at
+    ? `Checked ${checkTime.format(new Date(check.finished_at))}. `
+    : "";
+  return `${time}${result}${review}`;
+}
+
 export default function Index({
   invoices,
   total_count,
@@ -24,6 +62,7 @@ export default function Index({
   totals,
   pagination,
   workbenches,
+  payment_check,
 }: {
   invoices: InvoiceSummary[];
   total_count: number;
@@ -31,9 +70,27 @@ export default function Index({
   totals: InvoiceTotals;
   pagination: Pagination;
   workbenches: DraftMetadata[];
+  payment_check: PaymentCheck;
 }) {
   const { current_season: season } = usePage().props;
+  const checkForm = useForm({});
+  const { start, stop } = usePoll(
+    2500,
+    { only: ["payment_check", "invoices", "totals"] },
+    { autoStart: false, background: "pause", mode: "rest" },
+  );
+  useEffect(() => {
+    if (payment_check.active) start();
+    return stop;
+  }, [payment_check.active, start, stop]);
+
   if (!season) return null;
+  const checkQuery = new URLSearchParams({
+    season_id: String(season.id),
+    page: String(pagination.page),
+    per_page: String(pagination.per_page),
+  });
+  if (query) checkQuery.set("q", query);
   return (
     <>
       <Head title="Invoices" />
@@ -60,6 +117,37 @@ export default function Index({
         </Stat>
         <Stat label="Drafts" value={totals.drafts} />
       </div>
+      <section {...stylex.props(ui.card, ui.connection)}>
+        <div>
+          <h2 {...stylex.props(ui.h2)}>Google Sheets payments</h2>
+          <p
+            role={payment_check.error ? "alert" : "status"}
+            {...stylex.props(ui.paragraph, !!payment_check.error && ui.danger)}
+          >
+            {paymentCheckMessage(payment_check)}
+          </p>
+        </div>
+        {payment_check.ready ? (
+          <button
+            {...stylex.props(ui.nativeButton, ui.button)}
+            disabled={payment_check.active || checkForm.processing}
+            onClick={() =>
+              checkForm.post(`/invoices/check_payments?${checkQuery}`, {
+                preserveScroll: true,
+              })
+            }
+          >
+            Check for payments
+          </button>
+        ) : (
+          <Link
+            {...stylex.props(ui.link, ui.button)}
+            href={`/seasons/${season.id}/edit`}
+          >
+            Year &amp; settings
+          </Link>
+        )}
+      </section>
       <DraftShelf drafts={workbenches} />
       <section {...stylex.props(ui.card, ui.tableCard)}>
         <div {...stylex.props(ui.tableHeading)}>
