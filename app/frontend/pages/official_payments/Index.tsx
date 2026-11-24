@@ -245,12 +245,14 @@ export default function Index({
                 Assign cheque numbers
               </Link>
             )}
-            <a
-              {...stylex.props(ui.link, ui.button)}
-              href="/official_payments/statements_pdf"
-            >
-              Download statements PDF
-            </a>
+            {payments.some((payment) => payment.net_cents > 0) && (
+              <a
+                {...stylex.props(ui.link, ui.button)}
+                href="/official_payments/statements_pdf"
+              >
+                Download statements PDF
+              </a>
+            )}
             {google_connected && (
               <button
                 type="button"

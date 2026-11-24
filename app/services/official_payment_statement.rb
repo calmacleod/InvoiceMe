@@ -78,8 +78,8 @@ class OfficialPaymentStatement
   end
 
   def self.packet(season)
-    payments = season.official_payments.in_payment_order.to_a
-    raise ArgumentError, "Add officials before downloading a statement packet." if payments.empty?
+    payments = season.official_payments.in_payment_order.to_a.select(&:payable?)
+    raise ArgumentError, "There are no payable officials to include in a statement packet." if payments.empty?
 
     suffix = "-preview" if payments.any? { |payment| !payment.reviewed_at }
     [ render_pdf(payments.map { |payment| new(payment) }), "#{season.year}-earnings-statements#{suffix}.pdf" ]

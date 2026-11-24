@@ -161,7 +161,7 @@ Compare the imported assignments with Horizon's payroll report before checking t
 
 Use **Enter payment amounts** to edit individual cells or paste a range from a spreadsheet. Use **Additional items** to add or edit named credits and deductions across officials. Changed payments return to review, and recorded cheques lock their earnings and payment numbers. Payment numbers start at 1 each year and apply to positive net earnings. Officials with zero or negative net earnings appear under **No cheque due**. Gaps in draft payment numbers close after the highest recorded payment number. **Preview statement** opens the saved statement before review. After all officials are reviewed, **Export final Google Sheet** creates a new workbook in the treasurer's Drive with the payment register and an itemized adjustments tab.
 
-Use **Assign cheque numbers** to enter a starting cheque number and preview proposed numbers in payment order. **Record cheque numbers** saves the reviewed batch. **Download statements PDF** produces one file with all saved statements in register order, including officials under **No cheque due** at the end.
+Use **Assign cheque numbers** to enter a starting cheque number and preview proposed numbers in payment order. **Record cheque numbers** saves the reviewed batch. **Download statements PDF** produces one file for officials receiving a cheque, in payment order.
 
 ### Horizon API and connection
 

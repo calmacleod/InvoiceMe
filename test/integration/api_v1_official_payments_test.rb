@@ -130,11 +130,12 @@ class ApiV1OfficialPaymentsTest < ActionDispatch::IntegrationTest
     assert_response :conflict
   end
 
-  test "downloads a single PDF of all statements in payment order" do
-    no_cheque = @season.official_payments.create!(official_name: "Avery No Cheque")
+  test "downloads one PDF of payable statements in payment order" do
+    @season.official_payments.create!(official_name: "Avery No Cheque")
+    @season.official_payments.create!(official_name: "Rowan Negative", registration_cents: 500)
     first = payment("Fable First", reviewed_at: Time.current, cheque_number: "0070", visible_note: "Visible reimbursement note")
     first.private_notes.create!(user: users(:one), private_note: "Private reconciliation note")
-    payment("Birch Second", reviewed_at: Time.current)
+    second = payment("Birch Second")
 
     get statements_pdf_api_v1_official_payments_path, params: { season_id: @season.id }, headers: @headers
     assert_response :success
@@ -142,16 +143,16 @@ class ApiV1OfficialPaymentsTest < ActionDispatch::IntegrationTest
     assert_includes response.headers.fetch("Cache-Control"), "no-store"
     assert_includes response.headers.fetch("Content-Disposition"), "#{@season.year}-earnings-statements-preview.pdf"
     pages = PDF::Reader.new(StringIO.new(response.body)).pages.map(&:text)
-    assert_equal 3, pages.size
+    assert_equal 2, pages.size
     assert_includes pages[0], "Fable First"
     assert_includes pages[0], "Cheque Number: 0070"
     assert_includes pages[0], "Visible reimbursement note"
     assert_includes pages[1], "Birch Second"
-    assert_includes pages[2], "Avery No Cheque"
-    assert_not_includes pages[2], "Payment Number:"
+    assert_not_includes pages.join, "Avery No Cheque"
+    assert_not_includes pages.join, "Rowan Negative"
     assert_not_includes pages.join, "Private reconciliation note"
 
-    no_cheque.update!(reviewed_at: Time.current)
+    second.update!(reviewed_at: Time.current)
     get statements_pdf_api_v1_official_payments_path, params: { season_id: @season.id }, headers: @headers
     assert_response :success
     assert_includes response.headers.fetch("Content-Disposition"), "#{@season.year}-earnings-statements.pdf"
