@@ -28,7 +28,6 @@ class OfficialChequeSequence
     OfficialPayment.transaction do
       payments = pending_payments
       raise Changed, CHANGED_MESSAGE unless snapshot(payments) == reviewed_snapshot
-      raise ArgumentError, "Review the earnings for every official in the batch before recording cheques." if payments.any? { |payment| !payment.reviewed_at }
 
       numbers = proposed_numbers(first, payments.size)
       payments.zip(numbers).each { |payment, number| payment.update!(cheque_number: number) }

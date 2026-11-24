@@ -20,6 +20,7 @@ class OfficialPayment < ApplicationRecord
 
   scope :in_payment_order, -> { order(arel_table[:payment_number].asc.nulls_last, :id) }
 
+  before_validation :release_unpayable_cheque_assignment
   before_save :assign_payment_number
   after_save :compact_draft_sequence, if: -> { saved_change_to_payment_number? && payment_number.nil? }
   after_destroy :compact_draft_sequence, if: -> { payment_number && cheque_number.nil? }
@@ -49,7 +50,7 @@ class OfficialPayment < ApplicationRecord
 
       payments.each do |payment|
         row = inputs.fetch(payment.id.to_s)
-        if payment.cheque_number || payment.lock_version.to_s != row[:lock_version].to_s
+        if payment.cheque_recorded? || payment.lock_version.to_s != row[:lock_version].to_s
           raise ActiveRecord::StaleObjectError.new(payment, "edit register")
         end
       end
@@ -68,9 +69,9 @@ class OfficialPayment < ApplicationRecord
 
   def self.compact_draft_sequence!(season_id)
     payments = where(season_id: season_id)
-    last_recorded = payments.where.not(cheque_number: nil).maximum(:payment_number).to_i
-    drafts = payments.where(cheque_number: nil, payment_number: (last_recorded + 1)..)
-    drafts.order(:payment_number).pluck(:id, :payment_number).each.with_index(last_recorded + 1) do |(id, number), next_number|
+    last_assigned = payments.where.not(cheque_number: nil).maximum(:payment_number).to_i
+    drafts = payments.where(cheque_number: nil, payment_number: (last_assigned + 1)..)
+    drafts.order(:payment_number).pluck(:id, :payment_number).each.with_index(last_assigned + 1) do |(id, number), next_number|
       payments.where(id: id).update_all(payment_number: next_number) if number != next_number
     end
   end
@@ -103,11 +104,12 @@ class OfficialPayment < ApplicationRecord
   def earnings_before_deductions_cents = net_game_fees_cents + travel_ot_cents + evaluations_cents + prepayment_refund_cents + miscellaneous_cents
   def net_cents = earnings_before_deductions_cents - registration_cents - banquet_cents - next_year_prepayment_cents
   def payable? = net_cents.positive?
+  def cheque_recorded? = cheque_number.present? && reviewed_at.present?
 
   def status
     if deposited_on
       "Deposited"
-    elsif cheque_number
+    elsif cheque_recorded?
       "Cheque recorded"
     elsif reviewed_at
       "Reviewed"
@@ -206,13 +208,26 @@ class OfficialPayment < ApplicationRecord
     end
   end
 
+  def cheque_recorded_in_database?
+    cheque_number_in_database.present? && reviewed_at_in_database.present?
+  end
+
+  def release_unpayable_cheque_assignment
+    return if cheque_number.blank? || will_save_change_to_cheque_number? || cheque_recorded_in_database?
+
+    self.cheque_number = nil unless payable?
+  end
+
   def valid_cheque
     if cheque_number
-      errors.add(:cheque_number, "requires reviewed earnings and a positive net amount") unless reviewed_at && payable?
+      errors.add(:cheque_number, "requires a positive net amount") unless payable?
+      if !reviewed_at && (deposited_on || cheque_delivery || cheque_recorded_in_database?)
+        errors.add(:cheque_number, "requires reviewed earnings for deposit, delivery or an already recorded cheque")
+      end
     elsif deposited_on || cheque_delivery
       errors.add(:cheque_number, "is required for deposit or delivery details")
     end
-    if cheque_number_in_database.present? && EARNINGS_FIELDS.any? { |field| will_save_change_to_attribute?(field) }
+    if cheque_recorded_in_database? && EARNINGS_FIELDS.any? { |field| will_save_change_to_attribute?(field) }
       errors.add(:base, "Clear the recorded cheque before changing earnings.")
     end
   end

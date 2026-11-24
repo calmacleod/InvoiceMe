@@ -87,7 +87,7 @@ class ApiV1OfficialPaymentsTest < ActionDispatch::IntegrationTest
     assert_equal 3, response.parsed_body.fetch("payment_number")
   end
 
-  test "previews ordered cheque numbers and records a current reviewed batch atomically" do
+  test "previews ordered cheque numbers and assigns a current batch before earnings review" do
     issued = payment("Avery Issued", reviewed_at: Time.current, cheque_number: "EX-0097")
     first = payment("River First")
     second = payment("Birch Second", reviewed_at: Time.current)
@@ -108,26 +108,55 @@ class ApiV1OfficialPaymentsTest < ActionDispatch::IntegrationTest
       preview.fetch("rows").map { |row| row.values_at("id", "payment_number", "cheque_number", "reviewed") }
     assert_equal [ nil, nil ], [ first.reload.cheque_number, second.reload.cheque_number ]
 
-    finalize = { season_id: @season.id, preview_token: preview.fetch("preview_token") }
-    post path, params: finalize, headers: read_headers, as: :json
+    assignment = { season_id: @season.id, preview_token: preview.fetch("preview_token") }
+    post path, params: assignment, headers: read_headers, as: :json
     assert_response :forbidden
-    post path, params: finalize, headers: @headers, as: :json
-    assert_response :unprocessable_entity
-    assert_nil second.reload.cheque_number
 
-    first.update!(reviewed_at: Time.current)
-    post path, params: finalize, headers: @headers, as: :json
+    first.update!(evaluations_cents: 450)
+    post path, params: assignment, headers: @headers, as: :json
     assert_response :conflict
     get path, params: preview_params, headers: @headers
     assert_response :success
-    finalize[:preview_token] = response.parsed_body.fetch("preview_token")
-    post path, params: finalize, headers: @headers, as: :json
+    assignment[:preview_token] = response.parsed_body.fetch("preview_token")
+    post path, params: assignment, headers: @headers, as: :json
     assert_response :success
     assert_equal 2, response.parsed_body.fetch("updated")
     assert_equal [ "EX-0097", "EX-0098", "EX-0099", nil ], [ issued, first, second, no_cheque ].map { |row| row.reload.cheque_number }
     assert_equal [ nil, nil ], [ first.deposited_on, second.deposited_on ]
-    post path, params: finalize, headers: @headers, as: :json
+    assert_nil first.reviewed_at
+    assert_equal "Needs review", first.status
+    assert_equal "Cheque recorded", second.status
+    post path, params: assignment, headers: @headers, as: :json
     assert_response :conflict
+
+    update_payment(first, first.lock_version, deposited_on: Date.current.iso8601)
+    assert_response :unprocessable_entity
+
+    update_payment(first, first.lock_version, evaluations: "22.00")
+    assert_response :success
+    assert_equal [ "EX-0098", "Needs review" ], response.parsed_body.values_at("cheque_number", "status")
+
+    update_payment(first, response.parsed_body.fetch("lock_version"), evaluations: "24.00", reviewed: true)
+    assert_response :success
+    assert_equal [ "EX-0098", "Cheque recorded" ], response.parsed_body.values_at("cheque_number", "status")
+
+    update_payment(first, response.parsed_body.fetch("lock_version"), evaluations: "26.00")
+    assert_response :unprocessable_entity
+  end
+
+  test "releases a cheque assigned before review when earnings become nonpayable" do
+    pending = @season.official_payments.create!(official_name: "Finley Pending", evaluations_cents: 200)
+
+    update_payment(pending, pending.lock_version, cheque_number: "EX-0020")
+    assert_response :success
+    assert_equal [ "EX-0020", "Needs review" ], response.parsed_body.values_at("cheque_number", "status")
+
+    update_payment(pending, response.parsed_body.fetch("lock_version"), evaluations: "0")
+    assert_response :success
+    assert_equal [ 0, nil, nil ], response.parsed_body.values_at("net_cents", "payment_number", "cheque_number")
+
+    update_payment(pending, response.parsed_body.fetch("lock_version"), cheque_number: "EX-0020")
+    assert_response :unprocessable_entity
   end
 
   test "downloads one PDF of payable statements in payment order" do
@@ -135,7 +164,7 @@ class ApiV1OfficialPaymentsTest < ActionDispatch::IntegrationTest
     @season.official_payments.create!(official_name: "Rowan Negative", registration_cents: 500)
     first = payment("Fable First", reviewed_at: Time.current, cheque_number: "0070", visible_note: "Visible reimbursement note")
     first.private_notes.create!(user: users(:one), private_note: "Private reconciliation note")
-    second = payment("Birch Second")
+    second = payment("Birch Second", cheque_number: "0071")
 
     get statements_pdf_api_v1_official_payments_path, params: { season_id: @season.id }, headers: @headers
     assert_response :success
@@ -148,6 +177,7 @@ class ApiV1OfficialPaymentsTest < ActionDispatch::IntegrationTest
     assert_includes pages[0], "Cheque Number: 0070"
     assert_includes pages[0], "Visible reimbursement note"
     assert_includes pages[1], "Birch Second"
+    assert_includes pages[1], "Cheque Number: 0071"
     assert_not_includes pages.join, "Avery No Cheque"
     assert_not_includes pages.join, "Rowan Negative"
     assert_not_includes pages.join, "Private reconciliation note"
@@ -377,7 +407,7 @@ class ApiV1OfficialPaymentsTest < ActionDispatch::IntegrationTest
       manual = { game_fee_adjustment_cents: 235, travel_ot_adjustment_cents: -175, evaluations_cents: 4100,
         prepayment_refund_cents: 4200, registration_cents: 4375, banquet_cents: 6500, next_year_prepayment_cents: 4700, other_cents: 123,
         adjustments: [ { "label" => "Fictional credit", "amount_cents" => 975 } ] }
-      draft.update!(manual.merge(reviewed_at: Time.current))
+      draft.update!(manual.merge(cheque_number: "FX-471"))
       locked.update!(cheque_number: "FX-472", reviewed_at: Time.current)
       standalone = payment("Fictional, Taylor", evaluations_cents: 5300, reviewed_at: Time.current)
       original_numbers = [ draft, locked, standalone ].map(&:payment_number)
@@ -390,6 +420,7 @@ class ApiV1OfficialPaymentsTest < ActionDispatch::IntegrationTest
       assert_equal [ 23_525, 1875 ], [ draft.reload.imported_game_fees_cents, draft.imported_travel_ot_cents ]
       assert_equal manual.stringify_keys, draft.attributes.slice(*manual.keys.map(&:to_s))
       assert_nil draft.reviewed_at
+      assert_equal "FX-471", draft.cheque_number
       assert_equal locked_before, locked.reload.attributes
       assert_equal standalone_before, standalone.reload.attributes
       assert_equal original_numbers, [ draft, locked, standalone ].map(&:payment_number)

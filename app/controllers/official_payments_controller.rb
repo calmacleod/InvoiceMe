@@ -108,7 +108,7 @@ class OfficialPaymentsController < ApplicationController
 
   def record_cheque_sequence
     count = OfficialChequeSequence.new(current_season).record!(params[:preview_token])
-    redirect_to official_payments_path, status: :see_other, notice: "Recorded #{helpers.pluralize(count, 'cheque number')}."
+    redirect_to official_payments_path, status: :see_other, notice: "Assigned #{helpers.pluralize(count, 'cheque number')}."
   rescue OfficialChequeSequence::Changed, ActiveRecord::RecordInvalid, ArgumentError => error
     redirect_to cheque_sequence_official_payments_path, status: :see_other, alert: error.message
   end
@@ -178,7 +178,7 @@ class OfficialPaymentsController < ApplicationController
   def payments_in_register_order = current_season.official_payments.in_payment_order
 
   def register_row(payment)
-    { id: payment.id, name: payment.official_name, payment_number: payment.payment_number, lock_version: payment.lock_version, locked: payment.cheque_number.present? }
+    { id: payment.id, name: payment.official_name, payment_number: payment.payment_number, lock_version: payment.lock_version, locked: payment.cheque_recorded? }
   end
 
   def save_register(rows, location)

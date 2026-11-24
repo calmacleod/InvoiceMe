@@ -56,7 +56,7 @@ export default function Edit(props: Props) {
 function PaymentEditor({ payment, year, google_connected }: Props) {
   const base = `/official_payments/${payment.id}`;
   const reviewed = payment.status !== "Needs review";
-  const locked = Boolean(payment.cheque_number);
+  const locked = reviewed && Boolean(payment.cheque_number);
   const nextAdjustmentId = useRef(payment.adjustments.length);
   const initialAmounts = Object.fromEntries(
     Object.entries(payment.amounts).map(([key, cents]) => [

@@ -46,7 +46,7 @@ export default function ChequeSequence({
         ← Officials payments
       </Link>
       <Heading title="Assign cheque numbers">
-        {year} · Payable officials awaiting a cheque
+        {year} · Payable officials awaiting a cheque number
       </Heading>
       <section {...stylex.props(ui.card)}>
         <form
@@ -88,8 +88,8 @@ export default function ChequeSequence({
             <h2 {...stylex.props(ui.h2)}>Review cheque numbers</h2>
             <p {...stylex.props(ui.paragraph, ui.sectionHint)}>
               {needsReview
-                ? "Review the flagged earnings, then preview the sequence again."
-                : "Recording these cheque numbers locks the earnings in this batch."}
+                ? "Earnings awaiting review stay editable after you assign the cheque numbers."
+                : "Assigning these cheque numbers locks the reviewed earnings."}
             </p>
           </div>
           <div {...stylex.props(ui.tableScroll)}>
@@ -143,8 +143,7 @@ export default function ChequeSequence({
             {...stylex.props(ui.tableHeading, ui.formActions)}
             onSubmit={(event) => {
               event.preventDefault();
-              if (needsReview || form.processing || recording.processing)
-                return;
+              if (form.processing || recording.processing) return;
               recording.transform(() => ({
                 preview_token: currentPreview.preview_token,
               }));
@@ -154,9 +153,9 @@ export default function ChequeSequence({
             <button
               type="submit"
               {...stylex.props(ui.button, ui.primary)}
-              disabled={needsReview || form.processing || recording.processing}
+              disabled={form.processing || recording.processing}
             >
-              Record {currentPreview.rows.length} cheque{" "}
+              Assign {currentPreview.rows.length} cheque{" "}
               {currentPreview.rows.length === 1 ? "number" : "numbers"}
             </button>
           </form>

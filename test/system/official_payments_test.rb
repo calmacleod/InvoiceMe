@@ -133,9 +133,9 @@ class OfficialPaymentsSystemTest < ActionDispatch::SystemTestCase
     assert_equal [ 1_230, 910 ], [ first.banquet_cents, second.banquet_cents ]
   end
 
-  test "previews and records consecutive cheque numbers from the register" do
+  test "assigns consecutive cheque numbers from the register before review" do
     season = seasons(:current)
-    first = season.official_payments.create!(official_name: "River, Morgan", evaluations_cents: 5_000, reviewed_at: Time.current)
+    first = season.official_payments.create!(official_name: "River, Morgan", evaluations_cents: 5_000)
     second = season.official_payments.create!(official_name: "Birch, Riley", evaluations_cents: 3_000, reviewed_at: Time.current)
     season.official_payments.create!(official_name: "Linden, Casey")
 
@@ -153,6 +153,7 @@ class OfficialPaymentsSystemTest < ActionDispatch::SystemTestCase
       assert_selector "tbody tr", count: 2
       assert_selector "tbody tr:nth-child(1)", text: "River, Morgan"
       assert_selector "tbody tr:nth-child(1)", text: "0499"
+      assert_selector "tbody tr:nth-child(1)", text: "Needs review"
       assert_selector "tbody tr:nth-child(2)", text: "0500"
       assert_no_link "Linden, Casey"
     end
@@ -160,13 +161,25 @@ class OfficialPaymentsSystemTest < ActionDispatch::SystemTestCase
     assert_nil second.reload.cheque_number
 
     fill_in "First cheque number", with: "0500"
-    assert_no_button "Record 2 cheque numbers"
+    assert_no_button "Assign 2 cheque numbers"
     click_button "Preview sequence"
     assert_selector "tbody tr:nth-child(2)", text: "0501"
-    click_button "Record 2 cheque numbers"
-    assert_text "Recorded 2 cheque numbers."
+    click_button "Assign 2 cheque numbers"
+    assert_text "Assigned 2 cheque numbers."
     assert_equal [ "0500", "0501" ], [ first.reload.cheque_number, second.reload.cheque_number ]
     assert_no_link "Assign cheque numbers"
+    assert_nil first.reviewed_at
+    click_link "River, Morgan"
+    assert_field "Cheque number", with: "0500"
+    assert_field "Evaluations", disabled: false
+    review_label = "Earnings reconciled with the Horizon payroll report and any manual adjustments"
+    assert_unchecked_field review_label
+    fill_in "Evaluations", with: "54.00"
+    check review_label
+    click_button "Save changes"
+    assert_text "Official payment saved."
+    assert_field "Evaluations", with: "54.00", disabled: true
+    assert_field "Cheque number", with: "0500"
   end
 
   test "enters named adjustments for different officials from one page" do

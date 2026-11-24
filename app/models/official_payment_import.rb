@@ -45,7 +45,7 @@ class OfficialPaymentImport < ApplicationRecord
         payment.reload if payment.persisted?
         name = row.fetch(:name, payment.official_name)
         assignments = row.fetch(:assignments, [])
-        if payment.cheque_number
+        if payment.cheque_recorded?
           changed_cheques << payment.id if payment.official_name != name || payment.assignments != assignments
           next
         end
