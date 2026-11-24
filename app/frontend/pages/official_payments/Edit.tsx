@@ -3,6 +3,7 @@ import * as stylex from "@stylexjs/stylex";
 import Link from "../../components/AppLink";
 import { Errors, Field, Heading, Section, Stat } from "../../components/UI";
 import { date, money } from "../../lib/format";
+import { colors, space } from "../../styles/tokens.stylex";
 import { ui } from "../../styles/ui.stylex";
 import type { PaymentSummary } from "./EarningsRegister";
 import { useRef } from "react";
@@ -111,9 +112,34 @@ function PaymentEditor({ payment, year, google_connected }: Props) {
       >
         ← Officials payments
       </Link>
-      <Heading title={payment.official_name}>
-        {year} earnings · Payment #{payment.payment_number} · {payment.status}
-      </Heading>
+      <header {...stylex.props(styles.header)}>
+        <Heading
+          title={payment.official_name}
+          actions={
+            <>
+              <a
+                {...stylex.props(ui.link, ui.button)}
+                href={`${base}/preview`}
+                target="_blank"
+                rel="noopener"
+                title="Open the last saved statement in a new tab"
+              >
+                Preview statement
+              </a>
+              <button
+                type="submit"
+                form="official-payment-form"
+                {...stylex.props(ui.button, ui.primary)}
+                disabled={!form.isDirty || form.processing}
+              >
+                Save changes
+              </button>
+            </>
+          }
+        >
+          {year} earnings · Payment #{payment.payment_number} · {payment.status}
+        </Heading>
+      </header>
       <div {...stylex.props(ui.stats)}>
         <Stat label="Net earnings" value={money(payment.net_cents)} dark />
         <Stat label="Game fees" value={money(payment.game_fees_cents)} />
@@ -124,9 +150,10 @@ function PaymentEditor({ payment, year, google_connected }: Props) {
       </div>
       <Errors errors={form.errors} />
       <form
+        id="official-payment-form"
         onSubmit={(event) => {
           event.preventDefault();
-          form.patch(base);
+          if (form.isDirty && !form.processing) form.patch(base);
         }}
       >
         <div {...stylex.props(ui.formColumns)}>
@@ -298,54 +325,28 @@ function PaymentEditor({ payment, year, google_connected }: Props) {
             />
           </div>
         </Section>
-        <div {...stylex.props(ui.formActions, ui.sticky)}>
-          <button
-            type="submit"
-            {...stylex.props(ui.button, ui.primary)}
-            disabled={form.processing}
-          >
-            Save payment
-          </button>
-        </div>
       </form>
-      <Section
-        title="Earnings statement"
-        hint={
-          form.isDirty
-            ? "Save payment to include your latest changes in the preview."
-            : undefined
-        }
-      >
-        <div {...stylex.props(ui.formActions)}>
-          <a
-            {...stylex.props(ui.link, ui.button)}
-            href={`${base}/preview`}
-            target="_blank"
-            rel="noopener"
-          >
-            Preview statement
-          </a>
-          {reviewed && !form.isDirty && (
-            <>
-              <a {...stylex.props(ui.link, ui.button)} href={`${base}/pdf`}>
-                Download PDF
-              </a>
-              <a {...stylex.props(ui.link, ui.button)} href={`${base}/odt`}>
-                Download editable document
-              </a>
-              {google_connected && (
-                <button
-                  {...stylex.props(ui.button, ui.primary)}
-                  disabled={google.processing}
-                  onClick={() => google.post(`${base}/google_doc`)}
-                >
-                  Generate Google Doc
-                </button>
-              )}
-            </>
-          )}
-        </div>
-      </Section>
+      {reviewed && !form.isDirty && (
+        <Section title="Earnings statement">
+          <div {...stylex.props(ui.formActions)}>
+            <a {...stylex.props(ui.link, ui.button)} href={`${base}/pdf`}>
+              Download PDF
+            </a>
+            <a {...stylex.props(ui.link, ui.button)} href={`${base}/odt`}>
+              Download editable document
+            </a>
+            {google_connected && (
+              <button
+                {...stylex.props(ui.button, ui.primary)}
+                disabled={google.processing}
+                onClick={() => google.post(`${base}/google_doc`)}
+              >
+                Generate Google Doc
+              </button>
+            )}
+          </div>
+        </Section>
+      )}
       {payment.horizon_user_id && (
         <section {...stylex.props(ui.card, ui.tableCard)}>
           <div {...stylex.props(ui.tableHeading)}>
@@ -413,3 +414,15 @@ function PaymentEditor({ payment, year, google_connected }: Props) {
     </>
   );
 }
+
+const styles = stylex.create({
+  header: {
+    position: "sticky",
+    top: 0,
+    zIndex: 3,
+    backgroundColor: colors.canvas,
+    paddingTop: space.sm,
+    marginBottom: space.md,
+    borderBottom: `1px solid ${colors.border}`,
+  },
+});

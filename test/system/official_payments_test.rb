@@ -13,21 +13,31 @@ class OfficialPaymentsSystemTest < ActionDispatch::SystemTestCase
     fill_in "Name (Last, First)", with: "Aster, Cameron"
     click_button "Add official"
     assert_selector "h1", text: "Aster, Cameron"
-    assert_link "Preview statement"
-    assert_save_payment_in_viewport
+    within payment_editor_header do
+      assert_selector 'a[target="_blank"]', text: "Preview statement"
+      assert_button "Save changes", disabled: true
+    end
+    assert_payment_header_in_viewport
     page.driver.browser.execute_cdp("Emulation.setDeviceMetricsOverride", width: 390, height: 844, deviceScaleFactor: 1, mobile: false)
-    assert_save_payment_in_viewport
+    execute_script("document.getElementById('visible_note').scrollIntoView({ block: 'center' })")
+    assert_equal 0, evaluate_script("arguments[0].getBoundingClientRect().top", payment_editor_header)
+    assert_payment_header_in_viewport
+    fill_in "Visible note (on statement)", with: "Temporary edit"
+    assert_button "Save changes", disabled: false
+    fill_in "Visible note (on statement)", with: ""
+    assert_button "Save changes", disabled: true
     fill_in "Evaluations", with: "74.80"
     click_button "Add item"
     fill_in "Item 1 name", with: "Mileage correction"
     fill_in "Item 1 amount", with: "12.20"
     fill_in "Visible note (on statement)", with: "Includes the mileage correction."
     fill_in "Private note (only you)", with: "Confirmed against the register."
-    assert_save_payment_in_viewport
+    assert_payment_header_in_viewport
     check "Earnings reconciled with the Horizon payroll report and any manual adjustments"
     fill_in "Cheque number", with: "FX-123"
-    click_button "Save payment"
+    click_button "Save changes"
     assert_text "Official payment saved."
+    assert_button "Save changes", disabled: true
     assert_text "$87.00"
     assert_link "Download PDF"
     assert_link "Download editable document"
@@ -135,13 +145,19 @@ class OfficialPaymentsSystemTest < ActionDispatch::SystemTestCase
 
   private
 
-  def assert_save_payment_in_viewport
-    assert evaluate_script(<<~JS, find_button("Save payment")), "Save payment should be in the viewport"
-      ((button) => {
-        const { top, bottom, left, right } = button.getBoundingClientRect();
-        const target = document.elementFromPoint((left + right) / 2, (top + bottom) / 2);
-        return top >= 0 && bottom <= window.innerHeight &&
-          left >= 0 && right <= window.innerWidth && button.contains(target);
+  def payment_editor_header
+    find("header", text: "Aster, Cameron")
+  end
+
+  def assert_payment_header_in_viewport
+    assert evaluate_script(<<~JS, payment_editor_header), "The official's name and actions should stay in view"
+      ((header) => {
+        return Array.from(header.querySelectorAll("h1, a, button")).every((element) => {
+          const { top, bottom, left, right } = element.getBoundingClientRect();
+          const target = document.elementFromPoint((left + right) / 2, (top + bottom) / 2);
+          return top >= 0 && bottom <= window.innerHeight &&
+            left >= 0 && right <= window.innerWidth && element.contains(target);
+        });
       })(arguments[0])
     JS
   end
