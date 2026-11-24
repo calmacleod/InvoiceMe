@@ -24,19 +24,17 @@ module Api
       end
 
       def update
-        fields = %i[lock_version reviewed] + OfficialPayment::AMOUNTS + OfficialPayment::CHEQUE_FIELDS
+        fields = %i[lock_version reviewed visible_note private_note] + OfficialPayment::AMOUNTS + OfficialPayment::CHEQUE_FIELDS
         values = params.expect(official_payment: fields + [ { adjustments: [ %i[label amount] ] } ]).to_h.deep_symbolize_keys
         version = values.delete(:lock_version)
         raise ArgumentError, "A lock_version and at least one payment field are required" if version.nil? || values.empty?
-        raise ActiveRecord::StaleObjectError.new(@payment, "update") unless version.to_s == @payment.lock_version.to_s
-
         if values.key?(:reviewed) && ![ true, false ].include?(values[:reviewed])
           raise ArgumentError, "reviewed must be a boolean"
         end
         if values.key?(:deposited_on)
           values[:deposited_on] = values[:deposited_on].presence&.then { |date| Date.iso8601(date.to_s) }
         end
-        @payment.update_from_form!(values)
+        @payment.update_from_form!(values, user: @api_key.user, lock_version: version)
         render json: payment_details(@payment)
       end
 
@@ -128,7 +126,8 @@ module Api
 
       def payment_details(payment)
         payment_summary(payment).merge(assignments: payment.assignments, imported_game_fees_cents: payment.imported_game_fees_cents,
-          imported_travel_ot_cents: payment.imported_travel_ot_cents, horizon_deductions_cents: payment.horizon_deductions_cents)
+          imported_travel_ot_cents: payment.imported_travel_ot_cents, horizon_deductions_cents: payment.horizon_deductions_cents,
+          visible_note: payment.visible_note, private_note: payment.private_note_for(@api_key.user))
       end
     end
   end

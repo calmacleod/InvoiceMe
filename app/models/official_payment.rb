@@ -12,17 +12,22 @@ class OfficialPayment < ApplicationRecord
   EARNINGS_FIELDS = (AMOUNT_COLUMNS + %i[assignments official_name adjustments]).freeze
   MAX_CENTS = 100_000_000
   MAX_ADJUSTMENTS = 50
+  NOTE_MAX_LENGTH = 2_000
 
   belongs_to :season
+  has_many :private_notes, class_name: "OfficialPaymentPrivateNote", dependent: :destroy, inverse_of: :official_payment
   attr_readonly :payment_number
   before_create :assign_payment_number
 
   normalizes :official_name, with: ->(name) { name.squish }
   normalizes :cheque_number, :cheque_delivery, with: ->(value) { value.strip.presence }
+  normalizes :visible_note, with: ->(value) { value.gsub(/\r\n?/, "\n").strip.presence }
   validates :official_name, presence: true, length: { maximum: 100 }
   validates :official_name, uniqueness: { scope: :season_id, case_sensitive: false, conditions: -> { where(horizon_user_id: nil) } }, if: -> { horizon_user_id.nil? }
   validates :cheque_number, uniqueness: { scope: :season_id }, length: { maximum: 40 }, allow_nil: true
   validates :cheque_delivery, length: { maximum: 100 }
+  validates :visible_note, length: { maximum: NOTE_MAX_LENGTH }
+  validates :visible_note, format: { without: /[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/, message: "contains unsupported characters" }, allow_nil: true
   validates :deposited_on, comparison: { less_than_or_equal_to: -> { Date.current } }, allow_nil: true
   validates(*SIGNED_AMOUNTS.map { |field| :"#{field}_cents" }, numericality: { only_integer: true, in: -MAX_CENTS..MAX_CENTS })
   validates(*(AMOUNTS - SIGNED_AMOUNTS).map { |field| :"#{field}_cents" }, numericality: { only_integer: true, in: 0..MAX_CENTS })
@@ -91,16 +96,27 @@ class OfficialPayment < ApplicationRecord
     end
   end
 
-  def update_from_form!(values)
-    assign_amounts(values.slice(*AMOUNTS))
-    assign_attributes(values.slice(*CHEQUE_FIELDS))
-    assign_adjustments(values[:adjustments]) if values.key?(:adjustments)
-    if values.key?(:reviewed)
-      self.reviewed_at = values[:reviewed] ? (reviewed_at || Time.current) : nil
-    elsif EARNINGS_FIELDS.any? { |field| will_save_change_to_attribute?(field) }
-      self.reviewed_at = nil
+  def private_note_for(user)
+    private_notes.find_by(user: user)&.private_note
+  end
+
+  def update_from_form!(values, user:, lock_version:)
+    with_lock do
+      raise ActiveRecord::StaleObjectError.new(self, "update") unless lock_version.to_s == self.lock_version.to_s
+      validate_note_types!(values)
+
+      assign_amounts(values.slice(*AMOUNTS))
+      assign_attributes(values.slice(*CHEQUE_FIELDS, :visible_note))
+      assign_adjustments(values[:adjustments]) if values.key?(:adjustments)
+      if values.key?(:reviewed)
+        self.reviewed_at = values[:reviewed] ? (reviewed_at || Time.current) : nil
+      elsif EARNINGS_FIELDS.any? { |field| will_save_change_to_attribute?(field) }
+        self.reviewed_at = nil
+      end
+      private_note_changed = values.key?(:private_note) && save_private_note!(user, values[:private_note])
+      save!
+      touch if private_note_changed && !saved_changes?
     end
-    save!
   end
 
   def assign_amounts(values)
@@ -117,6 +133,25 @@ class OfficialPayment < ApplicationRecord
   end
 
   private
+
+  def validate_note_types!(values)
+    invalid = values.slice(:visible_note, :private_note).reject { |_, value| value.nil? || value.is_a?(String) }
+    return if invalid.empty?
+
+    invalid.each_key { |field| errors.add(field, "must be text") }
+    raise ActiveRecord::RecordInvalid, self
+  end
+
+  def save_private_note!(user, value)
+    note = private_notes.find_by(user: user)
+    if value.present?
+      note ||= private_notes.build(user: user)
+      note.private_note = value
+      note.changed? && note.save!
+    elsif note
+      note.destroy!
+    end
+  end
 
   def assign_payment_number
     self.payment_number = self.class.where(season_id: season_id).maximum(:payment_number).to_i + 1

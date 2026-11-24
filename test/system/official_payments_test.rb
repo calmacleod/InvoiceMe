@@ -18,6 +18,8 @@ class OfficialPaymentsSystemTest < ActionDispatch::SystemTestCase
     click_button "Add item"
     fill_in "Item 1 name", with: "Mileage correction"
     fill_in "Item 1 amount", with: "12.20"
+    fill_in "Visible note (on statement)", with: "Includes the mileage correction."
+    fill_in "Private note (only you)", with: "Confirmed against the register."
     check "Earnings reconciled with the Horizon payroll report and any manual adjustments"
     fill_in "Cheque number", with: "FX-123"
     click_button "Save payment"
@@ -26,6 +28,8 @@ class OfficialPaymentsSystemTest < ActionDispatch::SystemTestCase
     assert_link "Download PDF"
     assert_link "Download editable document"
     assert_field "Evaluations", disabled: true
+    assert_field "Visible note (on statement)", with: "Includes the mileage correction."
+    assert_field "Private note (only you)", with: "Confirmed against the register."
   end
 
   test "shows all amount columns, named items and totals for the displayed officials" do

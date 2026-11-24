@@ -1,4 +1,5 @@
 require "test_helper"
+require "pdf-reader"
 
 class ApiV1OfficialPaymentsTest < ActionDispatch::IntegrationTest
   setup do
@@ -77,6 +78,58 @@ class ApiV1OfficialPaymentsTest < ActionDispatch::IntegrationTest
     }, response.parsed_body.fetch("totals"))
   end
 
+  test "scopes private notes to the API key owner and exports the visible note" do
+    example = payment("Rowan Example", reviewed_at: Time.current, cheque_number: "EX-NOTE")
+    _, token = ApiKey.issue!(user: users(:two), name: "Second preparer", write_access: true)
+    other_headers = { "Authorization" => "Bearer #{token}" }
+    public_note = "Includes travel & mileage.\nContact the treasurer with questions."
+
+    update_payment(example, example.lock_version, visible_note: public_note, private_note: "Draft reconciliation")
+    assert_response :success
+    assert_equal [ public_note, "Draft reconciliation", "Cheque recorded" ],
+      response.parsed_body.values_at("visible_note", "private_note", "status")
+    assert_not_includes example.private_notes.sole.ciphertext_for(:private_note), "Draft reconciliation"
+
+    get api_v1_official_payment_path(example), headers: other_headers
+    assert_response :success
+    assert_equal [ public_note, nil ], response.parsed_body.values_at("visible_note", "private_note")
+    patch api_v1_official_payment_path(example), params: { official_payment: {
+      lock_version: response.parsed_body.fetch("lock_version"), private_note: "Second preparer note"
+    } }, headers: other_headers, as: :json
+    assert_response :success
+    assert_equal "Second preparer note", response.parsed_body.fetch("private_note")
+    get api_v1_official_payment_path(example), headers: @headers
+    assert_equal "Draft reconciliation", response.parsed_body.fetch("private_note")
+
+    get api_v1_official_payments_path, params: { season_id: @season.id }, headers: @headers
+    assert_not response.parsed_body.fetch("data").sole.key?("private_note")
+    get pdf_api_v1_official_payment_path(example), headers: @headers
+    pdf_text = PDF::Reader.new(StringIO.new(response.body)).pages.sole.text
+    assert_includes pdf_text, "Includes travel & mileage."
+    assert_includes pdf_text, "Contact the treasurer with questions."
+    assert_not_includes pdf_text, "Draft reconciliation"
+    assert_not_includes pdf_text, "Second preparer note"
+
+    get odt_api_v1_official_payment_path(example), headers: @headers
+    Zip::File.open_buffer(response.body) do |archive|
+      xml = Nokogiri::XML(archive.read("content.xml")) { |config| config.strict }
+      assert_includes xml.text, "Includes travel & mileage."
+      assert_equal 1, xml.xpath("//text:p[@text:style-name='PaymentNote']/text:line-break").size
+      assert_not_includes xml.text, "Draft reconciliation"
+      assert_not_includes xml.text, "Second preparer note"
+    end
+
+    update_payment(example, example.reload.lock_version, visible_note: "Uncommitted edit", private_note: "x" * 2001)
+    assert_response :unprocessable_entity
+    assert_equal public_note, example.reload.visible_note
+    assert_equal "Draft reconciliation", example.private_note_for(users(:one))
+
+    update_payment(example, example.lock_version, private_note: nil, visible_note: "")
+    assert_response :success
+    assert_equal [ nil, nil ], response.parsed_body.values_at("visible_note", "private_note")
+    assert_equal "Second preparer note", example.private_note_for(users(:two))
+  end
+
   test "bulk edits apply only the requested fields and replace or clear adjustments explicitly" do
     first = payment("Arden Example", registration_cents: 3500, reviewed_at: Time.current,
       adjustments: [ { "label" => "Existing fictional credit", "amount_cents" => 1250 } ])
@@ -141,9 +194,13 @@ class ApiV1OfficialPaymentsTest < ActionDispatch::IntegrationTest
     get pdf_api_v1_official_payment_path(example), headers: @headers
     assert_response :success
     assert_equal "application/pdf", response.media_type
+    assert_includes PDF::Reader.new(StringIO.new(response.body)).pages.sole.text, OfficialPaymentStatement::FEE_NOTE
     get odt_api_v1_official_payment_path(example), headers: @headers
     assert_response :success
     assert_equal OdtDocument::MIME, response.media_type
+    Zip::File.open_buffer(response.body) do |archive|
+      assert_includes Nokogiri::XML(archive.read("content.xml")).text, OfficialPaymentStatement::FEE_NOTE
+    end
   end
 
   test "queues and reports Horizon imports without reading credentials or running the job" do

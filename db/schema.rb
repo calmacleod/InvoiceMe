@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_24_130000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_24_180000) do
   create_table "api_keys", force: :cascade do |t|
     t.integer "user_id", null: false
     t.string "name", null: false
@@ -281,6 +281,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_24_130000) do
     t.index ["season_id"], name: "index_official_payment_imports_on_season_id"
   end
 
+  create_table "official_payment_private_notes", force: :cascade do |t|
+    t.integer "official_payment_id", null: false
+    t.integer "user_id", null: false
+    t.text "private_note", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["official_payment_id", "user_id"], name: "idx_on_official_payment_id_user_id_2a4bb30bc7", unique: true
+    t.index ["official_payment_id"], name: "index_official_payment_private_notes_on_official_payment_id"
+    t.index ["user_id"], name: "index_official_payment_private_notes_on_user_id"
+  end
+
   create_table "official_payments", force: :cascade do |t|
     t.integer "season_id", null: false
     t.string "horizon_user_id"
@@ -305,6 +316,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_24_130000) do
     t.datetime "updated_at", null: false
     t.json "adjustments", default: [], null: false
     t.integer "payment_number", null: false
+    t.text "visible_note"
     t.index "season_id, lower(official_name)", name: "index_manual_official_payments_on_name", unique: true, where: "horizon_user_id IS NULL"
     t.index ["season_id", "cheque_number"], name: "index_official_payments_on_season_id_and_cheque_number", unique: true
     t.index ["season_id", "horizon_user_id"], name: "index_official_payments_on_season_id_and_horizon_user_id", unique: true
@@ -384,6 +396,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_24_130000) do
   add_foreign_key "line_item_private_breakdowns", "users"
   add_foreign_key "line_items", "invoices"
   add_foreign_key "official_payment_imports", "seasons"
+  add_foreign_key "official_payment_private_notes", "official_payments"
+  add_foreign_key "official_payment_private_notes", "users"
   add_foreign_key "official_payments", "seasons"
   add_foreign_key "payments", "invoices"
   add_foreign_key "sessions", "users"

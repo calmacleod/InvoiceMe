@@ -33,7 +33,8 @@ class OfficialPaymentsController < ApplicationController
   def edit
     render inertia: "official_payments/Edit", props: {
       payment: payment_summary(@payment).merge(
-        @payment.as_json(only: %i[lock_version cheque_delivery assignments]),
+        @payment.as_json(only: %i[lock_version cheque_delivery assignments visible_note]),
+        private_note: @payment.private_note_for(Current.user),
         imported_game_fees_cents: @payment.imported_game_fees_cents,
         imported_travel_ot_cents: @payment.imported_travel_ot_cents,
         horizon_deductions_cents: @payment.horizon_deductions_cents,
@@ -45,13 +46,12 @@ class OfficialPaymentsController < ApplicationController
   end
 
   def update
-    fields = %i[lock_version reviewed] + OfficialPayment::AMOUNTS + OfficialPayment::CHEQUE_FIELDS
+    fields = %i[lock_version reviewed visible_note private_note] + OfficialPayment::AMOUNTS + OfficialPayment::CHEQUE_FIELDS
     values = params.expect(official_payment: fields + [ { adjustments: [ %i[label amount] ] } ]).to_h.deep_symbolize_keys
-    raise ActiveRecord::StaleObjectError.new(@payment, "update") unless values.delete(:lock_version).to_s == @payment.lock_version.to_s
-
-    values[:reviewed] = ActiveModel::Type::Boolean.new.cast(values[:reviewed])
+    version = values.delete(:lock_version)
+    values[:reviewed] = ActiveModel::Type::Boolean.new.cast(values[:reviewed]) if values.key?(:reviewed)
     values[:deposited_on] = Date.iso8601(values[:deposited_on].to_s) if values[:deposited_on].present?
-    @payment.update_from_form!(values)
+    @payment.update_from_form!(values, user: Current.user, lock_version: version)
     redirect_to edit_official_payment_path(@payment), status: :see_other, notice: "Official payment saved."
   rescue ActiveRecord::RecordInvalid => error
     redirect_to edit_official_payment_path(@payment), status: :see_other, inertia: { errors: error.record.errors }

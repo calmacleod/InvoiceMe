@@ -33,6 +33,8 @@ type Assignment = {
 type Payment = PaymentSummary & {
   lock_version: number;
   cheque_delivery: string | null;
+  visible_note: string | null;
+  private_note: string | null;
   imported_game_fees_cents: number;
   imported_travel_ot_cents: number;
   horizon_deductions_cents: number;
@@ -69,6 +71,8 @@ function PaymentEditor({ payment, year, google_connected }: Props) {
       cheque_number: payment.cheque_number ?? "",
       deposited_on: payment.deposited_on ?? "",
       cheque_delivery: payment.cheque_delivery ?? "",
+      visible_note: payment.visible_note ?? "",
+      private_note: payment.private_note ?? "",
       adjustments: payment.adjustments.map((item, id) => ({
         id,
         label: item.label,
@@ -220,6 +224,32 @@ function PaymentEditor({ payment, year, google_connected }: Props) {
               Add item
             </button>
           )}
+        </Section>
+        <Section title="Payment notes">
+          <div {...stylex.props(ui.formGrid)}>
+            <Field
+              label="Visible note (on statement)"
+              name="visible_note"
+              value={data.visible_note}
+              multiline
+              rows={4}
+              maxLength={2000}
+              onChange={(visible_note) =>
+                form.setData("official_payment", { ...data, visible_note })
+              }
+            />
+            <Field
+              label="Private note (only you)"
+              name="private_note"
+              value={data.private_note}
+              multiline
+              rows={4}
+              maxLength={2000}
+              onChange={(private_note) =>
+                form.setData("official_payment", { ...data, private_note })
+              }
+            />
+          </div>
         </Section>
         <Section title="Review and cheque">
           <label {...stylex.props(ui.label)}>

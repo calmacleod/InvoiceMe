@@ -41,17 +41,21 @@ class OfficialPaymentsTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_equal "application/pdf", response.media_type
     assert_match(/no-store/, response.headers.fetch("Cache-Control"))
-    assert response.body.start_with?("%PDF")
+    page = PDF::Reader.new(StringIO.new(response.body)).pages.sole
+    assert_includes page.text, "$3,098.60"
+    assert_includes page.text, OfficialPaymentStatement::FEE_NOTE
+    assert_includes page.text, @season.issuer.fetch("email")
     get odt_official_payment_path(payment)
     assert_response :success
     Zip::File.open_buffer(response.body) do |archive|
       content = Nokogiri::XML(archive.read("content.xml")) { |config| config.strict }
-      assert_equal 14, content.xpath("//table:table-row").size
       assert_includes content.text, "Fable, Morgan"
       assert_includes content.text, "Cheque Number: EX-901"
       assert_includes content.text, "Payment Number: 1"
-      assert_includes content.text, "2027 Prepayment"
-      assert_includes content.text, "$3098.60"
+      assert_not_includes content.text, "2027 Prepayment"
+      assert_not_includes content.text, "$0.00"
+      assert_includes content.text, "$3,098.60"
+      assert_includes content.text, OfficialPaymentStatement::FEE_NOTE
     end
   end
 
@@ -84,7 +88,8 @@ class OfficialPaymentsTest < ActionDispatch::IntegrationTest
     payment = @season.official_payments.create!(official_name: "Hollow, Riley")
     patch official_payment_path(payment), params: { official_payment: {
       lock_version: payment.lock_version, evaluations: "90.00",
-      adjustments: [ { label: "Training credit", amount: "12.35" }, { label: "Equipment", amount: "-4.56" } ]
+      adjustments: [ { label: "Training credit", amount: "12.35" }, { label: "Equipment", amount: "-4.56" },
+        { label: "Unused credit", amount: "0" } ]
     } }, as: :json
     assert_redirected_to edit_official_payment_path(payment)
     assert_equal 9_779, payment.reload.net_cents
@@ -97,6 +102,10 @@ class OfficialPaymentsTest < ActionDispatch::IntegrationTest
     assert_includes preview, "Training credit"
     assert_includes preview, "Equipment"
     assert_includes preview, "$97.79"
+    assert_not_includes preview, "Unused credit"
+    assert_not_includes preview, "Deductions"
+    assert_not_includes preview, "Association Fee"
+    assert_not_includes preview, "$0.00"
     assert_nil payment.reload.reviewed_at
 
     patch official_payment_path(payment), params: { official_payment: { lock_version: payment.lock_version, adjustments: [] } }, as: :json
@@ -166,10 +175,19 @@ class OfficialPaymentsTest < ActionDispatch::IntegrationTest
 
     post google_doc_official_payment_path(payment), headers: { "X-Inertia" => "true" }
     assert_equal 1, google.uploads.size
-    payment.reload.update!(cheque_number: "EX-701")
+    payment.reload.update_from_form!({ private_note: "Treasurer-only check" }, user: users(:one), lock_version: payment.lock_version)
+    post google_doc_official_payment_path(payment), headers: { "X-Inertia" => "true" }
+    assert_equal 1, google.uploads.size
+
+    payment.reload.update!(visible_note: "Mileage reimbursement included.")
     post google_doc_official_payment_path(payment), headers: { "X-Inertia" => "true" }
     assert_equal "file-1", google.uploads.last.fetch(:file_id)
     assert_equal 2, google.uploads.size
+    Zip::File.open_buffer(google.uploads.last.fetch(:bytes)) do |archive|
+      payload = archive.read("content.xml")
+      assert_includes payload, "Mileage reimbursement included."
+      assert_not_includes payload, "Treasurer-only check"
+    end
   ensure
     GoogleApi.define_singleton_method(:new, constructor) if constructor
   end
