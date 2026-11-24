@@ -14,12 +14,16 @@ class OfficialPaymentsSystemTest < ActionDispatch::SystemTestCase
     click_button "Add official"
     assert_selector "h1", text: "Aster, Cameron"
     assert_link "Preview statement"
+    assert_save_payment_in_viewport
+    page.driver.browser.execute_cdp("Emulation.setDeviceMetricsOverride", width: 390, height: 844, deviceScaleFactor: 1, mobile: false)
+    assert_save_payment_in_viewport
     fill_in "Evaluations", with: "74.80"
     click_button "Add item"
     fill_in "Item 1 name", with: "Mileage correction"
     fill_in "Item 1 amount", with: "12.20"
     fill_in "Visible note (on statement)", with: "Includes the mileage correction."
     fill_in "Private note (only you)", with: "Confirmed against the register."
+    assert_save_payment_in_viewport
     check "Earnings reconciled with the Horizon payroll report and any manual adjustments"
     fill_in "Cheque number", with: "FX-123"
     click_button "Save payment"
@@ -30,6 +34,8 @@ class OfficialPaymentsSystemTest < ActionDispatch::SystemTestCase
     assert_field "Evaluations", disabled: true
     assert_field "Visible note (on statement)", with: "Includes the mileage correction."
     assert_field "Private note (only you)", with: "Confirmed against the register."
+  ensure
+    page.driver.browser.execute_cdp("Emulation.clearDeviceMetricsOverride")
   end
 
   test "shows all amount columns, named items and totals for the displayed officials" do
@@ -125,5 +131,18 @@ class OfficialPaymentsSystemTest < ActionDispatch::SystemTestCase
     assert_text "Updated 2 officials."
     assert_equal 1_460, first.reload.net_cents
     assert_equal(-720, second.reload.net_cents)
+  end
+
+  private
+
+  def assert_save_payment_in_viewport
+    assert evaluate_script(<<~JS, find_button("Save payment")), "Save payment should be in the viewport"
+      ((button) => {
+        const { top, bottom, left, right } = button.getBoundingClientRect();
+        const target = document.elementFromPoint((left + right) / 2, (top + bottom) / 2);
+        return top >= 0 && bottom <= window.innerHeight &&
+          left >= 0 && right <= window.innerWidth && button.contains(target);
+      })(arguments[0])
+    JS
   end
 end

@@ -297,15 +297,16 @@ function PaymentEditor({ payment, year, google_connected }: Props) {
               }
             />
           </div>
-          <div {...stylex.props(ui.formActions)}>
-            <button
-              {...stylex.props(ui.button, ui.primary)}
-              disabled={form.processing}
-            >
-              Save payment
-            </button>
-          </div>
         </Section>
+        <div {...stylex.props(ui.formActions, ui.sticky)}>
+          <button
+            type="submit"
+            {...stylex.props(ui.button, ui.primary)}
+            disabled={form.processing}
+          >
+            Save payment
+          </button>
+        </div>
       </form>
       <Section
         title="Earnings statement"
