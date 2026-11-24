@@ -235,6 +235,22 @@ export default function Index({
             >
               Additional items
             </Link>
+            {payments.some(
+              (payment) => payment.net_cents > 0 && !payment.cheque_number,
+            ) && (
+              <Link
+                {...stylex.props(ui.link, ui.button)}
+                href="/official_payments/cheque_sequence"
+              >
+                Assign cheque numbers
+              </Link>
+            )}
+            <a
+              {...stylex.props(ui.link, ui.button)}
+              href="/official_payments/statements_pdf"
+            >
+              Download statements PDF
+            </a>
             {google_connected && (
               <button
                 type="button"

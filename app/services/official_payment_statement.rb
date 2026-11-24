@@ -77,41 +77,58 @@ class OfficialPaymentStatement
     end
   end
 
-  def pdf
+  def self.packet(season)
+    payments = season.official_payments.in_payment_order.to_a
+    raise ArgumentError, "Add officials before downloading a statement packet." if payments.empty?
+
+    suffix = "-preview" if payments.any? { |payment| !payment.reviewed_at }
+    [ render_pdf(payments.map { |payment| new(payment) }), "#{season.year}-earnings-statements#{suffix}.pdf" ]
+  end
+
+  def self.render_pdf(statements)
     Prawn::Document.new(page_size: "LETTER", margin: MARGIN) do |pdf|
       font_dir = Rails.root.join("app/assets/fonts")
       pdf.font_families.update("Statement" => { normal: font_dir.join("regular.ttf").to_s, bold: font_dir.join("bold.ttf").to_s })
       pdf.font "Statement"
-      pdf.fill_color INK
-      pdf.image OdtDocument::LOGO.to_s, at: [ 0, pdf.bounds.top ], width: 42
-      pdf.bounding_box([ 52, pdf.bounds.top - 12 ], width: pdf.bounds.width - 52) do
-        pdf.text organization, size: 15, style: :bold
+      statements.each_with_index do |statement, index|
+        pdf.start_new_page if index.positive?
+        statement.draw_pdf(pdf)
       end
-      pdf.move_cursor_to([ pdf.cursor - 11, pdf.bounds.top - 51 ].min)
-      pdf.text heading, size: 23, style: :bold
-      pdf.move_down 3
-      pdf.text official_name, size: 15, style: :bold
-      pdf.move_down 5
-      pdf.text payment_details, size: 10, color: MUTED
-      pdf.move_down 14
-
-      pdf.table(rows.map { |kind, label, value| pdf_row(kind, label, value) },
-        column_widths: COLUMN_WIDTHS, cell_style: { valign: :center, border_width: 0.45, border_color: RULE, padding: [ 1, 8, 5, 8 ] })
-
-      if visible_note
-        pdf.move_down 11
-        pdf.text "Payment note", size: 10.5, style: :bold
-        pdf.move_down 3
-        pdf.text visible_note, size: 10.5, leading: 2
-      end
-
-      pdf.move_down 11
-      if fee_note?
-        pdf.text FEE_NOTE, size: 9, color: MUTED
-        pdf.move_down 5
-      end
-      pdf.formatted_text [ { text: "#{CONTACT} " }, { text: email, link: "mailto:#{email}", styles: [ :underline ] } ], size: 9
     end.render
+  end
+
+  def pdf = self.class.render_pdf([ self ])
+
+  def draw_pdf(pdf)
+    pdf.fill_color INK
+    pdf.image OdtDocument::LOGO.to_s, at: [ 0, pdf.bounds.top ], width: 42
+    pdf.bounding_box([ 52, pdf.bounds.top - 12 ], width: pdf.bounds.width - 52) do
+      pdf.text organization, size: 15, style: :bold
+    end
+    pdf.move_cursor_to([ pdf.cursor - 11, pdf.bounds.top - 51 ].min)
+    pdf.text heading, size: 23, style: :bold
+    pdf.move_down 3
+    pdf.text official_name, size: 15, style: :bold
+    pdf.move_down 5
+    pdf.text payment_details, size: 10, color: MUTED
+    pdf.move_down 14
+
+    pdf.table(rows.map { |kind, label, value| pdf_row(kind, label, value) },
+      column_widths: COLUMN_WIDTHS, cell_style: { valign: :center, border_width: 0.45, border_color: RULE, padding: [ 1, 8, 5, 8 ] })
+
+    if visible_note
+      pdf.move_down 11
+      pdf.text "Payment note", size: 10.5, style: :bold
+      pdf.move_down 3
+      pdf.text visible_note, size: 10.5, leading: 2
+    end
+
+    pdf.move_down 11
+    if fee_note?
+      pdf.text FEE_NOTE, size: 9, color: MUTED
+      pdf.move_down 5
+    end
+    pdf.formatted_text [ { text: "#{CONTACT} " }, { text: email, link: "mailto:#{email}", styles: [ :underline ] } ], size: 9
   end
 
   private

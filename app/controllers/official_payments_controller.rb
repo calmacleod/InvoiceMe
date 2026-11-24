@@ -95,6 +95,31 @@ class OfficialPaymentsController < ApplicationController
     end
   end
 
+  def cheque_sequence
+    render inertia: "official_payments/ChequeSequence", props: { year: current_season.year, preview: nil, preview_error: nil }
+  end
+
+  def preview_cheque_sequence
+    preview = OfficialChequeSequence.new(current_season).preview(params[:first_cheque_number])
+    render inertia: "official_payments/ChequeSequence", props: { year: current_season.year, preview: preview, preview_error: nil }
+  rescue ArgumentError => error
+    render inertia: "official_payments/ChequeSequence", props: { year: current_season.year, preview: nil, preview_error: error.message }
+  end
+
+  def record_cheque_sequence
+    count = OfficialChequeSequence.new(current_season).record!(params[:preview_token])
+    redirect_to official_payments_path, status: :see_other, notice: "Recorded #{helpers.pluralize(count, 'cheque number')}."
+  rescue OfficialChequeSequence::Changed, ActiveRecord::RecordInvalid, ArgumentError => error
+    redirect_to cheque_sequence_official_payments_path, status: :see_other, alert: error.message
+  end
+
+  def statements_pdf
+    bytes, filename = OfficialPaymentStatement.packet(current_season)
+    send_data bytes, filename: filename, type: "application/pdf"
+  rescue ArgumentError => error
+    redirect_to official_payments_path, alert: error.message
+  end
+
   def export_sheet
     spreadsheet_id = OfficialEarningsSheet.new(current_season).export!
     inertia_location "https://docs.google.com/spreadsheets/d/#{ERB::Util.url_encode(spreadsheet_id)}/edit"

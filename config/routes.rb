@@ -36,6 +36,9 @@ Rails.application.routes.draw do
         collection do
           get :totals
           patch :bulk_update
+          get :cheque_sequence, action: :preview_cheque_sequence
+          post :cheque_sequence, action: :record_cheque_sequence
+          get :statements_pdf
           get :imports
           post :imports, action: :start_import
           get "imports/:import_id", action: :show_import, as: :import
@@ -82,6 +85,10 @@ Rails.application.routes.draw do
       post :import
       get :bulk_edit
       patch :bulk_update
+      get :cheque_sequence
+      post :cheque_sequence, action: :preview_cheque_sequence
+      patch :cheque_sequence, action: :record_cheque_sequence
+      get :statements_pdf
       get :adjustments
       patch :update_adjustments
       post :export_sheet

@@ -87,6 +87,76 @@ class ApiV1OfficialPaymentsTest < ActionDispatch::IntegrationTest
     assert_equal 3, response.parsed_body.fetch("payment_number")
   end
 
+  test "previews ordered cheque numbers and records a current reviewed batch atomically" do
+    issued = payment("Avery Issued", reviewed_at: Time.current, cheque_number: "EX-0097")
+    first = payment("River First")
+    second = payment("Birch Second", reviewed_at: Time.current)
+    no_cheque = @season.official_payments.create!(official_name: "Fable No Cheque", registration_cents: 100)
+    _, token = ApiKey.issue!(user: users(:one), name: "Read cheque preview")
+    read_headers = { "Authorization" => "Bearer #{token}" }
+    path = cheque_sequence_api_v1_official_payments_path
+
+    get path, params: { season_id: @season.id, first_cheque_number: "ex-97" }, headers: read_headers
+    assert_response :unprocessable_entity
+    assert_includes response.parsed_body.fetch("error"), "already recorded"
+
+    preview_params = { season_id: @season.id, first_cheque_number: "EX-0098" }
+    get path, params: preview_params, headers: read_headers
+    assert_response :success
+    preview = response.parsed_body
+    assert_equal [ [ first.id, 2, "EX-0098", false ], [ second.id, 3, "EX-0099", true ] ],
+      preview.fetch("rows").map { |row| row.values_at("id", "payment_number", "cheque_number", "reviewed") }
+    assert_equal [ nil, nil ], [ first.reload.cheque_number, second.reload.cheque_number ]
+
+    finalize = { season_id: @season.id, preview_token: preview.fetch("preview_token") }
+    post path, params: finalize, headers: read_headers, as: :json
+    assert_response :forbidden
+    post path, params: finalize, headers: @headers, as: :json
+    assert_response :unprocessable_entity
+    assert_nil second.reload.cheque_number
+
+    first.update!(reviewed_at: Time.current)
+    post path, params: finalize, headers: @headers, as: :json
+    assert_response :conflict
+    get path, params: preview_params, headers: @headers
+    assert_response :success
+    finalize[:preview_token] = response.parsed_body.fetch("preview_token")
+    post path, params: finalize, headers: @headers, as: :json
+    assert_response :success
+    assert_equal 2, response.parsed_body.fetch("updated")
+    assert_equal [ "EX-0097", "EX-0098", "EX-0099", nil ], [ issued, first, second, no_cheque ].map { |row| row.reload.cheque_number }
+    assert_equal [ nil, nil ], [ first.deposited_on, second.deposited_on ]
+    post path, params: finalize, headers: @headers, as: :json
+    assert_response :conflict
+  end
+
+  test "downloads a single PDF of all statements in payment order" do
+    no_cheque = @season.official_payments.create!(official_name: "Avery No Cheque")
+    first = payment("Fable First", reviewed_at: Time.current, cheque_number: "0070", visible_note: "Visible reimbursement note")
+    first.private_notes.create!(user: users(:one), private_note: "Private reconciliation note")
+    payment("Birch Second", reviewed_at: Time.current)
+
+    get statements_pdf_api_v1_official_payments_path, params: { season_id: @season.id }, headers: @headers
+    assert_response :success
+    assert_equal "application/pdf", response.media_type
+    assert_includes response.headers.fetch("Cache-Control"), "no-store"
+    assert_includes response.headers.fetch("Content-Disposition"), "#{@season.year}-earnings-statements-preview.pdf"
+    pages = PDF::Reader.new(StringIO.new(response.body)).pages.map(&:text)
+    assert_equal 3, pages.size
+    assert_includes pages[0], "Fable First"
+    assert_includes pages[0], "Cheque Number: 0070"
+    assert_includes pages[0], "Visible reimbursement note"
+    assert_includes pages[1], "Birch Second"
+    assert_includes pages[2], "Avery No Cheque"
+    assert_not_includes pages[2], "Payment Number:"
+    assert_not_includes pages.join, "Private reconciliation note"
+
+    no_cheque.update!(reviewed_at: Time.current)
+    get statements_pdf_api_v1_official_payments_path, params: { season_id: @season.id }, headers: @headers
+    assert_response :success
+    assert_includes response.headers.fetch("Content-Disposition"), "#{@season.year}-earnings-statements.pdf"
+  end
+
   test "returns season totals for every earnings and deduction field" do
     payment("Arden Example", travel_ot_adjustment_cents: 235, evaluations_cents: 707, prepayment_refund_cents: 333,
       registration_cents: 2800, banquet_cents: 6000, next_year_prepayment_cents: 1222, other_cents: -69,

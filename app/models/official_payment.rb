@@ -13,6 +13,7 @@ class OfficialPayment < ApplicationRecord
   MAX_CENTS = 100_000_000
   MAX_ADJUSTMENTS = 50
   NOTE_MAX_LENGTH = 2_000
+  CHEQUE_NUMBER_MAX_LENGTH = 40
 
   belongs_to :season
   has_many :private_notes, class_name: "OfficialPaymentPrivateNote", dependent: :destroy, inverse_of: :official_payment
@@ -28,7 +29,7 @@ class OfficialPayment < ApplicationRecord
   normalizes :visible_note, with: ->(value) { value.gsub(/\r\n?/, "\n").strip.presence }
   validates :official_name, presence: true, length: { maximum: 100 }
   validates :official_name, uniqueness: { scope: :season_id, case_sensitive: false, conditions: -> { where(horizon_user_id: nil) } }, if: -> { horizon_user_id.nil? }
-  validates :cheque_number, uniqueness: { scope: :season_id }, length: { maximum: 40 }, allow_nil: true
+  validates :cheque_number, uniqueness: { scope: :season_id }, length: { maximum: CHEQUE_NUMBER_MAX_LENGTH }, allow_nil: true
   validates :cheque_delivery, length: { maximum: 100 }
   validates :visible_note, length: { maximum: NOTE_MAX_LENGTH }
   validates :visible_note, format: { without: /[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/, message: "contains unsupported characters" }, allow_nil: true

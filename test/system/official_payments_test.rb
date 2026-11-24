@@ -133,6 +133,42 @@ class OfficialPaymentsSystemTest < ActionDispatch::SystemTestCase
     assert_equal [ 1_230, 910 ], [ first.banquet_cents, second.banquet_cents ]
   end
 
+  test "previews and records consecutive cheque numbers from the register" do
+    season = seasons(:current)
+    first = season.official_payments.create!(official_name: "River, Morgan", evaluations_cents: 5_000, reviewed_at: Time.current)
+    second = season.official_payments.create!(official_name: "Birch, Riley", evaluations_cents: 3_000, reviewed_at: Time.current)
+    season.official_payments.create!(official_name: "Linden, Casey")
+
+    visit new_session_path
+    fill_in "Email address", with: users(:one).email_address
+    fill_in "Password", with: "password"
+    click_button "Sign in"
+    click_link "Officials payments"
+    assert_link "Download statements PDF", href: statements_pdf_official_payments_path
+    click_link "Assign cheque numbers"
+    fill_in "First cheque number", with: "0499"
+    click_button "Preview sequence"
+    assert_current_path cheque_sequence_official_payments_path
+    within "table[aria-label='Proposed cheques']" do
+      assert_selector "tbody tr", count: 2
+      assert_selector "tbody tr:nth-child(1)", text: "River, Morgan"
+      assert_selector "tbody tr:nth-child(1)", text: "0499"
+      assert_selector "tbody tr:nth-child(2)", text: "0500"
+      assert_no_link "Linden, Casey"
+    end
+    assert_nil first.reload.cheque_number
+    assert_nil second.reload.cheque_number
+
+    fill_in "First cheque number", with: "0500"
+    assert_no_button "Record 2 cheque numbers"
+    click_button "Preview sequence"
+    assert_selector "tbody tr:nth-child(2)", text: "0501"
+    click_button "Record 2 cheque numbers"
+    assert_text "Recorded 2 cheque numbers."
+    assert_equal [ "0500", "0501" ], [ first.reload.cheque_number, second.reload.cheque_number ]
+    assert_no_link "Assign cheque numbers"
+  end
+
   test "enters named adjustments for different officials from one page" do
     season = seasons(:current)
     first = season.official_payments.create!(official_name: "Birch, Riley")

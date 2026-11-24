@@ -61,6 +61,22 @@ module Api
         render json: { updated: changed.size, data: changed.map { |payment| payment_summary(payment) } }
       end
 
+      def preview_cheque_sequence
+        render json: OfficialChequeSequence.new(season).preview(params.require(:first_cheque_number))
+      end
+
+      def record_cheque_sequence
+        count = OfficialChequeSequence.new(season).record!(params.require(:preview_token))
+        render json: { updated: count }
+      rescue OfficialChequeSequence::Changed => error
+        render_error(error.message, :conflict)
+      end
+
+      def statements_pdf
+        bytes, filename = OfficialPaymentStatement.packet(season)
+        send_data bytes, filename: filename, type: "application/pdf"
+      end
+
       def imports
         records = season.official_payment_imports.order(id: :desc)
         connections = HorizonConnection.order(:id).select(:id, :organization_name)
