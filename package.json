@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
-    "@inertiajs/react": "^3.9.1",
+    "@inertiajs/react": "^3.11.0",
     "@inertiajs/vite": "^3.9.1",
     "@stylexjs/stylex": "^0.19.1",
     "@vitejs/plugin-react": "^6.1.2",
