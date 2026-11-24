@@ -47,14 +47,95 @@ function parseCents(value: string) {
     : null;
 }
 
+function CategoryField({
+  name,
+  label,
+  value,
+  onChange,
+  presets,
+  previous,
+  required = false,
+}: {
+  name: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  presets: string[];
+  previous: string[];
+  required?: boolean;
+}) {
+  const [choosingCustom, setChoosingCustom] = useState(false);
+  const custom =
+    choosingCustom ||
+    (!!value && !presets.includes(value) && !previous.includes(value));
+
+  return (
+    <div {...stylex.props(styles.categoryField)}>
+      <div>
+        <label {...stylex.props(ui.label)} htmlFor={name}>
+          {label}
+        </label>
+        <select
+          {...stylex.props(ui.input)}
+          id={name}
+          value={custom ? "custom" : value ? `category:${value}` : ""}
+          required={required}
+          onChange={(event) => {
+            const selection = event.target.value;
+            setChoosingCustom(selection === "custom");
+            onChange(
+              selection.startsWith("category:")
+                ? selection.slice("category:".length)
+                : "",
+            );
+          }}
+        >
+          <option value="">
+            {required ? "Select a category" : "Use expense category"}
+          </option>
+          <optgroup label="Financial statement categories">
+            {presets.map((category) => (
+              <option key={category} value={`category:${category}`}>
+                {category}
+              </option>
+            ))}
+          </optgroup>
+          {previous.length > 0 && (
+            <optgroup label="Previously used this year">
+              {previous.map((category) => (
+                <option key={category} value={`category:${category}`}>
+                  {category}
+                </option>
+              ))}
+            </optgroup>
+          )}
+          <option value="custom">Custom category…</option>
+        </select>
+      </div>
+      {custom && (
+        <Field
+          name={`${name}-custom`}
+          label="Custom category name"
+          value={value}
+          onChange={onChange}
+          required
+          maxLength={100}
+        />
+      )}
+    </div>
+  );
+}
+
 export default function Edit({
   expense,
   season,
   categories,
+  preset_categories: presets,
 }: {
   expense: Expense;
   season: { id: number; year: number };
   categories: string[];
+  preset_categories: string[];
 }) {
   const form = useForm<Form>({
     lock_version: expense.lock_version,
@@ -83,6 +164,7 @@ export default function Edit({
   const title = expense.id ? "Edit expense" : "New expense";
   const path = `/expenses?season_id=${season.id}`;
   const expenseUrl = `/expenses/${expense.id}`;
+  const previous = categories.filter((category) => !presets.includes(category));
   const total = parseCents(form.data.amount);
   const itemized = form.data.line_items.reduce(
     (sum, line) => sum + (parseCents(line.amount) ?? 0),
@@ -160,11 +242,6 @@ export default function Edit({
             {amountError}
           </p>
         )}
-        <datalist id="expense-categories">
-          {categories.map((category) => (
-            <option key={category} value={category} />
-          ))}
-        </datalist>
         <div {...stylex.props(ui.formColumns)}>
           <Section title="Expense details">
             <div {...stylex.props(ui.formGrid)}>
@@ -200,14 +277,14 @@ export default function Edit({
                 onChange={(value) => form.setData("amount", value)}
                 required
               />
-              <Field
+              <CategoryField
                 name="category"
                 label="Category"
-                list="expense-categories"
+                presets={presets}
+                previous={previous}
                 value={form.data.category}
                 onChange={(value) => form.setData("category", value)}
                 required
-                maxLength={100}
               />
               <Field
                 name="reference"
@@ -285,7 +362,7 @@ export default function Edit({
         </div>
         <Section
           title="Itemized costs"
-          hint="Leave a line’s category blank to use the expense category. Any unitemized amount uses the expense category."
+          hint="Items use the expense category by default, as does any unitemized amount."
         >
           {form.data.line_items.map((line, index) => (
             <div key={line.key} {...stylex.props(styles.item)}>
@@ -297,14 +374,13 @@ export default function Edit({
                 required
                 maxLength={250}
               />
-              <Field
+              <CategoryField
                 name={`line-category-${line.key}`}
                 label="Item category (optional)"
-                list="expense-categories"
-                placeholder={form.data.category || undefined}
+                presets={presets}
+                previous={previous}
                 value={line.category}
                 onChange={(value) => setLine(line.key, "category", value)}
-                maxLength={100}
               />
               <Field
                 name={`line-amount-${line.key}`}

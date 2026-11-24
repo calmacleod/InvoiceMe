@@ -23,7 +23,7 @@ class ExpenseRegister
 
   def categories
     used = expenses.flat_map { |expense| [ expense.category, *expense.line_items.map(&:category) ] }.compact
-    (used + Expense::DEFAULT_CATEGORIES).uniq(&:downcase).sort_by(&:downcase)
+    (Expense::PRESET_CATEGORIES + used).uniq(&:downcase).sort_by(&:downcase)
   end
 
   def summary

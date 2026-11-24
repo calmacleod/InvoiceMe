@@ -26,13 +26,13 @@ To add a saved contact to a draft, search `GET /contacts?q=...` or create the co
 
 ## Association expenses
 
-- `GET /expenses?season_id=...` lists the selected year's expenses with `data`, `pagination`, `categories` and `summary`. Optional filters are `query` (payee, description, reference or cheque number), `category` (expense or item category, case-insensitive) and `status` (`paid` or `unpaid`). Summary amounts and `by_category` always cover the entire selected year.
+- `GET /expenses?season_id=...` lists the selected year's expenses with `data`, `pagination`, `categories`, `preset_categories` and `summary`. The preset list contains the financial statement headings and is available even for an empty year. The `categories` list includes the presets and the categories already used by expenses and line items in the selected year. Optional filters are `query` (payee, description, reference or cheque number), `category` (expense or item category, case-insensitive) and `status` (`paid` or `unpaid`). Summary amounts and `by_category` always cover the entire selected year.
 - `GET /expenses/:id` returns the expense with ordered `line_items`, `itemized_cents`, `remainder_cents` and its current `lock_version`. `POST /expenses` requires `season_id` and an `expense` object. `PATCH /expenses/:id` accepts the same fields and applies only supplied values. Pass the current `lock_version` to reject a stale edit with 409.
 - `DELETE /expenses/:id` deletes the expense and its items and returns 204. The next successful Sheet sync removes the corresponding rows.
 - `GET /seasons/:id/expense_sheet` returns the sync status. `POST /seasons/:id/expense_sheet` queues a sync and returns 202. Repeated requests while a sync is active share that run. Set `financials_folder_id` on the season using a Drive folder ID or URL and connect the treasurer Google account through Settings.
 - The status fields are `ready`, `folder_configured`, `status` (`idle`, `queued`, `running`, `succeeded` or `failed`), `active`, `stale`, `url`, `synced_at` and `error`. Sync creates or refreshes one `<year> Association Expenses` workbook in the selected folder. Its `Expenses`, `Line items` and `By category` tabs reflect a complete season snapshot. Make changes in InvoiceMe and sync again.
 
-Expense creation requires `payee`, `description`, `incurred_on` (ISO date), `category` (custom text), and a positive integer `total_cents`. Optional fields include `reference`, `notes` and a boolean `paid`, which defaults to false. For paid entries, `paid_on`, `payment_method` and `cheque_number` are optional. Set these fields to `null` or blank in the same request when reverting a paid expense to unpaid.
+Expense creation requires `payee`, `description`, `incurred_on` (ISO date), `category` (a preset label or custom text up to 100 characters), and a positive integer `total_cents`. Optional fields include `reference`, `notes` and a boolean `paid`, which defaults to false. For paid entries, `paid_on`, `payment_method` and `cheque_number` are optional. Set these fields to `null` or blank in the same request when reverting a paid expense to unpaid.
 
 Omitting `line_items` preserves the saved items. Sending the array replaces the full ordered list, and `[]` clears it. Include existing item IDs to retain them. Each item accepts `description`, integer `amount_cents` and an optional category override. Use a negative line for a discount. The itemized sum cannot exceed the expense total. The expense category covers each item without an override and any unitemized balance.
 
@@ -43,7 +43,7 @@ Omitting `line_items` preserves the saved items. Sending the array replaces the 
     "payee": "Example Community Centre",
     "description": "Committee training event",
     "incurred_on": "2031-07-18",
-    "category": "Training",
+    "category": "Training and Evaluations",
     "total_cents": 18050,
     "paid": true,
     "paid_on": "2031-07-21",

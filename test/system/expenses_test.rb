@@ -16,16 +16,19 @@ class ExpensesSystemTest < ActionDispatch::SystemTestCase
     fill_in "Description", with: "Fall volunteer workshop"
     set_date("incurred_on", "2026-11-05")
     fill_in "Full amount (CAD)", with: "99.65"
-    fill_in "Category", with: "Training"
+    select "Training and Evaluations", from: "Category"
     click_button "Add item"
     fill_in "Item 1 description", with: "Refreshments"
-    fill_in "Item category (optional)", with: "Meals"
+    select "Custom category…", from: "Item category (optional)"
+    fill_in "Custom category name", with: "Meals"
     fill_in "Item amount (CAD)", with: "24.59"
     assert_text "Unitemized $75.06"
     click_button "Save expense"
 
     assert_text "Expense added"
     click_link "Fall volunteer workshop"
+    assert_selector :select, "Category", selected: "Training and Evaluations"
+    assert_selector :select, "Item category (optional)", selected: "Meals"
     assert_field "Item amount (CAD)", with: "24.59"
     check "Paid"
     set_date("paid_on", "2026-11-08")
@@ -43,7 +46,7 @@ class ExpensesSystemTest < ActionDispatch::SystemTestCase
     page.driver.browser.execute_cdp("Emulation.setDeviceMetricsOverride", width: 390, height: 844, deviceScaleFactor: 1, mobile: false)
     within("table[aria-label='Expenses']") do
       assert_text "Cheque 007"
-      assert_text "Training"
+      assert_text "Training and Evaluations"
       assert_text "$99.65"
       assert evaluate_script("document.querySelector('[aria-label=Expenses]').parentElement.scrollWidth === document.querySelector('[aria-label=Expenses]').parentElement.clientWidth")
     end

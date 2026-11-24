@@ -1,6 +1,12 @@
 class Expense < ApplicationRecord
   MAX_CENTS = 999_999_999_999
-  DEFAULT_CATEGORIES = [ "Meetings", "Food and refreshments", "Training", "Banquets and events", "Equipment", "Administration" ].freeze
+  PRESET_CATEGORIES = [
+    "Assignor Fees",
+    "Office & Administration",
+    "Meetings & Events",
+    "Registration and Contributions",
+    "Training and Evaluations"
+  ].freeze
 
   belongs_to :season
   has_many :line_items, -> { order(:position, :id) }, class_name: "ExpenseLineItem", inverse_of: :expense, dependent: :destroy, autosave: true

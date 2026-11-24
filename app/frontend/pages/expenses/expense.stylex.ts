@@ -2,6 +2,11 @@ import * as stylex from "@stylexjs/stylex";
 import { colors, space } from "../../styles/tokens.stylex";
 
 export const styles = stylex.create({
+  categoryField: {
+    display: "grid",
+    gap: space.sm,
+    minWidth: 0,
+  },
   filters: {
     display: "grid",
     gridTemplateColumns: {

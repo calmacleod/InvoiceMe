@@ -70,6 +70,7 @@ class ExpensesController < ApplicationController
     render inertia: "expenses/Edit", props: {
       expense: record.details,
       season: { id: season.id, year: season.year },
+      preset_categories: Expense::PRESET_CATEGORIES,
       categories: ExpenseRegister.new(season).categories
     }
   end

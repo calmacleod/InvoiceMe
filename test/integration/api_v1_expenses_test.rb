@@ -9,6 +9,32 @@ class ApiV1ExpensesTest < ActionDispatch::IntegrationTest
     @read = headers(write_access: false)
   end
 
+  test "lists financial statement presets for an empty year and preserves custom categories" do
+    get api_v1_expenses_path(season_id: @season.id), headers: @read
+    assert_response :success
+    presets = [ "Assignor Fees", "Office & Administration", "Meetings & Events",
+      "Registration and Contributions", "Training and Evaluations" ]
+    assert_equal presets, response.parsed_body.fetch("preset_categories")
+    assert_equal presets.sort, response.parsed_body.fetch("categories")
+
+    post api_v1_expenses_path, params: { season_id: @season.id, expense: details.merge(
+      category: "Community outreach", line_items: [
+        { description: "Supplies", category: "Office & Administration", amount_cents: 4990 },
+        { description: "Activity fee", amount_cents: 1000 }
+      ]) }, headers: @write, as: :json
+    assert_response :created
+    assert_equal "Community outreach", response.parsed_body.fetch("category")
+    assert_equal [ "Office & Administration", nil ], response.parsed_body.fetch("line_items").pluck("category")
+
+    get api_v1_expenses_path(season_id: @season.id, category: "community outreach"), headers: @read
+    assert_response :success
+    result = response.parsed_body
+    assert_includes result.fetch("categories"), "Community outreach"
+    assert_equal presets, result.fetch("preset_categories")
+    assert_equal [ [ "Community outreach", 6015 ], [ "Office & Administration", 4990 ] ],
+      result.dig("summary", "by_category").map { |row| row.values_at("category", "total_cents") }
+  end
+
   test "records, filters, itemizes, pays and deletes an expense through the API" do
     get api_v1_expenses_path(season_id: @season.id)
     assert_response :unauthorized

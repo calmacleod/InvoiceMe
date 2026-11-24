@@ -8,7 +8,13 @@ module Api
         register = ExpenseRegister.new(season)
         scope = register.filtered(**expense_filters)
         page = WorkspacePage.new(scope, params[:page], params[:per_page])
-        render json: { data: page.records.includes(:line_items).map(&:details), pagination: page.props, summary: register.summary, categories: register.categories }
+        render json: {
+          data: page.records.includes(:line_items).map(&:details),
+          pagination: page.props,
+          summary: register.summary,
+          categories: register.categories,
+          preset_categories: Expense::PRESET_CATEGORIES
+        }
       end
 
       def show
