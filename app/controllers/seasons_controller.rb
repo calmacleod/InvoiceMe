@@ -35,13 +35,13 @@ class SeasonsController < ApplicationController
   end
   def select
     session[:season_id] = Season.find(params[:id]).id
-    redirect_to root_path
+    redirect_to params[:section] == "expenses" ? expenses_path : root_path
   end
   private
   def render_settings
-    render inertia: "seasons/Edit", props: { season: @season.as_json(only: %i[id year issuer drive_folder_id pdf_folder_id spreadsheet_id sheet_name ledger_start_row]), google: { configured: GoogleApi.configured?, email: GoogleConnection.first&.email }, horizon: { configured: Horizon::Client.configured?, connections: HorizonConnection.order(:id).map { |connection| { id: connection.id, organization_name: connection.organization_name } } } }
+    render inertia: "seasons/Edit", props: { season: @season.as_json(only: %i[id year issuer drive_folder_id pdf_folder_id financials_folder_id spreadsheet_id sheet_name ledger_start_row]), google: { configured: GoogleApi.configured?, email: GoogleConnection.first&.email }, horizon: { configured: Horizon::Client.configured?, connections: HorizonConnection.order(:id).map { |connection| { id: connection.id, organization_name: connection.organization_name } } } }
   end
   def season_params
-    params.require(:season).permit(:year, :drive_folder_id, :pdf_folder_id, :spreadsheet_id, :sheet_name, :ledger_start_row, issuer: %i[name payable_to treasurer email address payment_instructions])
+    params.require(:season).permit(:year, :drive_folder_id, :pdf_folder_id, :financials_folder_id, :spreadsheet_id, :sheet_name, :ledger_start_row, issuer: %i[name payable_to treasurer email address payment_instructions])
   end
 end

@@ -94,6 +94,12 @@ For initial provisioning during deployment, `db:seed` accepts `ADMIN_EMAIL` and 
 
 The generated password-reset mailer uses Action Mailer and Active Job. Development emails appear in the Rails log. For production delivery, configure `SMTP_ADDRESS`, `SMTP_USERNAME`, and `SMTP_PASSWORD` in `.kamal/secrets`; `SMTP_PORT` defaults to 587 and `MAILER_FROM` is configured in `config/deploy.yml`. Password-reset delivery requires those SMTP settings. No production SMTP credentials have been supplied yet.
 
+## Association expenses
+
+Open **Association expenses** for the selected invoice year to record vendor bills and member reimbursements. Capture the full amount, date, expense category and any itemized costs. An item can use its own category for the year-end breakdown. The expense category covers items with no override and any remaining balance. Record paid status, payment date, method, and cheque number as they become available.
+
+In **Year & settings**, set **Financials folder for expenses** to the Google Drive folder for that year. With the treasurer Google account connected, choose **Sync to Google Sheets** from the register. InvoiceMe creates a native yearly workbook in that folder and refreshes its Expenses, Line items and By category tabs on subsequent syncs. The income ledger and invoice export folders use their existing settings. Make edits in InvoiceMe, then sync the updated register from the same screen.
+
 ## Deployment with Kamal
 
 Run deployment commands from this checkout. `config/deploy.yml` configures service **invoice-me**, hostname **invoices.callummacleod.ca**, OVH host **144.217.240.192**, the local registry on port 5555, and a native AMD64 remote builder on the VM. Kamal handles the build, push/pull, release containers, health checks, proxy route, asset bridging, logs, and rollback.

@@ -38,6 +38,7 @@ export type SeasonSettings = {
   issuer: Issuer;
   drive_folder_id: string | null;
   pdf_folder_id: string | null;
+  financials_folder_id: string | null;
   spreadsheet_id: string | null;
   sheet_name: string;
   ledger_start_row: number;
@@ -49,12 +50,14 @@ export type SeasonForm = Omit<
   | "ledger_start_row"
   | "drive_folder_id"
   | "pdf_folder_id"
+  | "financials_folder_id"
   | "spreadsheet_id"
 > & {
   year: string;
   ledger_start_row: string;
   drive_folder_id: string;
   pdf_folder_id: string;
+  financials_folder_id: string;
   spreadsheet_id: string;
 };
 export type InvoiceSummary = {

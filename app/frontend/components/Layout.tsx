@@ -110,6 +110,18 @@ export default function Layout({ children }: PropsWithChildren) {
                 {...stylex.props(
                   ui.link,
                   layout.navLink,
+                  section === "expenses" && layout.navActive,
+                )}
+                href="/expenses"
+                aria-current={section === "expenses" ? "page" : undefined}
+              >
+                ▧ Association expenses
+              </Link>
+              <Link
+                navigateOnMouseDown
+                {...stylex.props(
+                  ui.link,
+                  layout.navLink,
                   section === "contacts" && layout.navActive,
                 )}
                 href="/contacts"
@@ -134,7 +146,9 @@ export default function Layout({ children }: PropsWithChildren) {
                 <button
                   {...stylex.props(ui.nativeButton, layout.yearButton)}
                   key={s.id}
-                  onClick={() => router.post(`/seasons/${s.id}/select`)}
+                  onClick={() =>
+                    router.post(`/seasons/${s.id}/select`, { section })
+                  }
                 >
                   {s.year} {s.id === season?.id ? "✓" : ""}
                 </button>

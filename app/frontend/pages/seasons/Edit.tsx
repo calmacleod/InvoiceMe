@@ -25,6 +25,7 @@ export default function Edit({
     sheet_name: season.sheet_name,
     drive_folder_id: season.drive_folder_id ?? "",
     pdf_folder_id: season.pdf_folder_id ?? "",
+    financials_folder_id: season.financials_folder_id ?? "",
     spreadsheet_id: season.spreadsheet_id ?? "",
   });
   const disconnect = useForm({});
@@ -202,6 +203,7 @@ export default function Edit({
             })}
             {field("drive_folder_id", "Invoice folder")}
             {field("pdf_folder_id", "PDF folder (optional)")}
+            {field("financials_folder_id", "Financials folder for expenses")}
             {field("spreadsheet_id", "Master spreadsheet")}
             {field("ledger_start_row", "First ledger data row", {
               type: "number",

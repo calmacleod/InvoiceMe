@@ -1,12 +1,12 @@
 # InvoiceMe API v1
 
-All routes start at `/api/v1`. Send `Authorization: Bearer <key>` over HTTPS. Keys belong to a user: contacts and workbench drafts are private to that user; seasons, games and invoices are shared, matching the application. Keys are read-only unless issued with write access. Keep them secret; the server stores only a SHA-256 digest. There is no cookie authentication or CORS access for API routes.
+All routes start at `/api/v1`. Send `Authorization: Bearer <key>` over HTTPS. Keys belong to a user: contacts and workbench drafts are private to that user; seasons, games, invoices and association expenses are shared, matching the application. Keys are read-only unless issued with write access. Keep them secret; the server stores only a SHA-256 digest. There is no cookie authentication or CORS access for API routes.
 
 On the server, issue a key with `EMAIL=user@example.com NAME=automation WRITE=true bin/rails api_keys:issue`. Omit `WRITE=true` for a read-only key. The token is printed once. Revoke it with `ID=<key-id> bin/rails api_keys:revoke`. Protect command output. Create separate keys for each integration so they can be revoked independently.
 
 JSON requests use `Content-Type: application/json`. Errors have an `error` string or array; invalid credentials return 401, insufficient access 403, missing resources 404, validation errors 422, and concurrent or blocked edits 409. Lists return `data` and `pagination`; use `page` and `per_page` (10, 25, 50 or 100). Monetary response fields ending in `_cents` are integer cents; input `rate` and payment `amount` are decimal currency strings.
 
-- `GET /seasons`, `GET /seasons/:id`, `POST /seasons`, `PATCH /seasons/:id`: list, inspect, create or update years. Writes wrap fields in `season`: `year`, Google folder and spreadsheet IDs, `sheet_name`, `ledger_start_row`, and `issuer` (name, payable_to, treasurer, email, address, payment_instructions).
+- `GET /seasons`, `GET /seasons/:id`, `POST /seasons`, `PATCH /seasons/:id`: list, inspect, create or update years. Writes wrap fields in `season`: `year`, Google folder and spreadsheet IDs (including `financials_folder_id` for expenses), `sheet_name`, `ledger_start_row`, and `issuer` (name, payable_to, treasurer, email, address, payment_instructions).
 - `GET /contacts`, `GET /contacts/:id`, `POST /contacts`, `PATCH /contacts/:id`, `DELETE /contacts/:id`: manage the key user's contacts. List accepts `q`. Writes wrap `name`, `organization`, `email`, `phone`, `address`, and `notes` in `contact`.
 - `GET /games?season_id=...`, `GET /games/:id`: list and inspect games, including official and source data. Filters include `q`, `home_team`, `away_team`, `code`, `location`, `official`, `date_from`, `date_to`, and `link_status` (linked, unlinked, invoiced, workbench). Sort with `sort` and `direction`.
 - `PATCH /games/invoicing_status`: JSON body `season_id`, `game_ids` array, and boolean `already_invoiced`. All IDs must belong to the season.
@@ -15,6 +15,39 @@ JSON requests use `Content-Type: application/json`. Errors have an `error` strin
 - `GET /invoices/:id/pdf`: generated invoice PDF. `POST /invoices/:id/publish` queues Google export and returns its progress; inspect the invoice's `export` field for status. `POST /invoices/:id/reopen` returns an eligible invoice to draft. `POST /invoices/:id/payment` accepts `amount`, `received_on`, `method`, and optional `notes`. `PATCH /invoices/:id/notes` accepts `private_notes` even on a finalized invoice.
 - `GET /drafts?season_id=...`, `GET /drafts/:id`, `POST /drafts`, `PATCH /drafts/:id`, `DELETE /drafts/:id`: manage the key user's workbench drafts. Create requires `season_id` and `data`, and optionally `invoice_id`, `invoice_group_id`, and `client_key`. Update requires `data` and the current `lock_version`; stale updates return 409. Data accepts the invoice fields above and line-item `key` values. Each line may include `private_breakdown` with a `notes` string and an `entries` array of `{key, description, amount}` strings. Breakdowns belong to the API key user, survive preview, and are excluded from invoice documents. `POST /drafts/:id/preview` with `lock_version` saves the workbench as an invoice, allocating a number if needed.
 - `GET /google` reports configuration and connected account; `DELETE /google` disconnects it. Connecting Google requires the existing browser OAuth flow.
+
+## Association expenses
+
+- `GET /expenses?season_id=...` lists the selected year's expenses with `data`, `pagination`, `categories` and `summary`. Optional filters are `query` (payee, description, reference or cheque number), `category` (expense or item category, case-insensitive) and `status` (`paid` or `unpaid`). Summary amounts and `by_category` always cover the entire selected year.
+- `GET /expenses/:id` returns the expense with ordered `line_items`, `itemized_cents`, `remainder_cents` and its current `lock_version`. `POST /expenses` requires `season_id` and an `expense` object. `PATCH /expenses/:id` accepts the same fields and applies only supplied values. Pass the current `lock_version` to reject a stale edit with 409.
+- `DELETE /expenses/:id` deletes the expense and its items and returns 204. The next successful Sheet sync removes the corresponding rows.
+- `GET /seasons/:id/expense_sheet` returns the sync status. `POST /seasons/:id/expense_sheet` queues a sync and returns 202. Repeated requests while a sync is active share that run. Set `financials_folder_id` on the season using a Drive folder ID or URL and connect the treasurer Google account through Settings.
+- The status fields are `ready`, `folder_configured`, `status` (`idle`, `queued`, `running`, `succeeded` or `failed`), `active`, `stale`, `url`, `synced_at` and `error`. Sync creates or refreshes one `<year> Association Expenses` workbook in the selected folder. Its `Expenses`, `Line items` and `By category` tabs reflect a complete season snapshot. Make changes in InvoiceMe and sync again.
+
+Expense creation requires `payee`, `description`, `incurred_on` (ISO date), `category` (custom text), and a positive integer `total_cents`. Optional fields include `reference`, `notes` and a boolean `paid`, which defaults to false. For paid entries, `paid_on`, `payment_method` and `cheque_number` are optional. Set these fields to `null` or blank in the same request when reverting a paid expense to unpaid.
+
+Omitting `line_items` preserves the saved items. Sending the array replaces the full ordered list, and `[]` clears it. Include existing item IDs to retain them. Each item accepts `description`, integer `amount_cents` and an optional category override. Use a negative line for a discount. The itemized sum cannot exceed the expense total. The expense category covers each item without an override and any unitemized balance.
+
+```json
+{
+  "season_id": 12,
+  "expense": {
+    "payee": "Example Community Centre",
+    "description": "Committee training event",
+    "incurred_on": "2031-07-18",
+    "category": "Training",
+    "total_cents": 18050,
+    "paid": true,
+    "paid_on": "2031-07-21",
+    "payment_method": "Cheque",
+    "cheque_number": "0032",
+    "line_items": [
+      { "description": "Room rental", "amount_cents": 15000 },
+      { "description": "Refreshments", "category": "Food", "amount_cents": 3050 }
+    ]
+  }
+}
+```
 
 ## Invoice groups
 

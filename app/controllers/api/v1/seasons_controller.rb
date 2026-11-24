@@ -23,7 +23,7 @@ module Api
       private
 
       def season_params
-        params.require(:season).permit(:year, :drive_folder_id, :pdf_folder_id, :spreadsheet_id, :sheet_name, :ledger_start_row, issuer: %i[name payable_to treasurer email address payment_instructions])
+        params.require(:season).permit(:year, :drive_folder_id, :pdf_folder_id, :financials_folder_id, :spreadsheet_id, :sheet_name, :ledger_start_row, issuer: %i[name payable_to treasurer email address payment_instructions])
       end
     end
   end

@@ -4,6 +4,7 @@ import type {
   ChangeEvent,
   FormEvent,
   HTMLInputTypeAttribute,
+  HTMLAttributes,
 } from "react";
 import type { InvoiceStatus, Pagination } from "../types";
 import * as stylex from "@stylexjs/stylex";
@@ -71,6 +72,8 @@ export type FieldProps = {
   autoComplete?: string;
   maxLength?: number;
   placeholder?: string;
+  list?: string;
+  inputMode?: HTMLAttributes<HTMLInputElement>["inputMode"];
   min?: string | number;
   max?: string | number;
   step?: string | number;

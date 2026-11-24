@@ -2,7 +2,10 @@ Rails.application.routes.draw do
   namespace :api do
     namespace :v1 do
       resource :google, only: %i[show destroy]
-      resources :seasons, only: %i[index show create update]
+      resources :seasons, only: %i[index show create update] do
+        resource :expense_sheet, only: %i[show create]
+      end
+      resources :expenses, only: %i[index show create update destroy]
       resources :contacts, only: %i[index show create update destroy]
       resources :drafts, only: %i[index show create update destroy] do
         post :preview, on: :member
@@ -55,6 +58,9 @@ Rails.application.routes.draw do
   resources :seasons, only: %i[new create edit update] do
     post :select, on: :member
     get :preview, on: :member
+  end
+  resources :expenses, only: %i[index new create edit update destroy] do
+    post :sync, on: :collection
   end
   resources :invoices do
     post :publish, on: :member
