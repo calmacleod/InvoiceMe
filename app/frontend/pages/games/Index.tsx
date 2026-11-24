@@ -151,8 +151,7 @@ export default function Index({
     <>
       <Head title="Games & officials" />
       <Heading
-        eyebrow="THE SEASON'S SOURCE OF TRUTH"
-        title="Games & officials."
+        title="Games & officials"
         actions={
           <div {...stylex.props(ui.actions)}>
             <Link {...stylex.props(ui.link, ui.button)} href="/games/new">
@@ -189,8 +188,7 @@ export default function Index({
           </div>
         }
       >
-        Find the right games, inspect crew fees, and see where each game is
-        linked.
+        {season && `${season.year} Horizon schedule and invoice links`}
       </Heading>
       <section {...stylex.props(ui.card, ui.tableCard)}>
         <div {...stylex.props(ui.tableHeading)}>
@@ -199,10 +197,6 @@ export default function Index({
               Master game list{" "}
               <span {...stylex.props(ui.count)}>{total_count}</span>
             </h2>
-            <p {...stylex.props(ui.paragraph)}>
-              Invoice links include saved invoices and your autosaved
-              workbenches.
-            </p>
           </div>
           <span role="status">
             {loading
@@ -212,6 +206,7 @@ export default function Index({
         </div>
         <GameFilters
           id="master"
+          compact
           applied={filters}
           choices={filter_choices}
           errors={filter_errors}
@@ -221,56 +216,65 @@ export default function Index({
             load(values);
           }}
         />
-        <div
-          {...stylex.props(styles.bulkActions)}
-          role="group"
-          aria-label="Bulk game actions"
-        >
-          <span role="status">
-            {selectedIds.length} {selectedIds.length === 1 ? "game" : "games"}{" "}
-            selected across pages
-          </span>
-          <button
-            type="button"
-            {...stylex.props(ui.nativeButton, ui.button)}
-            disabled={loading || pagination.total === 0}
-            onClick={selectAllMatching}
+        {(pagination.total > 0 || selectedIds.length > 0) && (
+          <div
+            {...stylex.props(styles.bulkActions)}
+            role="group"
+            aria-label="Bulk game actions"
           >
-            Select all matching games ({pagination.total})
-          </button>
-          <button
-            type="button"
-            {...stylex.props(ui.nativeButton, ui.button, ui.primary)}
-            disabled={loading || selectedIds.length === 0}
-            onClick={startInvoiceGroup}
-          >
-            Start invoice group
-          </button>
-          <button
-            type="button"
-            {...stylex.props(ui.nativeButton, ui.button)}
-            disabled={loading || selectedIds.length === 0}
-            onClick={() => markInvoiced(true)}
-          >
-            Mark as already invoiced
-          </button>
-          <button
-            type="button"
-            {...stylex.props(ui.nativeButton, ui.button)}
-            disabled={loading || selectedIds.length === 0}
-            onClick={() => markInvoiced(false)}
-          >
-            Clear manual invoiced mark
-          </button>
-          <button
-            type="button"
-            {...stylex.props(ui.nativeButton, ui.textButton)}
-            disabled={loading || selectedIds.length === 0}
-            onClick={() => setSelectedIds([])}
-          >
-            Clear game selection
-          </button>
-        </div>
+            {selectedIds.length > 0 && (
+              <span role="status">
+                {selectedIds.length}{" "}
+                {selectedIds.length === 1 ? "game" : "games"} selected across
+                pages
+              </span>
+            )}
+            <button
+              type="button"
+              {...stylex.props(ui.nativeButton, ui.button)}
+              disabled={loading || pagination.total === 0}
+              onClick={selectAllMatching}
+            >
+              Select all matching games ({pagination.total})
+            </button>
+            {selectedIds.length > 0 && (
+              <>
+                <button
+                  type="button"
+                  {...stylex.props(ui.nativeButton, ui.button, ui.primary)}
+                  disabled={loading || selectedIds.length === 0}
+                  onClick={startInvoiceGroup}
+                >
+                  Start invoice group
+                </button>
+                <button
+                  type="button"
+                  {...stylex.props(ui.nativeButton, ui.button)}
+                  disabled={loading || selectedIds.length === 0}
+                  onClick={() => markInvoiced(true)}
+                >
+                  Mark as already invoiced
+                </button>
+                <button
+                  type="button"
+                  {...stylex.props(ui.nativeButton, ui.button)}
+                  disabled={loading || selectedIds.length === 0}
+                  onClick={() => markInvoiced(false)}
+                >
+                  Clear manual invoiced mark
+                </button>
+                <button
+                  type="button"
+                  {...stylex.props(ui.nativeButton, ui.textButton)}
+                  disabled={loading || selectedIds.length === 0}
+                  onClick={() => setSelectedIds([])}
+                >
+                  Clear game selection
+                </button>
+              </>
+            )}
+          </div>
+        )}
         {bulkError && (
           <p {...stylex.props(ui.flash, ui.alert)} role="alert">
             {bulkError}

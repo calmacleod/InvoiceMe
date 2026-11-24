@@ -3,7 +3,14 @@ class ContactsController < ApplicationController
 
   def index
     page = WorkspacePage.new(Current.user.contacts.searching(params[:q]).order(:name, :id), params[:page], params[:per_page])
-    render inertia: "contacts/Index", props: { contacts: -> { page.records.map(&:recipient_props) }, pagination: page.props, query: params[:q].to_s }
+    respond_to do |format|
+      format.html do
+        render inertia: "contacts/Index", props: { contacts: -> { page.records.map(&:recipient_props) }, pagination: page.props, query: params[:q].to_s }
+      end
+      format.json do
+        render json: { contacts: page.records.map(&:recipient_props), pagination: page.props }
+      end
+    end
   end
   def new
     @contact = Current.user.contacts.new
@@ -11,10 +18,22 @@ class ContactsController < ApplicationController
   end
   def create
     @contact = Current.user.contacts.new(contact_params)
-    if @contact.save
-      redirect_to contacts_path, notice: "Contact saved. Choose it as a recipient from any invoice draft."
-    else
-      redirect_to new_contact_path, inertia: { errors: @contact.errors }
+    saved = @contact.save
+    respond_to do |format|
+      format.html do
+        if saved
+          redirect_to contacts_path, notice: "Contact saved. Choose it as a recipient from any invoice draft."
+        else
+          redirect_to new_contact_path, inertia: { errors: @contact.errors }
+        end
+      end
+      format.json do
+        if saved
+          render json: @contact.recipient_props, status: :created
+        else
+          render json: { errors: @contact.errors.to_hash }, status: :unprocessable_entity
+        end
+      end
     end
   end
   def edit = render_editor
@@ -30,6 +49,9 @@ class ContactsController < ApplicationController
     redirect_to contacts_path, notice: "Contact deleted. Existing invoices keep their saved recipient details."
   end
   private
+  def request_authentication
+    request.format.json? ? head(:unauthorized) : super
+  end
   def set_contact = @contact = Current.user.contacts.find(params[:id])
   def contact_params = params.require(:contact).permit(*Contact::FIELDS)
   def render_editor

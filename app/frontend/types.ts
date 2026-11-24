@@ -149,7 +149,6 @@ export type InvoiceContact = { name: string; email: string };
 export type ContactOptions = {
   contacts: RecipientContact[];
   pagination: Pagination;
-  query: string;
 };
 export type GameDetail = GameSummary & {
   officials: Official[];

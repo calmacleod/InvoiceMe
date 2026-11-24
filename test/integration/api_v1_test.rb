@@ -32,15 +32,19 @@ class ApiV1Test < ActionDispatch::IntegrationTest
     assert_response :not_found
     post "/api/v1/contacts", params: { contact: { name: "Fictional Club", email: "office@example.test" } }, headers: @headers, as: :json
     assert_response :created
+    contact = response.parsed_body.slice("name", "email")
+    get "/api/v1/contacts", params: { q: "fictional" }, headers: @headers
+    assert_response :success
+    assert_equal [ contact ], response.parsed_body.fetch("data").map { |item| item.slice("name", "email") }
     post "/api/v1/drafts", params: { season_id: @season.id, data: { recipient: "Fictional Club" } }, headers: @headers, as: :json
     assert_response :created
     id = response.parsed_body.fetch("id")
     version = response.parsed_body.fetch("lock_version")
-    patch "/api/v1/drafts/#{id}", params: { lock_version: version, data: { recipient: "Updated" } }, headers: @headers, as: :json
+    patch "/api/v1/drafts/#{id}", params: { lock_version: version, data: { recipient: "Updated", contacts: [ contact ] } }, headers: @headers, as: :json
     assert_response :success
     patch "/api/v1/drafts/#{id}", params: { lock_version: version, data: { recipient: "Stale" } }, headers: @headers, as: :json
     assert_response :conflict
-    assert_equal "Updated", InvoiceDraft.find(id).data["recipient"]
+    assert_equal({ "recipient" => "Updated", "contacts" => [ contact ] }, InvoiceDraft.find(id).data)
   end
 
   test "invoice lifecycle preserves numbering and finalization rules" do

@@ -7,17 +7,11 @@ export default function Upload() {
   return (
     <>
       <Head title="Import games" />
-      <Heading eyebrow="HORIZON → INVOICEME" title="Import your games">
-        A quick upload today. Less manual work for every invoice after.
+      <Heading title="Import games">
+        Step 1 of 3 · Upload a Horizon export
       </Heading>
-      <div {...stylex.props(ui.importSteps)}>
-        <strong {...stylex.props(ui.strong)}>01 Upload</strong>
-        <span>→ 02 Match columns</span>
-        <span>→ 03 Review & import</span>
-      </div>
       <section {...stylex.props(ui.card, ui.uploadCard)}>
-        <span {...stylex.props(ui.emptyIcon)}>↑</span>
-        <h2 {...stylex.props(ui.h2)}>Bring your Horizon export</h2>
+        <h2 {...stylex.props(ui.h2)}>Choose a file</h2>
         <p {...stylex.props(ui.paragraph)}>
           CSV or XLSX · up to 10 MB · up to 20,000 rows
         </p>
@@ -32,7 +26,7 @@ export default function Upload() {
           }}
         >
           <label {...stylex.props(ui.label)} htmlFor="file">
-            Choose a master schedule or payroll export
+            Master schedule or payroll export
           </label>
           <input
             {...stylex.props(ui.input)}
@@ -75,7 +69,7 @@ export default function Upload() {
           </a>
         </section>
         <section {...stylex.props(ui.card)}>
-          <h3 {...stylex.props(ui.h3)}>Safe to import again</h3>
+          <h3 {...stylex.props(ui.h3)}>How updates are matched</h3>
           <p {...stylex.props(ui.paragraph)}>
             Games are matched by game number within each year. Importing a newer
             export updates those games without adding duplicates. Other games

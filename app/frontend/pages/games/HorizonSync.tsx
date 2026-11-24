@@ -59,7 +59,7 @@ export default function HorizonSync({ sync }: { sync: Sync }) {
   return (
     <>
       <Head title="Horizon sync" />
-      <Heading eyebrow="HORIZON" title="Review season sync">
+      <Heading title="Review Horizon sync">
         Games are only updated when you apply this review. Existing invoice
         links, invoicing marks and CSV source details are retained.
       </Heading>
@@ -109,7 +109,7 @@ export default function HorizonSync({ sync }: { sync: Sync }) {
                 </thead>
                 <tbody>
                   {sync.rows.map((row) => (
-                    <tr key={row.external_id}>
+                    <tr {...stylex.props(ui.row)} key={row.external_id}>
                       <td {...stylex.props(ui.td)}>{row.external_id}</td>
                       <td {...stylex.props(ui.td)}>
                         {row.date}
@@ -135,7 +135,7 @@ export default function HorizonSync({ sync }: { sync: Sync }) {
               </table>
             </div>
           </section>
-          <div {...stylex.props(ui.formActions)}>
+          <div {...stylex.props(ui.formActions, ui.sticky)}>
             <Link
               {...stylex.props(ui.link, ui.button)}
               href={`/horizon_game_syncs/${sync.id}`}

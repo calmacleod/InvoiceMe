@@ -57,18 +57,14 @@ export function DraftSwitcher({
 }
 
 export function DraftShelf({ drafts }: { drafts: DraftMetadata[] }) {
+  if (!drafts.length) return null;
   return (
     <section
       {...stylex.props(ui.card, workbench.shelf)}
       aria-label="Draft workbench"
     >
       <div {...stylex.props(workbench.heading)}>
-        <div>
-          <h2 {...stylex.props(ui.h2)}>Pick up where you left off.</h2>
-          <p {...stylex.props(ui.paragraph)}>
-            Autosaved drafts, ready whenever you are.
-          </p>
-        </div>
+        <h2 {...stylex.props(ui.h2)}>Recent drafts</h2>
         <Link {...stylex.props(ui.link)} href="/invoice_drafts">
           All drafts →
         </Link>
@@ -80,21 +76,12 @@ export function DraftShelf({ drafts }: { drafts: DraftMetadata[] }) {
             key={draft.id}
             href={`/invoice_drafts/${draft.id}/edit`}
           >
-            <span {...stylex.props(workbench.caption)}>IN PROGRESS</span>
             <strong {...stylex.props(ui.strong)}>{draft.title}</strong>
             <small {...stylex.props(ui.small)}>
               Saved {new Date(draft.updated_at).toLocaleString("en-CA")}
             </small>
           </Link>
         ))}
-        <Link
-          {...stylex.props(ui.link, workbench.draft, workbench.newDraft)}
-          href="/invoice_drafts"
-          method="post"
-          as="button"
-        >
-          + Start another draft
-        </Link>
       </div>
     </section>
   );

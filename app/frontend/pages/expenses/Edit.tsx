@@ -165,67 +165,124 @@ export default function Edit({
             <option key={category} value={category} />
           ))}
         </datalist>
-        <Section title="Expense details">
-          <div {...stylex.props(ui.formGrid)}>
-            <Field
-              name="payee"
-              label="Vendor or member"
-              value={form.data.payee}
-              onChange={(value) => form.setData("payee", value)}
-              required
-              maxLength={250}
-            />
-            <Field
-              name="description"
-              label="Description"
-              value={form.data.description}
-              onChange={(value) => form.setData("description", value)}
-              required
-              maxLength={250}
-            />
-            <Field
-              name="incurred_on"
-              label="Expense date"
-              type="date"
-              value={form.data.incurred_on}
-              onChange={(value) => form.setData("incurred_on", value)}
-              required
-            />
-            <Field
-              name="amount"
-              label="Full amount (CAD)"
-              inputMode="decimal"
-              value={form.data.amount}
-              onChange={(value) => form.setData("amount", value)}
-              required
-            />
-            <Field
-              name="category"
-              label="Category"
-              list="expense-categories"
-              value={form.data.category}
-              onChange={(value) => form.setData("category", value)}
-              required
-              maxLength={100}
-            />
-            <Field
-              name="reference"
-              label="Receipt or invoice reference (optional)"
-              value={form.data.reference}
-              onChange={(value) => form.setData("reference", value)}
-              maxLength={100}
-            />
+        <div {...stylex.props(ui.formColumns)}>
+          <Section title="Expense details">
+            <div {...stylex.props(ui.formGrid)}>
+              <Field
+                name="payee"
+                label="Vendor or member"
+                value={form.data.payee}
+                onChange={(value) => form.setData("payee", value)}
+                required
+                maxLength={250}
+              />
+              <Field
+                name="description"
+                label="Description"
+                value={form.data.description}
+                onChange={(value) => form.setData("description", value)}
+                required
+                maxLength={250}
+              />
+              <Field
+                name="incurred_on"
+                label="Expense date"
+                type="date"
+                value={form.data.incurred_on}
+                onChange={(value) => form.setData("incurred_on", value)}
+                required
+              />
+              <Field
+                name="amount"
+                label="Full amount (CAD)"
+                inputMode="decimal"
+                value={form.data.amount}
+                onChange={(value) => form.setData("amount", value)}
+                required
+              />
+              <Field
+                name="category"
+                label="Category"
+                list="expense-categories"
+                value={form.data.category}
+                onChange={(value) => form.setData("category", value)}
+                required
+                maxLength={100}
+              />
+              <Field
+                name="reference"
+                label="Receipt or invoice reference (optional)"
+                value={form.data.reference}
+                onChange={(value) => form.setData("reference", value)}
+                maxLength={100}
+              />
+            </div>
+          </Section>
+          <div>
+            <Section title="Payment">
+              <div {...stylex.props(styles.labelSpace)}>
+                <label {...stylex.props(ui.actions)}>
+                  <input
+                    {...stylex.props(ui.checkbox)}
+                    type="checkbox"
+                    checked={form.data.paid}
+                    onChange={(event) => {
+                      const paid = event.target.checked;
+                      form.setData({
+                        ...form.data,
+                        paid,
+                        ...(paid
+                          ? {}
+                          : {
+                              paid_on: "",
+                              payment_method: "",
+                              cheque_number: "",
+                            }),
+                      });
+                    }}
+                  />
+                  Paid
+                </label>
+              </div>
+              {form.data.paid && (
+                <div {...stylex.props(ui.formGrid)}>
+                  <Field
+                    name="paid_on"
+                    label="Date paid"
+                    type="date"
+                    value={form.data.paid_on}
+                    onChange={(value) => form.setData("paid_on", value)}
+                  />
+                  <Field
+                    name="payment_method"
+                    label="Payment method (optional)"
+                    value={form.data.payment_method}
+                    onChange={(value) => form.setData("payment_method", value)}
+                    maxLength={100}
+                  />
+                  <Field
+                    name="cheque_number"
+                    label="Cheque number (optional)"
+                    value={form.data.cheque_number}
+                    onChange={(value) => form.setData("cheque_number", value)}
+                    maxLength={100}
+                  />
+                </div>
+              )}
+            </Section>
+            <section {...stylex.props(ui.card)}>
+              <Field
+                name="notes"
+                label="Notes (optional)"
+                value={form.data.notes}
+                onChange={(value) => form.setData("notes", value)}
+                multiline
+                rows={3}
+                maxLength={5000}
+              />
+            </section>
           </div>
-          <Field
-            name="notes"
-            label="Notes (optional)"
-            value={form.data.notes}
-            onChange={(value) => form.setData("notes", value)}
-            multiline
-            rows={3}
-            maxLength={5000}
-          />
-        </Section>
+        </div>
         <Section
           title="Itemized costs"
           hint="Leave a line’s category blank to use the expense category. Any unitemized amount uses the expense category."
@@ -301,53 +358,7 @@ export default function Edit({
             </div>
           )}
         </Section>
-        <Section title="Payment">
-          <div {...stylex.props(styles.labelSpace)}>
-            <label {...stylex.props(ui.checkbox)}>
-              <input
-                type="checkbox"
-                checked={form.data.paid}
-                onChange={(event) => {
-                  const paid = event.target.checked;
-                  form.setData({
-                    ...form.data,
-                    paid,
-                    ...(paid
-                      ? {}
-                      : { paid_on: "", payment_method: "", cheque_number: "" }),
-                  });
-                }}
-              />
-              Paid
-            </label>
-          </div>
-          {form.data.paid && (
-            <div {...stylex.props(ui.formGrid)}>
-              <Field
-                name="paid_on"
-                label="Date paid"
-                type="date"
-                value={form.data.paid_on}
-                onChange={(value) => form.setData("paid_on", value)}
-              />
-              <Field
-                name="payment_method"
-                label="Payment method (optional)"
-                value={form.data.payment_method}
-                onChange={(value) => form.setData("payment_method", value)}
-                maxLength={100}
-              />
-              <Field
-                name="cheque_number"
-                label="Cheque number (optional)"
-                value={form.data.cheque_number}
-                onChange={(value) => form.setData("cheque_number", value)}
-                maxLength={100}
-              />
-            </div>
-          )}
-        </Section>
-        <div {...stylex.props(ui.actions)}>
+        <div {...stylex.props(ui.actions, ui.sticky)}>
           <button
             {...stylex.props(ui.nativeButton, ui.button, ui.primary)}
             disabled={form.processing || deletion.processing}

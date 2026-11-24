@@ -104,7 +104,7 @@ export default function EarningsRegister({
         </thead>
         <tbody>
           {payments.map((payment) => (
-            <tr key={payment.id}>
+            <tr {...stylex.props(ui.row)} key={payment.id}>
               <th
                 {...stylex.props(ui.td, overview.cell, overview.official)}
                 scope="row"

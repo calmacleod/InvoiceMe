@@ -82,8 +82,8 @@ export default function Map({
   return (
     <>
       <Head title="Match columns" />
-      <Heading eyebrow="IMPORT · STEP 2 OF 3" title="Match your columns">
-        We found {row_count} rows. Tell us where to find each detail.
+      <Heading title="Match columns">
+        Step 2 of 3 · {row_count} rows in the uploaded file
       </Heading>
       {info.format === "horizon_master_fees" && (
         <div {...stylex.props(ui.flash)}>
@@ -194,7 +194,7 @@ export default function Map({
         </section>
         <section {...stylex.props(ui.card, ui.tableCard)}>
           <div {...stylex.props(ui.tableHeading)}>
-            <h2 {...stylex.props(ui.h2)}>A peek at your file</h2>
+            <h2 {...stylex.props(ui.h2)}>File preview</h2>
           </div>
           <div {...stylex.props(ui.tableScroll)}>
             <table {...stylex.props(ui.table)}>
@@ -209,7 +209,7 @@ export default function Map({
               </thead>
               <tbody>
                 {rows.map((row, i) => (
-                  <tr key={i}>
+                  <tr {...stylex.props(ui.row)} key={i}>
                     {row.map((value, j) => (
                       <td {...stylex.props(ui.td)} key={j}>
                         {value}
@@ -221,7 +221,7 @@ export default function Map({
             </table>
           </div>
         </section>
-        <div {...stylex.props(ui.formActions)}>
+        <div {...stylex.props(ui.formActions, ui.sticky)}>
           <Link {...stylex.props(ui.link, ui.button)} href="/games/new">
             Start over
           </Link>

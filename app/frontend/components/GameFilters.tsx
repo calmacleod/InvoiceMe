@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import type { GameFilters as Values, GameFilterChoices } from "../types";
 import * as stylex from "@stylexjs/stylex";
 import { ui } from "../styles/ui.stylex";
@@ -38,6 +38,7 @@ export default function GameFilters({
   onApply,
   id,
   collapsible = false,
+  compact = false,
 }: {
   applied: Values;
   choices: GameFilterChoices;
@@ -46,19 +47,26 @@ export default function GameFilters({
   onApply: (values: Values) => void;
   id: string;
   collapsible?: boolean;
+  compact?: boolean;
 }) {
+  const advancedId = useId();
   const [values, setValues] = useState(applied);
   const active = Object.values(applied).filter((value) =>
     Array.isArray(value) ? value.length > 0 : Boolean(value),
   ).length;
-  const [expanded, setExpanded] = useState(!collapsible || active === 0);
+  const [expanded, setExpanded] = useState(
+    !compact && (!collapsible || active === 0),
+  );
+  const advanced = Object.values({ ...applied, q: "" }).filter((value) =>
+    Array.isArray(value) ? value.length > 0 : Boolean(value),
+  ).length;
   useEffect(() => setValues(applied), [applied]);
   useEffect(() => {
     if (errors.length) setExpanded(true);
   }, [errors]);
   const apply = (next: Values) => {
     onApply(next);
-    if (collapsible) setExpanded(false);
+    if (collapsible || compact) setExpanded(false);
   };
   const fields = (
     <fieldset
@@ -75,8 +83,55 @@ export default function GameFilters({
         }
       }}
     >
-      <legend {...stylex.props(ui.label)}>Filter games</legend>
-      <div {...stylex.props(styles.filterGrid)}>
+      <legend {...stylex.props(ui.srOnly)}>Filter games</legend>
+      {compact && (
+        <div {...stylex.props(styles.quickFilters)}>
+          <input
+            {...stylex.props(ui.input, styles.filterSearch)}
+            id={`${id}-q`}
+            type="search"
+            aria-label="Search games"
+            placeholder="Game ID, team, code or venue"
+            value={values.q}
+            onChange={(event) =>
+              setValues({ ...values, q: event.target.value })
+            }
+          />
+          <button
+            type="button"
+            {...stylex.props(ui.nativeButton, ui.button, ui.primary)}
+            onClick={() => apply(values)}
+          >
+            Apply filters
+          </button>
+          <button
+            type="button"
+            {...stylex.props(ui.nativeButton, ui.button)}
+            aria-expanded={expanded}
+            aria-controls={advancedId}
+            onClick={() => setExpanded(!expanded)}
+          >
+            More filters{advanced ? ` (${advanced})` : ""}
+          </button>
+          {(active > 0 || expanded) && (
+            <button
+              type="button"
+              {...stylex.props(ui.nativeButton, ui.button)}
+              onClick={() => apply(emptyGameFilters)}
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
+      )}
+      <div
+        id={advancedId}
+        {...stylex.props(
+          styles.filterGrid,
+          compact && styles.extraFilters,
+          compact && !expanded && styles.hiddenFilters,
+        )}
+      >
         {multiLabels.map(([key, label]) => (
           <SearchableMultiSelect
             key={key}
@@ -89,19 +144,23 @@ export default function GameFilters({
             }
           />
         ))}
-        {labels.map(([key, label]) => (
-          <Field
-            key={key}
-            name={`${id}-${key}`}
-            label={label}
-            value={values[key]}
-            type={key.startsWith("date_") ? "date" : "search"}
-            placeholder={key === "q" ? "Game ID, team, code or venue…" : "Any"}
-            onChange={(value) =>
-              setValues((previous) => ({ ...previous, [key]: value }))
-            }
-          />
-        ))}
+        {labels
+          .filter(([key]) => !compact || key !== "q")
+          .map(([key, label]) => (
+            <Field
+              key={key}
+              name={`${id}-${key}`}
+              label={label}
+              value={values[key]}
+              type={key.startsWith("date_") ? "date" : "search"}
+              placeholder={
+                key === "q" ? "Game ID, team, code or venue…" : "Any"
+              }
+              onChange={(value) =>
+                setValues((previous) => ({ ...previous, [key]: value }))
+              }
+            />
+          ))}
         <div>
           <label {...stylex.props(ui.label)} htmlFor={`${id}-link-status`}>
             Invoice link status
@@ -129,29 +188,31 @@ export default function GameFilters({
           </select>
         </div>
       </div>
-      <div {...stylex.props(styles.filterActions)}>
-        <button
-          type="button"
-          {...stylex.props(ui.nativeButton, ui.button, ui.primary)}
-          onClick={() => apply(values)}
-        >
-          Apply filters
-        </button>
-        <button
-          type="button"
-          {...stylex.props(ui.nativeButton, ui.button)}
-          onClick={() => {
-            setValues(emptyGameFilters);
-            apply(emptyGameFilters);
-          }}
-        >
-          Clear filters
-        </button>
-        <span {...stylex.props(ui.hint)}>
-          Select any matching codes or teams. Venue and official filters match
-          part of the name.
-        </span>
-      </div>
+      {!compact && (
+        <div {...stylex.props(styles.filterActions)}>
+          <button
+            type="button"
+            {...stylex.props(ui.nativeButton, ui.button, ui.primary)}
+            onClick={() => apply(values)}
+          >
+            Apply filters
+          </button>
+          <button
+            type="button"
+            {...stylex.props(ui.nativeButton, ui.button)}
+            onClick={() => {
+              setValues(emptyGameFilters);
+              apply(emptyGameFilters);
+            }}
+          >
+            Clear filters
+          </button>
+          <span {...stylex.props(ui.hint)}>
+            Select any matching codes or teams. Venue and official filters match
+            part of the name.
+          </span>
+        </div>
+      )}
       {errors.length > 0 && (
         <ul {...stylex.props(ui.danger)} role="alert">
           {errors.map((error) => (

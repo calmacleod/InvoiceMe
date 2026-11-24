@@ -35,7 +35,17 @@ class SeasonsController < ApplicationController
   end
   def select
     session[:season_id] = Season.find(params[:id]).id
-    redirect_to params[:section] == "expenses" ? expenses_path : root_path
+    destination = case params[:section]
+    when "expenses" then expenses_path
+    when "games" then games_path
+    when "official_payments" then official_payments_path
+    when "invoice_drafts" then invoice_drafts_path
+    when "invoice_groups" then invoice_groups_path
+    when "contacts" then contacts_path
+    when "seasons" then edit_season_path(session[:season_id])
+    else root_path
+    end
+    redirect_to destination
   end
   private
   def render_settings

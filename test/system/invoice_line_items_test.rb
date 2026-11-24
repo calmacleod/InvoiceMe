@@ -10,7 +10,7 @@ class InvoiceLineItemsSystemTest < ActionDispatch::SystemTestCase
     fill_in "Email address", with: users(:one).email_address
     fill_in "Password", with: "password"
     click_button "Sign in"
-    assert_selector "h1", text: "Invoices."
+    assert_selector "h1", text: "Invoices"
     visit new_invoice_path
     fill_in "Identifying info", with: "EXAMPLE-BREAKDOWN"
     fill_in "recipient", with: "Example Club"
@@ -49,7 +49,7 @@ class InvoiceLineItemsSystemTest < ActionDispatch::SystemTestCase
     fill_in "Email address", with: users(:one).email_address
     fill_in "Password", with: "password"
     click_button "Sign in"
-    assert_selector "h1", text: "Invoices."
+    assert_selector "h1", text: "Invoices"
     visit new_invoice_path
     fill_in "Identifying info", with: "EXAMPLE-LINE-ITEMS"
     fill_in "recipient", with: "Example Club"

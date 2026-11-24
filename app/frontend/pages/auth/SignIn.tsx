@@ -11,10 +11,9 @@ export default function SignIn() {
   return (
     <div {...stylex.props(ui.card, ui.loginPanel)}>
       <Head title="Sign in" />
-      <span {...stylex.props(ui.eyebrow)}>EOTFOA TREASURER</span>
       <h1 {...stylex.props(ui.h1)}>Sign in</h1>
       <p {...stylex.props(ui.paragraph)}>
-        Your games, invoices, and records in one place.
+        Sign in to the EOTFOA treasurer workspace.
       </p>
       <Errors errors={form.errors} />
       <form

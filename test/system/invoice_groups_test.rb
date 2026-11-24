@@ -13,7 +13,7 @@ class InvoiceGroupsSystemTest < ActionDispatch::SystemTestCase
     fill_in "Email address", with: users(:one).email_address
     fill_in "Password", with: "password"
     click_button "Sign in"
-    assert_selector "h1", text: "Invoices."
+    assert_selector "h1", text: "Invoices"
 
     visit invoice_group_path(group)
     click_link "Add existing invoice"
@@ -34,7 +34,7 @@ class InvoiceGroupsSystemTest < ActionDispatch::SystemTestCase
     fill_in "Email address", with: users(:one).email_address
     fill_in "Password", with: "password"
     click_button "Sign in"
-    assert_selector "h1", text: "Invoices."
+    assert_selector "h1", text: "Invoices"
     visit games_path
     find('[aria-label="Select game EXAMPLE-GROUP"]').check
     click_button "Start invoice group"

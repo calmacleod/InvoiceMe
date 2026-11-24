@@ -33,7 +33,7 @@ export default function ResetPassword({ token }: { token: string }) {
         />
         <Field
           name="password_confirmation"
-          label="Repeat new password"
+          label="Confirm new password"
           type="password"
           value={form.data.password_confirmation}
           onChange={(value) => form.setData("password_confirmation", value)}

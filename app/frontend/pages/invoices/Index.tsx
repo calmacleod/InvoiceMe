@@ -38,8 +38,7 @@ export default function Index({
     <>
       <Head title="Invoices" />
       <Heading
-        eyebrow="YOUR SEASON, IN ORDER"
-        title="Invoices."
+        title="Invoices"
         actions={
           <Link
             {...stylex.props(ui.link, ui.button, ui.primary)}
@@ -51,21 +50,15 @@ export default function Index({
           </Link>
         }
       >
-        A clear view of what's drafted, invoiced, and paid.
+        {season.year} invoice register
       </Heading>
       <div {...stylex.props(ui.stats)}>
-        <Stat label="Total invoiced ↗" value={money(totals.invoiced)}>
-          {season.year} season
-        </Stat>
-        <Stat label="Received ✓" value={money(totals.received)}>
-          Payments recorded this season
-        </Stat>
-        <Stat label="Outstanding ◷" value={money(totals.owed)}>
+        <Stat label="Total invoiced" value={money(totals.invoiced)} />
+        <Stat label="Received" value={money(totals.received)} />
+        <Stat label="Outstanding" value={money(totals.owed)} dark>
           {totals.outstanding} invoices awaiting payment
         </Stat>
-        <Stat label="Work in progress ✎" value={totals.drafts} dark>
-          Drafts ready when you are
-        </Stat>
+        <Stat label="Drafts" value={totals.drafts} />
       </div>
       <DraftShelf drafts={workbenches} />
       <section {...stylex.props(ui.card, ui.tableCard)}>
@@ -75,9 +68,6 @@ export default function Index({
               Invoice register{" "}
               <span {...stylex.props(ui.count)}>{total_count}</span>
             </h2>
-            <p {...stylex.props(ui.paragraph)}>
-              Your records for the {season.year} season.
-            </p>
           </div>
           <Search
             url="/"
@@ -91,19 +81,25 @@ export default function Index({
           <table {...stylex.props(ui.table)}>
             <thead>
               <tr>
-                <th {...stylex.props(ui.th)}>Invoice</th>
-                <th {...stylex.props(ui.th)}>Recipient / description</th>
-                <th {...stylex.props(ui.th)}>Date</th>
+                <th {...stylex.props(ui.th, ui.desktopOnly)}>Invoice</th>
+                <th {...stylex.props(ui.th)}>
+                  <span {...stylex.props(ui.desktopOnly)}>
+                    Recipient / description
+                  </span>
+                  <span {...stylex.props(ui.mobileOnly)}>Invoice</span>
+                </th>
+                <th {...stylex.props(ui.th, ui.desktopOnly)}>Date</th>
                 <th {...stylex.props(ui.th)}>Status</th>
                 <th {...stylex.props(ui.th, ui.numeric)}>Amount</th>
-                <th {...stylex.props(ui.th, ui.numeric)}>Balance</th>
-                <th {...stylex.props(ui.th)} />
+                <th {...stylex.props(ui.th, ui.numeric, ui.desktopOnly)}>
+                  Balance
+                </th>
               </tr>
             </thead>
             <tbody>
               {invoices.map((invoice) => (
-                <tr key={invoice.id}>
-                  <td {...stylex.props(ui.td)}>
+                <tr {...stylex.props(ui.row)} key={invoice.id}>
+                  <td {...stylex.props(ui.td, ui.desktopOnly)}>
                     <Link
                       {...stylex.props(ui.link, ui.invoiceLink)}
                       href={`/invoices/${invoice.id}`}
@@ -111,15 +107,29 @@ export default function Index({
                       {invoice.number}
                     </Link>
                   </td>
-                  <td {...stylex.props(ui.td)}>
-                    <strong {...stylex.props(ui.strong)}>
+                  <td {...stylex.props(ui.td, ui.breakText)}>
+                    <strong {...stylex.props(ui.strong, ui.desktopOnly)}>
                       {invoice.recipient}
                     </strong>
+                    <Link
+                      {...stylex.props(ui.link, ui.invoiceLink, ui.mobileOnly)}
+                      href={`/invoices/${invoice.id}`}
+                    >
+                      {invoice.recipient || invoice.number}
+                    </Link>
+                    {invoice.recipient && (
+                      <small {...stylex.props(ui.small, ui.mobileDetail)}>
+                        {invoice.number}
+                      </small>
+                    )}
                     <small {...stylex.props(ui.small)}>
                       {invoice.description}
                     </small>
+                    <small {...stylex.props(ui.small, ui.mobileDetail)}>
+                      {date(invoice.issued_on)}
+                    </small>
                   </td>
-                  <td {...stylex.props(ui.td, ui.nowrap)}>
+                  <td {...stylex.props(ui.td, ui.nowrap, ui.desktopOnly)}>
                     {date(invoice.issued_on)}
                   </td>
                   <td {...stylex.props(ui.td)}>
@@ -127,18 +137,16 @@ export default function Index({
                   </td>
                   <td {...stylex.props(ui.td, ui.numeric)}>
                     {money(invoice.total_cents)}
+                    {invoice.owed_cents > 0 && (
+                      <small
+                        {...stylex.props(ui.small, ui.mobileDetail, ui.nowrap)}
+                      >
+                        {money(invoice.owed_cents)} due
+                      </small>
+                    )}
                   </td>
-                  <td {...stylex.props(ui.td, ui.numeric)}>
+                  <td {...stylex.props(ui.td, ui.numeric, ui.desktopOnly)}>
                     {money(invoice.owed_cents)}
-                  </td>
-                  <td {...stylex.props(ui.td)}>
-                    <Link
-                      {...stylex.props(ui.link)}
-                      href={`/invoices/${invoice.id}`}
-                      aria-label={`Open ${invoice.number}`}
-                    >
-                      ↗
-                    </Link>
                   </td>
                 </tr>
               ))}
@@ -147,26 +155,16 @@ export default function Index({
         </div>
         {!invoices.length && (
           <div {...stylex.props(ui.empty)}>
-            <span {...stylex.props(ui.emptyIcon)}>▤</span>
             <h2 {...stylex.props(ui.h2)}>
-              {query ? "No matching invoices" : "Your next invoice starts here"}
+              {query ? "No matching invoices" : "No invoices this year"}
             </h2>
-            <p {...stylex.props(ui.paragraph)}>
-              Import your games or create an invoice with your own line items.
-            </p>
-            <div {...stylex.props(ui.actions, ui.emptyActions)}>
-              <Link {...stylex.props(ui.link, ui.button)} href="/games/new">
-                Import Horizon games
-              </Link>
-              <Link
-                {...stylex.props(ui.link, ui.button, ui.primary)}
-                href="/invoice_drafts"
-                method="post"
-                as="button"
-              >
-                + Create invoice
-              </Link>
-            </div>
+            {!query && (
+              <div {...stylex.props(ui.actions, ui.emptyActions)}>
+                <Link {...stylex.props(ui.link, ui.button)} href="/games/new">
+                  Import Horizon games
+                </Link>
+              </div>
+            )}
           </div>
         )}
         <PaginationControls
@@ -175,27 +173,7 @@ export default function Index({
           query={query}
           only={["invoices", "pagination", "query"]}
         />
-        <div {...stylex.props(ui.tableBottom)}>
-          <span>Amounts in CAD</span>
-          <span>Drafts stay private until you publish to Google.</span>
-        </div>
       </section>
-      <div {...stylex.props(ui.workflowCard)}>
-        <div {...stylex.props(ui.workflowNumber)}>01 — 03</div>
-        <div>
-          <h3 {...stylex.props(ui.h3)}>From game day to paid.</h3>
-          <p {...stylex.props(ui.paragraph)}>
-            Import from Horizon, build your invoice, then save to Drive and your
-            master ledger.
-          </p>
-        </div>
-        <Link
-          {...stylex.props(ui.link, ui.smallLink, ui.workflowLink)}
-          href="/games/new"
-        >
-          Import games →
-        </Link>
-      </div>
     </>
   );
 }

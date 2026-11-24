@@ -128,9 +128,6 @@ export default function Index({
         </div>
       </section>
       <section {...stylex.props(ui.card, ui.tableCard)}>
-        <div {...stylex.props(ui.tableHeading)}>
-          <h2 {...stylex.props(ui.h2)}>Expenses</h2>
-        </div>
         <ExpenseFilters
           key={JSON.stringify([season.id, filters])}
           seasonId={season.id}
@@ -154,8 +151,8 @@ export default function Index({
               </thead>
               <tbody>
                 {expenses.map((expense) => (
-                  <tr key={expense.id}>
-                    <td {...stylex.props(ui.td)}>
+                  <tr {...stylex.props(ui.row)} key={expense.id}>
+                    <td {...stylex.props(ui.td, ui.nowrap)}>
                       {date(expense.incurred_on)}
                     </td>
                     <td {...stylex.props(ui.td)}>
@@ -224,7 +221,7 @@ export default function Index({
               </thead>
               <tbody>
                 {summary.by_category.map((row) => (
-                  <tr key={row.category}>
+                  <tr {...stylex.props(ui.row)} key={row.category}>
                     <td {...stylex.props(ui.td)}>{row.category}</td>
                     <td {...stylex.props(ui.td, ui.numeric)}>
                       {money(row.total_cents)}

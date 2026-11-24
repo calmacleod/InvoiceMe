@@ -8,7 +8,7 @@ class GameFiltersSystemTest < ActionDispatch::SystemTestCase
     fill_in "Email address", with: users(:one).email_address
     fill_in "Password", with: "password"
     click_button "Sign in"
-    assert_selector "h1", text: "Invoices."
+    assert_selector "h1", text: "Invoices"
   end
 
   test "searchable multi-selects use master options and combine selections in both browsers" do
@@ -19,6 +19,7 @@ class GameFiltersSystemTest < ActionDispatch::SystemTestCase
     [ games_path, new_invoice_path ].each do |path|
       visit path
       prefix = path == games_path ? "master" : "picker"
+      click_button "More filters" if path == games_path
       find('summary[aria-label="Game code options"]').click
       fill_in "#{prefix}-code", with: "Code"
       check "Example Code 0"
@@ -80,11 +81,11 @@ class GameFiltersSystemTest < ActionDispatch::SystemTestCase
       assert_selector :select, "Per page", selected: "50"
     end
     assert_selector "tbody tr", count: 10
-    click_button "Add saved contacts"
+    click_button "Add contacts"
     within('nav[aria-label="Saved contact pagination"]') do
       select "10", from: "Per page"
       assert_text "1–10 of 32"
-      click_button "Next contacts →"
+      click_button "Next", exact: true
       assert_text "11–20 of 32"
       select "50", from: "Per page"
       assert_text "1–32 of 32"
@@ -181,16 +182,18 @@ class GameFiltersSystemTest < ActionDispatch::SystemTestCase
       seasons(:current).games.create!(external_id: "EXAMPLE-REMEMBER-#{index}", code: "EXAMPLE-CODE-#{index}", home_team: "Example Home #{index}", date: "2031-09-15")
     end
     visit games_path
+    click_button "More filters"
     find('summary[aria-label="Game code options"]').click
     check "EXAMPLE-CODE-0"
     fill_in "master-q", with: "EXAMPLE-REMEMBER"
     click_button "Apply filters"
     assert_text "1 matching game"
     within('nav[aria-label="Main navigation"]') { click_link "Invoices" }
-    assert_selector "h1", text: "Invoices."
+    assert_selector "h1", text: "Invoices"
     within('nav[aria-label="Main navigation"]') { click_link "Games & officials" }
     assert_text "1 matching game"
     assert_selector :field, "master-q", with: "EXAMPLE-REMEMBER"
+    click_button "More filters (1)"
     assert_selector 'summary[aria-label="Game code options"]', text: "EXAMPLE-CODE-0"
     page.refresh
     assert_text "1 matching game"
@@ -198,9 +201,10 @@ class GameFiltersSystemTest < ActionDispatch::SystemTestCase
     assert_text "2 matching games"
     assert_selector :field, "master-q", with: ""
     within('nav[aria-label="Main navigation"]') { click_link "Invoices" }
-    assert_selector "h1", text: "Invoices."
+    assert_selector "h1", text: "Invoices"
     within('nav[aria-label="Main navigation"]') { click_link "Games & officials" }
     assert_text "2 matching games"
+    click_button "More filters"
     assert_selector 'summary[aria-label="Game code options"]', text: "Any game code"
   end
 
@@ -219,6 +223,7 @@ class GameFiltersSystemTest < ActionDispatch::SystemTestCase
     click_button "Mark as already invoiced"
     assert_text "Marked 11 games as already invoiced."
     assert_selector "tbody tr:first-child", text: "Already invoiced"
+    click_button "More filters"
     select "Invoiced or linked to a saved invoice", from: "master-link-status"
     click_button "Apply filters"
     assert_text "11 matching games"

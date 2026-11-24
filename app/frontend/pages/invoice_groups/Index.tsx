@@ -42,14 +42,12 @@ export default function Index({
                   <th {...stylex.props(ui.th)}>Group</th>
                   <th {...stylex.props(ui.th, ui.numeric)}>Games</th>
                   <th {...stylex.props(ui.th, ui.numeric)}>Saved invoices</th>
-                  <th {...stylex.props(ui.th, ui.numeric)}>
-                    Your unpreviewed drafts
-                  </th>
+                  <th {...stylex.props(ui.th, ui.numeric)}>Drafts</th>
                 </tr>
               </thead>
               <tbody>
                 {groups.map((group) => (
-                  <tr key={group.id}>
+                  <tr {...stylex.props(ui.row)} key={group.id}>
                     <td {...stylex.props(ui.td)}>
                       <Link
                         {...stylex.props(ui.link, ui.strong)}
@@ -74,8 +72,7 @@ export default function Index({
           </div>
         ) : (
           <p {...stylex.props(ui.empty)}>
-            Select games from the game list or start a group from an invoice
-            with linked games.
+            No invoice groups this year. Select games to start one.
           </p>
         )}
         {pagination.pages > 1 && (

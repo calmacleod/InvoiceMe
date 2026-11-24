@@ -10,14 +10,12 @@ import type { InvoiceStatus, Pagination } from "../types";
 import * as stylex from "@stylexjs/stylex";
 import { ui } from "../styles/ui.stylex";
 import { router } from "@inertiajs/react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 export function Heading({
-  eyebrow,
   title,
   children,
   actions,
 }: {
-  eyebrow?: string;
   title: ReactNode;
   children?: ReactNode;
   actions?: ReactNode;
@@ -25,35 +23,38 @@ export function Heading({
   return (
     <div {...stylex.props(ui.pageHeading)}>
       <div>
-        {eyebrow && <span {...stylex.props(ui.eyebrow)}>{eyebrow}</span>}
         <h1 {...stylex.props(ui.h1)}>{title}</h1>
-        <p {...stylex.props(ui.paragraph, ui.headingDescription)}>{children}</p>
+        {children && (
+          <p {...stylex.props(ui.paragraph, ui.headingDescription)}>
+            {children}
+          </p>
+        )}
       </div>
-      {actions && <div {...stylex.props(ui.headingActions)}>{actions}</div>}
+      {actions && <div {...stylex.props(ui.actions)}>{actions}</div>}
     </div>
   );
 }
 export function Section({
-  step,
   title,
   children,
   hint,
+  actions,
 }: {
-  step?: string;
   title: string;
   children: ReactNode;
   hint?: string;
+  actions?: ReactNode;
 }) {
   return (
     <section {...stylex.props(ui.card)}>
       <div {...stylex.props(ui.sectionHeading)}>
-        {step && <span {...stylex.props(ui.step)}>{step}</span>}
         <div>
           <h2 {...stylex.props(ui.h2)}>{title}</h2>
           {hint && (
             <p {...stylex.props(ui.paragraph, ui.sectionHint)}>{hint}</p>
           )}
         </div>
+        {actions}
       </div>
       {children}
     </section>
@@ -134,7 +135,7 @@ export function Errors({
   );
   return messages.length ? (
     <div {...stylex.props(ui.flash, ui.alert)} role="alert">
-      <ul>
+      <ul {...stylex.props(ui.errorList)}>
         {messages.map((message, i) => (
           <li key={i}>{message}</li>
         ))}
@@ -171,23 +172,24 @@ export function Search({
   perPage?: number;
 }) {
   const [value, setValue] = useState(query);
+  const timer = useRef<number | undefined>(undefined);
+  const search = (next: string) => {
+    window.clearTimeout(timer.current);
+    router.get(
+      url,
+      { q: next || undefined, per_page: perPage },
+      { only, preserveState: true, preserveScroll: true, replace: true },
+    );
+  };
+
+  useEffect(() => () => window.clearTimeout(timer.current), [url, query]);
+
   return (
     <form
       {...stylex.props(ui.search)}
       onSubmit={(event) => {
         event.preventDefault();
-        router.get(
-          url,
-          {
-            q: value,
-            per_page: perPage,
-          },
-          {
-            only,
-            preserveState: true,
-            replace: true,
-          },
-        );
+        search(value);
       }}
     >
       <input
@@ -196,7 +198,12 @@ export function Search({
         aria-label={label}
         placeholder={label}
         value={value}
-        onChange={(event) => setValue(event.target.value)}
+        onChange={(event) => {
+          const next = event.target.value;
+          setValue(next);
+          window.clearTimeout(timer.current);
+          timer.current = window.setTimeout(() => search(next), 300);
+        }}
       />
       <button
         {...stylex.props(
@@ -228,11 +235,13 @@ export function Stat({
         {label}
       </span>
       <strong {...stylex.props(ui.statValue)}>{value}</strong>
-      <small
-        {...stylex.props(ui.small, ui.statSmall, dark && ui.statMutedOnDark)}
-      >
-        {children}
-      </small>
+      {children && (
+        <small
+          {...stylex.props(ui.small, ui.statSmall, dark && ui.statMutedOnDark)}
+        >
+          {children}
+        </small>
+      )}
     </div>
   );
 }

@@ -22,8 +22,8 @@ export default function Review({
   return (
     <>
       <Head title="Review import" />
-      <Heading eyebrow="IMPORT · STEP 3 OF 3" title="One last look">
-        Review the game totals before saving to your {season.year} season.
+      <Heading title="Review import">
+        Step 3 of 3 · Imports into the {season.year} season
       </Heading>
       {errors_list.length ? (
         <>
@@ -63,7 +63,7 @@ export default function Review({
             </thead>
             <tbody>
               {games.map((game) => (
-                <tr key={game.external_id}>
+                <tr {...stylex.props(ui.row)} key={game.external_id}>
                   <td {...stylex.props(ui.td)}>{game.external_id}</td>
                   <td {...stylex.props(ui.td)}>{game.code}</td>
                   <td {...stylex.props(ui.td)}>{game.date}</td>
@@ -82,11 +82,11 @@ export default function Review({
           </table>
         </div>
         <div {...stylex.props(ui.tableBottom)}>
-          Showing the first 100 games. All {total_count} games will be imported.
+          Showing {games.length} of {total_count} games
         </div>
       </section>
       {!errors_list.length && (
-        <div {...stylex.props(ui.formActions)}>
+        <div {...stylex.props(ui.formActions, ui.sticky)}>
           <Link {...stylex.props(ui.link, ui.button)} href="/games">
             Cancel
           </Link>

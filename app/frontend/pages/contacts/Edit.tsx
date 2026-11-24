@@ -25,10 +25,14 @@ export default function Edit({ contact }: { contact: ContactRecord }) {
   return (
     <>
       <Head title={contact.id ? "Edit contact" : "New contact"} />
-      <Heading title={contact.id ? "Edit contact" : "New contact"}>
-        Choosing this contact fills the invoice recipient, contact and address.
-        Notes stay in your contact list.
-      </Heading>
+      <Heading
+        title={contact.id ? "Edit contact" : "New contact"}
+        actions={
+          <Link {...stylex.props(ui.link, ui.button)} href="/contacts">
+            All contacts
+          </Link>
+        }
+      />
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -40,7 +44,7 @@ export default function Edit({ contact }: { contact: ContactRecord }) {
         <Errors errors={form.errors} />
         <Section
           title="Contact details"
-          hint="Contacts are available in every invoice year."
+          hint="Choose this contact on an invoice to fill in the billing details."
         >
           <div {...stylex.props(ui.formGrid)}>
             {fields.map(([key, label]) => (

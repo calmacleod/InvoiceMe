@@ -170,7 +170,7 @@ export default function BulkEdit({
               </thead>
               <tbody>
                 {payments.map((payment, row) => (
-                  <tr key={payment.id}>
+                  <tr {...stylex.props(ui.row)} key={payment.id}>
                     <th
                       scope="row"
                       {...stylex.props(ui.td, register.row, register.official)}
@@ -237,7 +237,7 @@ export default function BulkEdit({
             </table>
           </div>
         </section>
-        <div {...stylex.props(ui.formActions)}>
+        <div {...stylex.props(ui.formActions, ui.sticky)}>
           <button
             type="submit"
             {...stylex.props(ui.button, ui.primary)}

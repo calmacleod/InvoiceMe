@@ -138,9 +138,12 @@ function GroupWorkbench({
                             </small>
                           </>
                         ) : (
-                          <strong {...stylex.props(ui.strong)}>
+                          <Link
+                            {...stylex.props(ui.link, ui.strong)}
+                            href={`/invoice_drafts/${draft!.id}/edit`}
+                          >
                             {draft!.title}
-                          </strong>
+                          </Link>
                         )}
                       </td>
                       <td {...stylex.props(ui.td)}>

@@ -11,7 +11,7 @@ class InvoiceExportsSystemTest < ActionDispatch::SystemTestCase
     fill_in "Email address", with: users(:one).email_address
     fill_in "Password", with: "password"
     click_button "Sign in"
-    assert_selector "h1", text: "Invoices."
+    assert_selector "h1", text: "Invoices"
   end
 
   test "invoice page polls retries and completion while preserving entered notes" do

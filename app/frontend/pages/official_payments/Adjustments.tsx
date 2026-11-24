@@ -121,7 +121,7 @@ export default function Adjustments({
                     Boolean(officials.get(row.officialId)?.locked);
                   const disabled = locked || form.processing;
                   return (
-                    <tr key={row.key}>
+                    <tr {...stylex.props(ui.row)} key={row.key}>
                       <td
                         {...stylex.props(ui.td, register.cell, register.name)}
                       >

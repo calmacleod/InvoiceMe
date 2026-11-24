@@ -114,7 +114,7 @@ export default function Show({
           </div>
         }
       >
-        {invoice.description}
+        {invoice.recipient} · {invoice.description}
       </Heading>
       {invoice.finalized_at && invoice.received_cents > 0 && (
         <p {...stylex.props(ui.paragraph, ui.hint)}>
@@ -182,7 +182,7 @@ export default function Show({
           )}
           <section {...stylex.props(ui.card)}>
             <h2 {...stylex.props(ui.h2)}>
-              {invoice.finalized_at ? "Google records" : "Ready to publish?"}
+              {invoice.finalized_at ? "Google records" : "Finalize invoice"}
             </h2>
             <p {...stylex.props(ui.paragraph, ui.hint)}>
               {invoice.finalized_at

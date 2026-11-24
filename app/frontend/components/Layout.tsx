@@ -3,8 +3,34 @@ import { layout } from "./Layout.stylex";
 import * as stylex from "@stylexjs/stylex";
 import { ui } from "../styles/ui.stylex";
 import { router, usePage } from "@inertiajs/react";
-import type { PropsWithChildren } from "react";
+import { useState, type PropsWithChildren } from "react";
 import DevStyleX from "./DevStyleX";
+
+const destinations = [
+  { id: "invoices", href: "/", label: "Invoices" },
+  { id: "invoice_drafts", href: "/invoice_drafts", label: "Draft workbench" },
+  { id: "invoice_groups", href: "/invoice_groups", label: "Invoice groups" },
+  { id: "expenses", href: "/expenses", label: "Association expenses" },
+  {
+    id: "official_payments",
+    href: "/official_payments",
+    label: "Officials payments",
+  },
+  { id: "games", href: "/games", label: "Games & officials" },
+  { id: "contacts", href: "/contacts", label: "Contacts" },
+  { id: "seasons", href: "/seasons/new", label: "Year & settings" },
+];
+
+function Brand() {
+  return (
+    <Link {...stylex.props(ui.link, layout.brand)} href="/">
+      <span {...stylex.props(layout.brandSymbol)} aria-hidden="true">
+        i<span {...stylex.props(layout.brandM)}>m</span>
+      </span>
+      InvoiceMe
+    </Link>
+  );
+}
 
 export default function Layout({ children }: PropsWithChildren) {
   const {
@@ -14,227 +40,118 @@ export default function Layout({ children }: PropsWithChildren) {
     flash = {},
     section,
   } = usePage().props;
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [switchingYear, setSwitchingYear] = useState(false);
+  const activeSection = section === "horizon_game_syncs" ? "games" : section;
+  const yearUrl = season ? `/seasons/${season.id}/edit` : "/seasons/new";
+
   return (
-    <div {...stylex.props(ui.app)}>
+    <div {...stylex.props(ui.app, !auth && layout.guest)}>
       <DevStyleX />
-      <aside {...stylex.props(layout.sidebar)}>
-        <Link
-          navigateOnMouseDown
-          {...stylex.props(ui.link, layout.brand)}
-          href="/"
-        >
-          <span {...stylex.props(layout.brandSymbol)}>
-            i<span {...stylex.props(layout.brandM)}>m</span>
-          </span>
-          <span>
-            InvoiceMe
-            <small {...stylex.props(ui.small, layout.brandCaption)}>
-              TREASURER WORKSPACE
-            </small>
-          </span>
-        </Link>
-        <div {...stylex.props(layout.workspace)}>
-          <span {...stylex.props(layout.avatar)}>EO</span>
-          <div>
-            EOTFOA
-            <small {...stylex.props(ui.small, layout.workspaceCaption)}>
-              Football officials’ association
-            </small>
-          </div>
-        </div>
-        {auth && (
-          <>
-            <p {...stylex.props(ui.paragraph, layout.navCaption)}>WORKSPACE</p>
-            <nav {...stylex.props(layout.nav)} aria-label="Main navigation">
-              <Link
-                navigateOnMouseDown
-                {...stylex.props(
-                  ui.link,
-                  layout.navLink,
-                  section === "invoices" && layout.navActive,
-                )}
-                href="/"
+      {auth && (
+        <>
+          <a {...stylex.props(layout.skipLink)} href="#workspace">
+            Skip to content
+          </a>
+          <aside {...stylex.props(layout.sidebar)}>
+            <div {...stylex.props(layout.sidebarTop)}>
+              <Brand />
+              <button
+                type="button"
+                {...stylex.props(ui.nativeButton, layout.menuButton)}
+                aria-expanded={menuOpen}
+                aria-controls="workspace-navigation"
+                onClick={() => setMenuOpen(!menuOpen)}
               >
-                ▤ Invoices
-              </Link>
-              <Link
-                navigateOnMouseDown
-                {...stylex.props(
-                  ui.link,
-                  layout.navLink,
-                  section === "invoice_drafts" && layout.navActive,
-                )}
-                href="/invoice_drafts"
-              >
-                ◫ Draft workbench
-              </Link>
-              <Link
-                navigateOnMouseDown
-                {...stylex.props(
-                  ui.link,
-                  layout.navLink,
-                  section === "invoice_groups" && layout.navActive,
-                )}
-                href="/invoice_groups"
-                aria-current={section === "invoice_groups" ? "page" : undefined}
-              >
-                ◧ Invoice groups
-              </Link>
-              <Link
-                navigateOnMouseDown
-                {...stylex.props(
-                  ui.link,
-                  layout.navLink,
-                  section === "games" && layout.navActive,
-                )}
-                href="/games"
-              >
-                ▦ Games & officials
-              </Link>
-              <Link
-                navigateOnMouseDown
-                {...stylex.props(
-                  ui.link,
-                  layout.navLink,
-                  section === "official_payments" && layout.navActive,
-                )}
-                href="/official_payments"
-                aria-current={
-                  section === "official_payments" ? "page" : undefined
-                }
-              >
-                ◈ Officials payments
-              </Link>
-              <Link
-                navigateOnMouseDown
-                {...stylex.props(
-                  ui.link,
-                  layout.navLink,
-                  section === "expenses" && layout.navActive,
-                )}
-                href="/expenses"
-                aria-current={section === "expenses" ? "page" : undefined}
-              >
-                ▧ Association expenses
-              </Link>
-              <Link
-                navigateOnMouseDown
-                {...stylex.props(
-                  ui.link,
-                  layout.navLink,
-                  section === "contacts" && layout.navActive,
-                )}
-                href="/contacts"
-              >
-                ◉ Contacts
-              </Link>
-              <Link
-                navigateOnMouseDown
-                {...stylex.props(
-                  ui.link,
-                  layout.navLink,
-                  section === "seasons" && layout.navActive,
-                )}
-                href={season ? `/seasons/${season.id}/edit` : "/seasons/new"}
-              >
-                ⚙ Year & settings
-              </Link>
-            </nav>
-            <div {...stylex.props(layout.yearBox)}>
-              <span {...stylex.props(layout.navCaption)}>INVOICE YEAR</span>
-              {seasons.map((s) => (
-                <button
-                  {...stylex.props(ui.nativeButton, layout.yearButton)}
-                  key={s.id}
-                  onClick={() =>
-                    router.post(`/seasons/${s.id}/select`, { section })
-                  }
-                >
-                  {s.year} {s.id === season?.id ? "✓" : ""}
-                </button>
-              ))}
-              <Link
-                navigateOnMouseDown
-                {...stylex.props(ui.link, ui.smallLink, layout.yearLink)}
-                href="/seasons/new"
-              >
-                + Set up another year
-              </Link>
+                {menuOpen ? "Close menu" : "Menu"}
+              </button>
             </div>
-            <div {...stylex.props(layout.sidebarFooter)}>
-              <span {...stylex.props(layout.avatar)}>CM</span>
-              <div {...stylex.props(layout.footerIdentity)}>
-                <strong {...stylex.props(ui.strong)}>Treasurer</strong>
-                <small {...stylex.props(ui.small, layout.footerEmail)}>
-                  {auth.email}
-                </small>
-              </div>
+            <nav
+              id="workspace-navigation"
+              {...stylex.props(layout.nav, menuOpen && layout.navOpen)}
+              aria-label="Main navigation"
+            >
+              {destinations.map(({ id, href, label }) => (
+                <Link
+                  key={id}
+                  {...stylex.props(
+                    ui.link,
+                    layout.navLink,
+                    activeSection === id && layout.navActive,
+                  )}
+                  href={id === "seasons" ? yearUrl : href}
+                  aria-current={activeSection === id ? "page" : undefined}
+                  onSuccess={() => setMenuOpen(false)}
+                >
+                  {label}
+                </Link>
+              ))}
+            </nav>
+          </aside>
+        </>
+      )}
+      <main {...stylex.props(auth && layout.main)} id="workspace" tabIndex={-1}>
+        {auth && (
+          <header {...stylex.props(layout.topbar)}>
+            <span {...stylex.props(layout.association)}>EOTFOA</span>
+            <div {...stylex.props(layout.account)}>
+              {season && (
+                <label {...stylex.props(layout.year)}>
+                  <span>Year</span>
+                  <select
+                    {...stylex.props(ui.input, layout.yearInput)}
+                    id="active-year"
+                    aria-label="Invoice year"
+                    value={season.id}
+                    disabled={switchingYear}
+                    onChange={(event) =>
+                      router.post(
+                        "/select_year",
+                        { id: event.target.value, section: activeSection },
+                        {
+                          preserveState: false,
+                          onStart: () => setSwitchingYear(true),
+                          onFinish: () => setSwitchingYear(false),
+                        },
+                      )
+                    }
+                  >
+                    {seasons.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.year}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              <span {...stylex.props(layout.email)}>{auth.email}</span>
               <Link
-                {...stylex.props(ui.link, ui.textButton)}
+                {...stylex.props(ui.link, ui.textButton, layout.signOut)}
                 href="/session"
-                navigateOnMouseDown={false}
                 method="delete"
                 as="button"
               >
                 Sign out
               </Link>
             </div>
-          </>
+          </header>
         )}
-      </aside>
-      <main {...stylex.props(layout.main)}>
-        <header {...stylex.props(layout.topbar)}>
-          <span>
-            EOTFOA <span {...stylex.props(ui.muted, layout.separator)}>/</span>{" "}
-            {section?.replaceAll("_", " ")}
-          </span>
-          <span {...stylex.props(layout.topbarRight)}>
-            <span {...stylex.props(layout.statusDot)} />
-            {auth && season ? (
-              <div {...stylex.props(layout.yearSelect)}>
-                <label
-                  {...stylex.props(ui.label, layout.srOnly)}
-                  htmlFor="active-year"
-                >
-                  Invoice year
-                </label>
-                <select
-                  {...stylex.props(ui.input, layout.yearSelectInput)}
-                  id="active-year"
-                  value={season.id}
-                  onChange={(event) =>
-                    router.post("/select_year", {
-                      id: event.target.value,
-                    })
-                  }
-                >
-                  {seasons.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.year}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ) : (
-              "Treasurer workspace"
-            )}
-            <span {...stylex.props(layout.avatar, layout.smallAvatar)}>CM</span>
-          </span>
-        </header>
-        <div {...stylex.props(layout.content)}>
+        <div {...stylex.props(auth ? layout.content : layout.guestContent)}>
+          {!auth && (
+            <div {...stylex.props(layout.guestBrand)}>
+              <Brand />
+            </div>
+          )}
           {Object.entries(flash).map(([type, message]) => (
             <div
               {...stylex.props(ui.flash, type === "alert" && ui.alert)}
               key={type}
-              role="status"
+              role={type === "alert" ? "alert" : "status"}
             >
               {message}
             </div>
           ))}
           {children}
-          <footer {...stylex.props(layout.pageFooter)}>
-            Made for a little less paperwork. <span>InvoiceMe · EOTFOA</span>
-          </footer>
         </div>
       </main>
     </div>

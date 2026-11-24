@@ -101,7 +101,10 @@ function PaymentEditor({ payment, year, google_connected }: Props) {
   return (
     <>
       <Head title={`${payment.official_name} · Officials payments`} />
-      <Link {...stylex.props(ui.link)} href="/official_payments">
+      <Link
+        {...stylex.props(ui.link, ui.contextLink)}
+        href="/official_payments"
+      >
         ← Officials payments
       </Link>
       <Heading title={payment.official_name}>
@@ -122,31 +125,35 @@ function PaymentEditor({ payment, year, google_connected }: Props) {
           form.patch(base);
         }}
       >
-        <Section title="Earnings and adjustments">
-          <p {...stylex.props(ui.paragraph)}>
-            Horizon game fees {money(payment.imported_game_fees_cents)} ·
-            Horizon travel, per diem, tolls and other game fees{" "}
-            {money(payment.imported_travel_ot_cents)}
-          </p>
-          {locked && (
+        <div {...stylex.props(ui.formColumns)}>
+          <Section title="Earnings and adjustments">
             <p {...stylex.props(ui.paragraph)}>
-              Clear the recorded cheque, deposit date and delivery, then save to
-              edit earnings.
+              Horizon game fees {money(payment.imported_game_fees_cents)} ·
+              Horizon travel, per diem, tolls and other game fees{" "}
+              {money(payment.imported_travel_ot_cents)}
             </p>
-          )}
-          <div {...stylex.props(ui.formGrid)}>{earnings.map(amountField)}</div>
-        </Section>
-        <Section title="Deductions">
-          <p {...stylex.props(ui.paragraph)}>
-            Association fee is 8% of the first $2,500 of game fees and 4% of the
-            next $2,000.
-            {payment.horizon_user_id &&
-              ` Horizon reports ${money(payment.horizon_deductions_cents)} in assignment deductions for comparison.`}
-          </p>
-          <div {...stylex.props(ui.formGrid)}>
-            {deductions.map(amountField)}
-          </div>
-        </Section>
+            {locked && (
+              <p {...stylex.props(ui.paragraph)}>
+                Clear the recorded cheque, deposit date and delivery, then save
+                to edit earnings.
+              </p>
+            )}
+            <div {...stylex.props(ui.formGrid)}>
+              {earnings.map(amountField)}
+            </div>
+          </Section>
+          <Section title="Deductions">
+            <p {...stylex.props(ui.paragraph)}>
+              Association fee is 8% of the first $2,500 of game fees and 4% of
+              the next $2,000.
+              {payment.horizon_user_id &&
+                ` Horizon reports ${money(payment.horizon_deductions_cents)} in assignment deductions for comparison.`}
+            </p>
+            <div {...stylex.props(ui.formGrid)}>
+              {deductions.map(amountField)}
+            </div>
+          </Section>
+        </div>
         <Section
           title="Additional items"
           hint="Give each credit or deduction a name. Use a negative amount for a deduction."
@@ -342,7 +349,7 @@ function PaymentEditor({ payment, year, google_connected }: Props) {
               </thead>
               <tbody>
                 {payment.assignments.map((assignment) => (
-                  <tr key={assignment.id}>
+                  <tr {...stylex.props(ui.row)} key={assignment.id}>
                     <td {...stylex.props(ui.td)}>{assignment.game}</td>
                     <td {...stylex.props(ui.td)}>{date(assignment.date)}</td>
                     <td {...stylex.props(ui.td)}>{assignment.position}</td>

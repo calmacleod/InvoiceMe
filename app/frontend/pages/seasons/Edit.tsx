@@ -73,7 +73,6 @@ export default function Edit({
     <>
       <Head title="Year & settings" />
       <Heading
-        eyebrow="WORKSPACE SETTINGS"
         title={
           season.id ? `${season.year} invoice year` : "Set up another year"
         }
@@ -94,82 +93,82 @@ export default function Edit({
             </div>
           )
         }
-      >
-        Update your details here. Finalized invoices retain their original
-        information.
-      </Heading>
+      />
       {season.id && (
         <>
-          <div {...stylex.props(ui.card, ui.connection)}>
-            <div>
-              <h2 {...stylex.props(ui.h2)}>Google Drive connection</h2>
-              <p {...stylex.props(ui.paragraph)}>
-                {google.email ||
-                  "Connect your treasurer account to publish documents and update the ledger."}
-              </p>
+          <div {...stylex.props(ui.twoCards)}>
+            <div {...stylex.props(ui.card, ui.connectionCard)}>
+              <div>
+                <h2 {...stylex.props(ui.h2)}>Google Drive connection</h2>
+                <p {...stylex.props(ui.paragraph)}>
+                  {google.email ||
+                    "Connect your treasurer account to publish documents and update the ledger."}
+                </p>
+              </div>
+              {google.email ? (
+                <button
+                  {...stylex.props(ui.nativeButton, ui.button)}
+                  disabled={disconnect.processing}
+                  onClick={() => disconnect.delete("/google/disconnect")}
+                >
+                  Disconnect
+                </button>
+              ) : (
+                <Link
+                  {...stylex.props(ui.link, ui.button, ui.primary)}
+                  as="button"
+                  method="post"
+                  href="/google/connect"
+                >
+                  Connect Google account ↗
+                </Link>
+              )}
             </div>
-            {google.email ? (
-              <button
-                {...stylex.props(ui.nativeButton, ui.button)}
-                disabled={disconnect.processing}
-                onClick={() => disconnect.delete("/google/disconnect")}
-              >
-                Disconnect
-              </button>
-            ) : (
-              <Link
-                {...stylex.props(ui.link, ui.button, ui.primary)}
-                as="button"
-                method="post"
-                href="/google/connect"
-              >
-                Connect Google account ↗
-              </Link>
-            )}
-          </div>
-          <div {...stylex.props(ui.card, ui.connection)}>
-            <div>
-              <h2 {...stylex.props(ui.h2)}>Horizon connection</h2>
-              <p {...stylex.props(ui.paragraph)}>
-                {horizon.connections.length
-                  ? "Authorized for read-only organization access. Test each connection before using it."
-                  : "Connect Horizon to test read-only access to your organization."}
-              </p>
-              {horizon.connections.map((connection, index) => (
-                <div key={connection.id}>
-                  {connection.organization_name || `Organization ${index + 1}`}{" "}
-                  <button
-                    type="button"
-                    {...stylex.props(ui.nativeButton, ui.button)}
-                    disabled={horizonActions.processing}
-                    onClick={() =>
-                      horizonActions.post(`/horizon/${connection.id}/test`)
-                    }
-                  >
-                    Test read access
-                  </button>
-                </div>
-              ))}
+            <div {...stylex.props(ui.card, ui.connectionCard)}>
+              <div>
+                <h2 {...stylex.props(ui.h2)}>Horizon connection</h2>
+                <p {...stylex.props(ui.paragraph)}>
+                  {horizon.connections.length
+                    ? "Authorized for read-only organization access. Test each connection before using it."
+                    : "Connect Horizon to test read-only access to your organization."}
+                </p>
+                {horizon.connections.map((connection, index) => (
+                  <div key={connection.id}>
+                    {connection.organization_name ||
+                      `Organization ${index + 1}`}{" "}
+                    <button
+                      type="button"
+                      {...stylex.props(ui.nativeButton, ui.button)}
+                      disabled={horizonActions.processing}
+                      onClick={() =>
+                        horizonActions.post(`/horizon/${connection.id}/test`)
+                      }
+                    >
+                      Test read access
+                    </button>
+                  </div>
+                ))}
+              </div>
+              {horizon.connections.length ? (
+                <button
+                  type="button"
+                  {...stylex.props(ui.nativeButton, ui.button)}
+                  disabled={horizonActions.processing}
+                  onClick={() => horizonActions.delete("/horizon/disconnect")}
+                >
+                  Disconnect Horizon
+                </button>
+              ) : (
+                <Link
+                  {...stylex.props(ui.link, ui.button, ui.primary)}
+                  as="button"
+                  method="post"
+                  href="/horizon/connect"
+                >
+                  Connect Horizon ↗
+                </Link>
+              )}
             </div>
-            {horizon.connections.length ? (
-              <button
-                type="button"
-                {...stylex.props(ui.nativeButton, ui.button)}
-                disabled={horizonActions.processing}
-                onClick={() => horizonActions.delete("/horizon/disconnect")}
-              >
-                Disconnect Horizon
-              </button>
-            ) : (
-              <Link
-                {...stylex.props(ui.link, ui.button, ui.primary)}
-                as="button"
-                method="post"
-                href="/horizon/connect"
-              >
-                Connect Horizon ↗
-              </Link>
-            )}
           </div>
           {!horizon.configured && (
             <div {...stylex.props(ui.flash)}>
@@ -186,68 +185,68 @@ export default function Edit({
       )}
       <form onSubmit={submit}>
         <Errors errors={form.errors} />
-        <Section
-          step="01"
-          title="Year & Google Drive"
-          hint="Paste file or folder URLs, or their Google IDs."
-        >
-          <div {...stylex.props(ui.formGrid)}>
-            {field("year", "Year", {
-              type: "number",
-              min: 2000,
-              max: 2200,
-              required: true,
-            })}
-            {field("sheet_name", "Master spreadsheet tab name", {
-              required: true,
-            })}
-            {field("drive_folder_id", "Invoice folder")}
-            {field("pdf_folder_id", "PDF folder (optional)")}
-            {field("financials_folder_id", "Financials folder for expenses")}
-            {field("spreadsheet_id", "Master spreadsheet")}
-            {field("ledger_start_row", "First ledger data row", {
-              type: "number",
-              min: 2,
-              required: true,
-            })}
-          </div>
-          <p {...stylex.props(ui.paragraph, ui.hint)}>
-            The ledger uses columns A–I: invoice number, date, description,
-            contact, invoiced, received, owed, payment method, deposited date.
-            Existing rows remain in place.
-          </p>
-        </Section>
-        <Section
-          step="02"
-          title="Organization & payment details"
-          hint="These details appear on new invoices. All amounts are in Canadian dollars."
-        >
-          <div {...stylex.props(ui.formGrid)}>
-            {issuerField("name", "Organization name", {
-              required: true,
-            })}
-            {issuerField("payable_to", "Cheques payable to", {
-              required: true,
-            })}
-            {issuerField("treasurer", "Treasurer name", {
-              required: true,
-            })}
-            {issuerField("email", "E-transfer / contact email", {
-              type: "email",
-              required: true,
-            })}
-            {issuerField("address", "Mailing address", {
-              multiline: true,
-              rows: 4,
-              required: true,
-            })}
-            {issuerField("payment_instructions", "Payment instructions", {
-              multiline: true,
-              rows: 4,
-            })}
-          </div>
-        </Section>
-        <div {...stylex.props(ui.formActions)}>
+        <div {...stylex.props(ui.formColumns)}>
+          <Section
+            title="Year & Google Drive"
+            hint="Paste file or folder URLs, or their Google IDs."
+          >
+            <div {...stylex.props(ui.formGrid)}>
+              {field("year", "Year", {
+                type: "number",
+                min: 2000,
+                max: 2200,
+                required: true,
+              })}
+              {field("sheet_name", "Master spreadsheet tab name", {
+                required: true,
+              })}
+              {field("drive_folder_id", "Invoice folder")}
+              {field("pdf_folder_id", "PDF folder (optional)")}
+              {field("financials_folder_id", "Financials folder for expenses")}
+              {field("spreadsheet_id", "Master spreadsheet")}
+              {field("ledger_start_row", "First ledger data row", {
+                type: "number",
+                min: 2,
+                required: true,
+              })}
+            </div>
+            <p {...stylex.props(ui.paragraph, ui.hint)}>
+              The ledger uses columns A–I: invoice number, date, description,
+              contact, invoiced, received, owed, payment method, deposited date.
+              Existing rows remain in place.
+            </p>
+          </Section>
+          <Section
+            title="Organization & payment details"
+            hint="These details appear on new invoices. All amounts are in Canadian dollars."
+          >
+            <div {...stylex.props(ui.formGrid)}>
+              {issuerField("name", "Organization name", {
+                required: true,
+              })}
+              {issuerField("payable_to", "Cheques payable to", {
+                required: true,
+              })}
+              {issuerField("treasurer", "Treasurer name", {
+                required: true,
+              })}
+              {issuerField("email", "E-transfer / contact email", {
+                type: "email",
+                required: true,
+              })}
+              {issuerField("address", "Mailing address", {
+                multiline: true,
+                rows: 4,
+                required: true,
+              })}
+              {issuerField("payment_instructions", "Payment instructions", {
+                multiline: true,
+                rows: 4,
+              })}
+            </div>
+          </Section>
+        </div>
+        <div {...stylex.props(ui.formActions, ui.sticky)}>
           <Link {...stylex.props(ui.link, ui.button)} href="/">
             Back to invoices
           </Link>

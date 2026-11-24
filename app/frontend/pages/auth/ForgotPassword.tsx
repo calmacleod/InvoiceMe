@@ -11,6 +11,9 @@ export default function ForgotPassword() {
     <div {...stylex.props(ui.card, ui.loginPanel)}>
       <Head title="Forgot password" />
       <h1 {...stylex.props(ui.h1)}>Forgot your password?</h1>
+      <p {...stylex.props(ui.paragraph)}>
+        Enter your treasurer email address to request a reset link.
+      </p>
       <Errors errors={form.errors} />
       <form
         {...stylex.props(ui.formStack)}

@@ -20,8 +20,7 @@ export default function Index({
     <>
       <Head title="Draft workbench" />
       <Heading
-        eyebrow="ROOM FOR WORK IN PROGRESS"
-        title="Draft workbench."
+        title="Draft workbench"
         actions={
           <Link
             {...stylex.props(ui.link, ui.button, ui.primary)}
@@ -33,9 +32,9 @@ export default function Index({
           </Link>
         }
       >
-        Work on several invoices at once. Every edit is saved automatically.
+        Resume an invoice or start a new draft.
       </Heading>
-      <section {...stylex.props(ui.card)}>
+      <section {...stylex.props(ui.card, ui.tableCard)}>
         <div {...stylex.props(ui.tableHeading)}>
           <h2 {...stylex.props(ui.h2)}>
             {pagination.total} {pagination.total === 1 ? "draft" : "drafts"} in
@@ -49,19 +48,20 @@ export default function Index({
             only={["drafts", "pagination", "query"]}
           />
         </div>
-        <div {...stylex.props(workbench.grid)}>
+        <div {...stylex.props(workbench.draftList)}>
           {drafts.map((draft) => (
-            <article {...stylex.props(workbench.draft)} key={draft.id}>
-              <span {...stylex.props(workbench.caption)}>AUTOSAVED DRAFT</span>
-              <Link
-                {...stylex.props(ui.link)}
-                href={`/invoice_drafts/${draft.id}/edit`}
-              >
-                <strong {...stylex.props(ui.strong)}>{draft.title}</strong>
-              </Link>
-              <small {...stylex.props(ui.small)}>
-                Saved {new Date(draft.updated_at).toLocaleString("en-CA")}
-              </small>
+            <article {...stylex.props(workbench.draftRow)} key={draft.id}>
+              <div>
+                <Link
+                  {...stylex.props(ui.link)}
+                  href={`/invoice_drafts/${draft.id}/edit`}
+                >
+                  <strong {...stylex.props(ui.strong)}>{draft.title}</strong>
+                </Link>
+                <small {...stylex.props(ui.small)}>
+                  Saved {new Date(draft.updated_at).toLocaleString("en-CA")}
+                </small>
+              </div>
               <div {...stylex.props(ui.actions)}>
                 <Link
                   {...stylex.props(ui.link, ui.smallLink)}
@@ -99,11 +99,8 @@ export default function Index({
         {!drafts.length && (
           <div {...stylex.props(ui.empty)}>
             <h2 {...stylex.props(ui.h2)}>
-              {query ? "No matching drafts" : "Your next idea can start here."}
+              {query ? "No matching drafts" : "No drafts this year"}
             </h2>
-            <p {...stylex.props(ui.paragraph)}>
-              Start a draft now. Finish the details whenever you're ready.
-            </p>
           </div>
         )}
         <PaginationControls

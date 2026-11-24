@@ -19,8 +19,7 @@ export default function Index({
     <>
       <Head title="Contacts" />
       <Heading
-        eyebrow="LESS REPEATED TYPING"
-        title="Contacts."
+        title="Contacts"
         actions={
           <Link
             {...stylex.props(ui.link, ui.button, ui.primary)}
@@ -30,7 +29,7 @@ export default function Index({
           </Link>
         }
       >
-        Save common recipients once and reuse them across invoice years.
+        Saved billing contacts are available in every invoice year.
       </Heading>
       <section {...stylex.props(ui.card, ui.tableCard)}>
         <div {...stylex.props(ui.tableHeading)}>
@@ -52,13 +51,15 @@ export default function Index({
               <tr>
                 <th {...stylex.props(ui.th)}>Name / organization</th>
                 <th {...stylex.props(ui.th)}>Email / phone</th>
-                <th {...stylex.props(ui.th)}>Mailing address</th>
+                <th {...stylex.props(ui.th, ui.desktopOnly)}>
+                  Mailing address
+                </th>
                 <th {...stylex.props(ui.th)}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {contacts.map((contact) => (
-                <tr key={contact.id}>
+                <tr {...stylex.props(ui.row)} key={contact.id}>
                   <td {...stylex.props(ui.td)}>
                     <Link
                       {...stylex.props(ui.link)}
@@ -72,11 +73,18 @@ export default function Index({
                       {contact.organization}
                     </small>
                   </td>
-                  <td {...stylex.props(ui.td)}>
+                  <td {...stylex.props(ui.td, ui.breakText)}>
                     {contact.email}
                     <small {...stylex.props(ui.small)}>{contact.phone}</small>
+                    {contact.address && (
+                      <small
+                        {...stylex.props(ui.small, ui.mobileDetail, ui.preWrap)}
+                      >
+                        {contact.address}
+                      </small>
+                    )}
                   </td>
-                  <td {...stylex.props(ui.td, ui.preWrap)}>
+                  <td {...stylex.props(ui.td, ui.preWrap, ui.desktopOnly)}>
                     {contact.address || "—"}
                   </td>
                   <td {...stylex.props(ui.td)}>
@@ -116,14 +124,13 @@ export default function Index({
         {!contacts.length && (
           <div {...stylex.props(ui.empty)}>
             <h2 {...stylex.props(ui.h2)}>
-              {query
-                ? "No matching contacts"
-                : "Your common recipients belong here."}
+              {query ? "No matching contacts" : "No saved contacts"}
             </h2>
-            <p {...stylex.props(ui.paragraph)}>
-              Add a name, organization, email and mailing address, then choose
-              the contact from any invoice draft.
-            </p>
+            {!query && (
+              <p {...stylex.props(ui.paragraph)}>
+                Add a contact to reuse their billing details on invoices.
+              </p>
+            )}
           </div>
         )}
         <PaginationControls

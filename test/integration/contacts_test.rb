@@ -30,15 +30,17 @@ class ContactsTest < ActionDispatch::IntegrationTest
     assert_equal snapshot, draft.reload.data
   end
 
-  test "contact picker is optional searchable private and available across years" do
+  test "contact picker search is independent of invoices and private across years" do
     contact = users(:one).contacts.create!(name: "Fictional Avery", organization: "Example Club", email: "avery@example.test", address: "123 Fictional Lane", notes: "PRIVATE CONTACT NOTE")
     users(:two).contacts.create!(name: "Private other contact", email: "other@example.test")
     get new_invoice_path, headers: inertia_headers
     refute response.parsed_body["props"].key?("contact_options")
     other = Season.create!(year: 2033, sheet_name: "Example", issuer: @season.issuer)
     post select_year_path, params: { id: other.id }
-    get new_invoice_path, params: { contact_q: "avery" }, headers: inertia_headers.merge("X-Inertia-Partial-Component" => "invoices/Edit", "X-Inertia-Partial-Data" => "contact_options")
-    recipient = response.parsed_body.dig("props", "contact_options", "contacts", 0)
+    get contacts_path(format: :json), params: { q: "fictional" }
+    assert_response :success
+    assert_equal 1, response.parsed_body.dig("pagination", "total")
+    recipient = response.parsed_body.fetch("contacts").sole
     assert_equal contact.id, recipient["id"]
     assert_equal "Example Club", recipient["recipient"]
     assert_equal "Fictional Avery", recipient["name"]
@@ -47,7 +49,30 @@ class ContactsTest < ActionDispatch::IntegrationTest
     assert_equal "123 Fictional Lane", recipient["address"]
     refute_includes response.body, "PRIVATE CONTACT NOTE"
     refute_includes response.body, "Private other contact"
-    refute response.parsed_body["props"].key?("invoice")
+  end
+
+  test "inline creation returns normalized recipient fields and Rails validation errors" do
+    assert_difference "users(:one).contacts.count", 1 do
+      post contacts_path(format: :json), params: { contact: { name: " Avery Fictional ", organization: " Example Club ", email: " AVERY@EXAMPLE.TEST ", notes: "Private note" } }, as: :json
+      assert_response :created
+    end
+    assert_equal "Avery Fictional", response.parsed_body["name"]
+    assert_equal "Example Club", response.parsed_body["recipient"]
+    assert_equal "avery@example.test", response.parsed_body["email"]
+    refute response.parsed_body.key?("notes")
+
+    assert_no_difference "Contact.count" do
+      post contacts_path(format: :json), params: { contact: { name: " ", email: "invalid" } }, as: :json
+      assert_response :unprocessable_entity
+    end
+    assert_equal %w[email name], response.parsed_body.fetch("errors").keys.sort
+    sign_out
+    get contacts_path(format: :json)
+    assert_response :unauthorized
+    assert_no_difference "Contact.count" do
+      post contacts_path(format: :json), params: { contact: { name: "Unauthenticated" } }, as: :json
+      assert_response :unauthorized
+    end
   end
 
   test "authentication ownership and validation apply to contact management" do

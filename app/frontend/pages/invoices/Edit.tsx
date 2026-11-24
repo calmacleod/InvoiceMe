@@ -7,7 +7,6 @@ import type {
   GameOptions,
   GameSummary,
   DraftMetadata,
-  ContactOptions,
   RecipientContact,
   InvoiceGroupEntry,
   InvoiceGroupReference,
@@ -35,7 +34,6 @@ type EditorProps = {
   draft_data: InvoiceForm | null;
   workbenches: DraftMetadata[];
   selected_games: GameSummary[];
-  contact_options?: ContactOptions;
   invoice_group:
     | (InvoiceGroupReference & {
         game_count: number;
@@ -64,7 +62,6 @@ function InvoiceEditor({
   draft_data,
   workbenches,
   selected_games,
-  contact_options,
   invoice_group: group,
 }: EditorProps) {
   const initial: InvoiceFields = {
@@ -122,7 +119,8 @@ function InvoiceEditor({
         if (
           contacts.some(
             (item) =>
-              item.name === contact.name && item.email === contact.email,
+              item.name === contact.name &&
+              item.email === (contact.email ?? ""),
           )
         )
           return previous;
@@ -131,10 +129,13 @@ function InvoiceEditor({
           ...(contacts.length === 0
             ? {
                 recipient: contact.recipient,
-                recipient_address: contact.address,
+                recipient_address: contact.address ?? "",
               }
             : {}),
-          contacts: [...contacts, { name: contact.name, email: contact.email }],
+          contacts: [
+            ...contacts,
+            { name: contact.name, email: contact.email ?? "" },
+          ],
         };
       }),
     [form.setData],
@@ -177,13 +178,10 @@ function InvoiceEditor({
         title={autosave.identity.invoice_id ? "Edit invoice" : "Create invoice"}
       />
       <Heading
-        eyebrow="LET'S MAKE IT OFFICIAL"
         title={
           autosave.identity.invoice_id ? "Edit invoice" : "Create an invoice"
         }
-      >
-        Your work saves automatically. Preview everything before you publish.
-      </Heading>
+      ></Heading>
       {group ? (
         <InvoiceGroupSwitcher
           group={group}
@@ -193,59 +191,46 @@ function InvoiceEditor({
       ) : (
         <DraftSwitcher drafts={draftOptions} activeId={autosave.identity.id} />
       )}
-      <div
-        {...stylex.props(workbench.status)}
-        aria-live="polite"
-        role={autosave.state.phase === "error" ? "alert" : "status"}
-      >
-        <span>
-          {autosave.state.phase === "saving"
-            ? "Saving…"
-            : autosave.state.phase === "waiting"
-              ? "Unsaved changes…"
-              : autosave.state.phase === "error"
-                ? autosave.state.error
-                : autosave.identity.id
-                  ? "✓ All changes saved"
-                  : "Start typing — your draft will save automatically."}
-        </span>
-        {autosave.state.phase === "error" && (
-          <>
+      {autosave.state.phase === "error" && (
+        <div
+          {...stylex.props(ui.flash, ui.alert, workbench.status)}
+          role="alert"
+        >
+          <span>{autosave.state.error}</span>
+          <button
+            type="button"
+            {...stylex.props(ui.nativeButton, ui.button)}
+            onClick={() => void autosave.flush().catch(() => {})}
+          >
+            Retry save
+          </button>
+          {autosave.state.conflict && (
             <button
               type="button"
               {...stylex.props(ui.nativeButton, ui.button)}
-              onClick={() => void autosave.flush().catch(() => {})}
+              onClick={() => {
+                void autosave
+                  .saveCopy((data) => form.setData(data))
+                  .catch(() => {});
+              }}
             >
-              Retry save
+              Save as a separate draft
             </button>
-            {autosave.state.conflict && (
-              <button
-                type="button"
-                {...stylex.props(ui.nativeButton, ui.button)}
-                onClick={() => {
-                  void autosave
-                    .saveCopy((data) => form.setData(data))
-                    .catch(() => {});
-                }}
-              >
-                Save as a separate draft
-              </button>
-            )}
-            <a
-              {...stylex.props(ui.link)}
-              href={
-                autosave.identity.id
-                  ? `/invoice_drafts/${autosave.identity.id}/edit`
-                  : "/session/new"
-              }
-              target="_blank"
-              rel="noopener"
-            >
-              Open saved version in another tab ↗
-            </a>
-          </>
-        )}
-      </div>
+          )}
+          <a
+            {...stylex.props(ui.link)}
+            href={
+              autosave.identity.id
+                ? `/invoice_drafts/${autosave.identity.id}/edit`
+                : "/session/new"
+            }
+            target="_blank"
+            rel="noopener"
+          >
+            Open saved version in another tab ↗
+          </a>
+        </div>
+      )}
       <form onSubmit={submit}>
         <fieldset
           disabled={form.processing || grouping.processing}
@@ -254,15 +239,14 @@ function InvoiceEditor({
           <Errors errors={form.errors} />
           <div {...stylex.props(ui.editorMain)}>
             <Section
-              step="01"
               title="Invoice details"
-              hint="Who it's for and how you'll find it later."
+              actions={
+                <ContactPicker
+                  selected={form.data.contacts}
+                  onChoose={chooseContact}
+                />
+              }
             >
-              <ContactPicker
-                options={contact_options}
-                selected={form.data.contacts}
-                onChoose={chooseContact}
-              />
               <div {...stylex.props(ui.formGrid)}>
                 <div>
                   {savedInvoice && !numberPrefix ? (
@@ -288,12 +272,6 @@ function InvoiceEditor({
                         {numberPrefix ?? `${invoice.year}_[next number]_`}
                         {form.data.number_suffix || "[identifying info]"}
                       </p>
-                      {!savedInvoice && (
-                        <p {...stylex.props(ui.paragraph, ui.hint)}>
-                          The next number is assigned from your master
-                          spreadsheet when you save &amp; preview.
-                        </p>
-                      )}
                     </>
                   )}
                 </div>
@@ -328,7 +306,6 @@ function InvoiceEditor({
               />
             </Section>
             <Section
-              step="02"
               title="Line items"
               hint="Drag items to reorder them, or use the move buttons."
             >
@@ -391,11 +368,7 @@ function InvoiceEditor({
                 )
               )}
             </Section>
-            <Section
-              step="04"
-              title="Notes"
-              hint="The right details, in the right place."
-            >
+            <Section title="Notes">
               <div {...stylex.props(ui.formGrid)}>
                 {field("public_notes", "Notes on invoice", {
                   multiline: true,
@@ -408,19 +381,36 @@ function InvoiceEditor({
               </div>
             </Section>
           </div>
-          <div {...stylex.props(ui.formActions, ui.sticky)}>
-            <Link
-              {...stylex.props(ui.link, ui.button)}
-              href={group ? `/invoice_groups/${group.id}` : "/"}
+          <div {...stylex.props(ui.editorTools, ui.sticky)}>
+            <span
+              {...stylex.props(workbench.saveLabel)}
+              role="status"
+              aria-live="polite"
             >
-              {group ? "Back to invoice group" : "Back to invoices"}
-            </Link>
-            <button
-              {...stylex.props(ui.nativeButton, ui.button, ui.primary)}
-              disabled={form.processing || autosave.state.phase === "saving"}
-            >
-              Save & preview →
-            </button>
+              {autosave.state.phase === "saving"
+                ? "Saving…"
+                : autosave.state.phase === "waiting"
+                  ? "Unsaved changes…"
+                  : autosave.state.phase === "error"
+                    ? "Couldn’t save"
+                    : autosave.identity.id
+                      ? "✓ All changes saved"
+                      : "Draft autosaves as you type"}
+            </span>
+            <div {...stylex.props(ui.actions)}>
+              <Link
+                {...stylex.props(ui.link, ui.button)}
+                href={group ? `/invoice_groups/${group.id}` : "/"}
+              >
+                {group ? "Back to invoice group" : "Back to invoices"}
+              </Link>
+              <button
+                {...stylex.props(ui.nativeButton, ui.button, ui.primary)}
+                disabled={form.processing || autosave.state.phase === "saving"}
+              >
+                Save & preview →
+              </button>
+            </div>
           </div>
         </fieldset>
       </form>

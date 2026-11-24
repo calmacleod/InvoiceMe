@@ -2,7 +2,7 @@ import { Head, router, useForm } from "@inertiajs/react";
 import * as stylex from "@stylexjs/stylex";
 import { useEffect, useState } from "react";
 import Link from "../../components/AppLink";
-import { Errors, Field, Heading } from "../../components/UI";
+import { Errors, Field, Heading, Stat } from "../../components/UI";
 import { date, money } from "../../lib/format";
 import { ui } from "../../styles/ui.stylex";
 
@@ -156,24 +156,18 @@ export default function Index({
           )}
         </div>
       )}
-      <dl {...stylex.props(overview.summary)}>
-        <div {...stylex.props(overview.stat)}>
-          <dt {...stylex.props(ui.muted)}>Season net earnings</dt>
-          <dd {...stylex.props(overview.statValue)}>
-            {money(totals.net_cents)}
-          </dd>
-        </div>
-        <div {...stylex.props(overview.stat)}>
-          <dt {...stylex.props(ui.muted)}>Needs review</dt>
-          <dd {...stylex.props(overview.statValue)}>
-            {totals.needs_review} of {payments.length}
-          </dd>
-        </div>
-        <div {...stylex.props(overview.stat)}>
-          <dt {...stylex.props(ui.muted)}>Cheques deposited</dt>
-          <dd {...stylex.props(overview.statValue)}>{totals.deposited}</dd>
-        </div>
-      </dl>
+      <div {...stylex.props(ui.stats)}>
+        <Stat
+          label="Season net earnings"
+          value={money(totals.net_cents)}
+          dark
+        />
+        <Stat
+          label="Needs review"
+          value={`${totals.needs_review} of ${payments.length}`}
+        />
+        <Stat label="Cheques deposited" value={totals.deposited} />
+      </div>
       <section {...stylex.props(ui.card, ui.tableCard)}>
         <div {...stylex.props(ui.tableHeading, overview.toolbar)}>
           <h2
@@ -182,32 +176,6 @@ export default function Index({
           >
             Earnings register
           </h2>
-          {payments.length > 0 && (
-            <Link
-              {...stylex.props(ui.link, ui.button)}
-              href="/official_payments/bulk_edit"
-            >
-              Enter payment amounts
-            </Link>
-          )}
-          {payments.length > 0 && (
-            <Link
-              {...stylex.props(ui.link, ui.button)}
-              href="/official_payments/adjustments"
-            >
-              Additional items
-            </Link>
-          )}
-          {payments.length > 0 && google_connected && (
-            <button
-              type="button"
-              {...stylex.props(ui.button)}
-              disabled={busy || exportForm.processing}
-              onClick={() => exportForm.post("/official_payments/export_sheet")}
-            >
-              Export final Google Sheet
-            </button>
-          )}
           <input
             {...stylex.props(ui.input, ui.searchInput)}
             type="search"
@@ -217,6 +185,34 @@ export default function Index({
             onChange={(event) => setQuery(event.target.value)}
           />
         </div>
+        {payments.length > 0 && (
+          <div {...stylex.props(overview.registerActions)}>
+            <Link
+              {...stylex.props(ui.link, ui.button)}
+              href="/official_payments/bulk_edit"
+            >
+              Enter payment amounts
+            </Link>
+            <Link
+              {...stylex.props(ui.link, ui.button)}
+              href="/official_payments/adjustments"
+            >
+              Additional items
+            </Link>
+            {google_connected && (
+              <button
+                type="button"
+                {...stylex.props(ui.nativeButton, ui.button)}
+                disabled={busy || exportForm.processing}
+                onClick={() =>
+                  exportForm.post("/official_payments/export_sheet")
+                }
+              >
+                Export final Google Sheet
+              </button>
+            )}
+          </div>
+        )}
         <EarningsRegister payments={shown} filtered={Boolean(search)} />
       </section>
       <section {...stylex.props(ui.card)}>
@@ -226,12 +222,13 @@ export default function Index({
         </p>
         <Errors errors={adding.errors} />
         <form
+          {...stylex.props(ui.inlineForm)}
           onSubmit={(event) => {
             event.preventDefault();
             adding.post("/official_payments");
           }}
         >
-          <div {...stylex.props(ui.formGrid)}>
+          <div {...stylex.props(ui.inlineField)}>
             <Field
               label="Name (Last, First)"
               name="official_name"
@@ -243,11 +240,12 @@ export default function Index({
               }
             />
           </div>
-          <div {...stylex.props(ui.formActions)}>
-            <button {...stylex.props(ui.button)} disabled={adding.processing}>
-              Add official
-            </button>
-          </div>
+          <button
+            {...stylex.props(ui.nativeButton, ui.button)}
+            disabled={adding.processing}
+          >
+            Add official
+          </button>
         </form>
       </section>
     </>

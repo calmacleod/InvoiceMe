@@ -35,7 +35,7 @@ export const register = stylex.create({
     borderRadius: 0,
     padding: "8px 9px",
     fontSize: 13,
-    minHeight: 39,
+    minHeight: 36,
     outlineOffset: -2,
     outlineColor: colors.focus,
   },
@@ -44,21 +44,14 @@ export const register = stylex.create({
 });
 
 export const overview = stylex.create({
-  toolbar: {
-    flexWrap: "wrap",
-    gap: space.md,
-    padding: space.lg,
-  },
+  toolbar: { gap: space.sm, padding: "8px 12px" },
   registerTitle: { margin: 0, marginRight: "auto" },
-  summary: {
+  registerActions: {
     display: "flex",
     flexWrap: "wrap",
-    columnGap: space.xxl,
-    rowGap: space.sm,
-    margin: "0 0 18px",
+    gap: space.sm,
+    padding: "0 12px 8px",
   },
-  stat: { display: "flex", alignItems: "baseline", gap: space.sm },
-  statValue: { margin: 0, fontWeight: 600, color: colors.text },
   scroll: {
     outlineColor: colors.focus,
     outlineOffset: -2,

@@ -20,11 +20,6 @@ module InvoiceWorkbench
       selected_games: -> {
         ids = group ? [] : draft&.data&.fetch("game_ids", nil) || invoice.game_ids
         game_list_props(current_season.games.where(id: ids))
-      },
-      contact_options: InertiaRails.optional {
-        scope = Current.user.contacts.searching(params[:contact_q]).order(:name, :id)
-        page = WorkspacePage.new(scope, params[:contact_page], params[:contact_per_page])
-        { contacts: page.records.map(&:recipient_props), pagination: page.props, query: params[:contact_q].to_s }
       }
     ).tap { |props| props[:game_options] = nil if group }
   end

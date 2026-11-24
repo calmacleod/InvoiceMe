@@ -90,7 +90,7 @@ export default function AddExisting(props: Props) {
                 </thead>
                 <tbody>
                   {props.invoices.map((invoice) => (
-                    <tr key={invoice.id}>
+                    <tr {...stylex.props(ui.row)} key={invoice.id}>
                       <td {...stylex.props(ui.td)}>
                         <strong {...stylex.props(ui.strong)}>
                           {invoice.number} · {invoice.recipient}

@@ -1,23 +1,28 @@
 import * as stylex from "@stylexjs/stylex";
 
 export const colors = stylex.defineVars({
-  canvas: "#f6f7f3",
-  surface: "#ffffff",
-  text: "#203a34",
-  secondary: "#65745e",
-  muted: "#78847c",
-  subtle: "#9aa38f",
-  accent: "#285e46",
-  accentHover: "#204b38",
-  accentSoft: "#eaf0e6",
-  border: "#dce3d7",
-  borderSoft: "#eff1eb",
-  focus: "#8aaa71",
-  notice: "#eef4e7",
-  danger: "#9c5f42",
-  dangerSurface: "#fdf0e9",
-  dangerBorder: "#ebd0c0",
-  amber: "#a0803e",
+  canvas: "#f5f4ef",
+  surface: "#fffefa",
+  text: "#202921",
+  secondary: "#3e4b41",
+  muted: "#57665a",
+  subtle: "#657366",
+  accent: "#285740",
+  accentHover: "#1c4330",
+  accentSoft: "#e8efe5",
+  border: "#d8ded4",
+  borderSoft: "#e8ebe4",
+  focus: "#4d795e",
+  notice: "#eaf2e7",
+  danger: "#9a3e31",
+  dangerSurface: "#fff1ec",
+  dangerBorder: "#ecd0c7",
+  amber: "#795720",
+  sidebar: "#23382e",
+  sidebarText: "#fcfbf4",
+  sidebarMuted: "#d2dfd3",
+  sidebarActive: "#385447",
+  brand: "#edc991",
 });
 
 export const space = stylex.defineVars({
@@ -32,5 +37,5 @@ export const space = stylex.defineVars({
 export const shape = stylex.defineVars({
   control: "6px",
   card: "9px",
-  font: "Arial, Helvetica, sans-serif",
+  font: "system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
 });

@@ -58,13 +58,17 @@ class WorkspacePerformanceTest < ActionDispatch::IntegrationTest
       assert_equal 10, response.parsed_body.dig("props", "pagination", "per_page"), key
       assert_equal 11, response.parsed_body.dig("props", "pagination", "from"), key
     end
-    %w[game contact].each do |kind|
-      key = "#{kind}_options"
-      get new_invoice_path, params: { "#{kind}_per_page" => 10, "#{kind}_page" => 2 }, headers: inertia_headers.merge("X-Inertia-Partial-Component" => "invoices/Edit", "X-Inertia-Partial-Data" => key)
-      assert_equal 10, response.parsed_body.dig("props", key, "pagination", "per_page")
-      assert_equal 11, response.parsed_body.dig("props", key, "pagination", "from")
-      assert_equal 10, response.parsed_body.dig("props", key, kind == "game" ? "games" : "contacts").size
-    end
+    get new_invoice_path, params: { game_per_page: 10, game_page: 2 }, headers: inertia_headers.merge("X-Inertia-Partial-Component" => "invoices/Edit", "X-Inertia-Partial-Data" => "game_options")
+    game_options = response.parsed_body.dig("props", "game_options")
+    assert_equal 10, game_options.dig("pagination", "per_page")
+    assert_equal 11, game_options.dig("pagination", "from")
+    assert_equal 10, game_options.fetch("games").size
+
+    get contacts_path(format: :json), params: { per_page: 10, page: 2 }
+    assert_response :success
+    assert_equal 10, response.parsed_body.dig("pagination", "per_page")
+    assert_equal 11, response.parsed_body.dig("pagination", "from")
+    assert_equal 10, response.parsed_body.fetch("contacts").size
     [ 0, -1, "bad", 100_000 ].each do |size|
       get games_path(per_page: size), headers: inertia_headers
       assert_equal 25, response.parsed_body.dig("props", "pagination", "per_page")
