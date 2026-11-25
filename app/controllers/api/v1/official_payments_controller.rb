@@ -14,7 +14,8 @@ module Api
         when nil then payments
         else raise ArgumentError, "payable must be true or false"
         end
-        render json: paginate(payments) { |payment| payment_summary(payment) }
+        order = OfficialPaymentOrder.new(params[:sort], params[:direction])
+        render json: paginate(order.apply(payments)) { |payment| payment_summary(payment) }
       end
 
       def totals
@@ -144,7 +145,7 @@ module Api
 
       def payment_summary(payment)
         payment.as_json(only: %i[id season_id payment_number official_name horizon_user_id lock_version reviewed_at cheque_number deposited_on cheque_delivery adjustments])
-          .merge(payment.register_amounts, status: payment.status)
+          .merge(payment.register_amounts, status: payment.status, game_count: payment.game_count)
       end
 
       def payment_details(payment)

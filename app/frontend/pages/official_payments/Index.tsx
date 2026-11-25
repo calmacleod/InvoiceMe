@@ -1,6 +1,6 @@
 import { Toggle } from "@base-ui/react/toggle";
 import { ToggleGroup } from "@base-ui/react/toggle-group";
-import { Head, router, useForm } from "@inertiajs/react";
+import { Head, router, useForm, usePage } from "@inertiajs/react";
 import * as stylex from "@stylexjs/stylex";
 import { useEffect, useState } from "react";
 import Link from "../../components/AppLink";
@@ -8,7 +8,11 @@ import { Errors, Field, Heading, Stat } from "../../components/UI";
 import { date, money } from "../../lib/format";
 import { ui } from "../../styles/ui.stylex";
 
-import EarningsRegister, { type PaymentSummary } from "./EarningsRegister";
+import EarningsRegister, {
+  type PaymentSummary,
+  type PaymentSort,
+  type PaymentSortColumn,
+} from "./EarningsRegister";
 import { overview } from "./register.stylex";
 
 type Import = {
@@ -24,6 +28,7 @@ type Import = {
 export default function Index({
   year,
   payments,
+  sort,
   totals,
   last_import,
   connections,
@@ -33,6 +38,7 @@ export default function Index({
 }: {
   year: number;
   payments: PaymentSummary[];
+  sort: PaymentSort;
   totals: { net_cents: number; needs_review: number; deposited: number };
   last_import: Import | null;
   connections: { id: number; organization_name: string | null }[];
@@ -48,6 +54,23 @@ export default function Index({
   const exportForm = useForm({});
   const [query, setQuery] = useState("");
   const [breakdown, setBreakdown] = useState(false);
+  const { current_season: season } = usePage().props;
+  const sortBy = (column: PaymentSortColumn) =>
+    router.get(
+      "/official_payments",
+      {
+        season_id: season?.id,
+        sort: column,
+        direction:
+          sort.column === column && sort.direction === "asc" ? "desc" : "asc",
+      },
+      {
+        only: ["payments", "sort"],
+        preserveScroll: true,
+        preserveState: true,
+        replace: true,
+      },
+    );
   const busy =
     last_import?.status === "queued" || last_import?.status === "running";
   const search = query.trim().toLocaleLowerCase();
@@ -60,7 +83,7 @@ export default function Index({
     if (!busy) return;
     const timer = window.setInterval(() => {
       if (!document.hidden)
-        router.reload({ only: ["payments", "totals", "last_import"] });
+        router.reload({ only: ["payments", "sort", "totals", "last_import"] });
     }, 3000);
     return () => window.clearInterval(timer);
   }, [busy]);
@@ -269,6 +292,8 @@ export default function Index({
         )}
         <EarningsRegister
           payments={payable}
+          sort={sort}
+          onSort={sortBy}
           filtered={Boolean(search)}
           breakdown={breakdown}
           headingId="earnings-register-heading"
@@ -291,6 +316,8 @@ export default function Index({
           </div>
           <EarningsRegister
             payments={noChequeDue}
+            sort={sort}
+            onSort={sortBy}
             filtered={Boolean(search)}
             breakdown={breakdown}
             headingId="no-cheque-due-heading"

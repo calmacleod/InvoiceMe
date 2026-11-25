@@ -4,7 +4,8 @@ class OfficialPaymentsController < ApplicationController
   before_action :load_payment, only: %i[edit update preview pdf odt google_doc]
 
   def index
-    payments = payments_in_register_order.to_a
+    order = OfficialPaymentOrder.new(params[:sort].presence_in(OfficialPaymentOrder::COLUMNS), params[:direction].presence_in(OfficialPaymentOrder::DIRECTIONS))
+    payments = order.apply(payments_in_register_order).to_a
     last_import = current_season.official_payment_imports.order(id: :desc).first
     connections = HorizonConnection.order(:id).select(:id, :organization_name)
     summaries = payments.map { |payment| payment_summary(payment) }
@@ -12,6 +13,7 @@ class OfficialPaymentsController < ApplicationController
     render inertia: "official_payments/Index", props: {
       year: current_season.year,
       payments: summaries,
+      sort: order.props,
       totals: { net_cents: summaries.sum { |payment| payment.fetch(:net_cents) }, needs_review: payments.count { |payment| !payment.reviewed_at }, deposited: payments.count { |payment| payment.deposited_on } },
       last_import: last_import&.props,
       connections: connections.as_json,
@@ -199,6 +201,6 @@ class OfficialPaymentsController < ApplicationController
 
   def payment_summary(payment)
     payment.as_json(only: %i[id official_name horizon_user_id cheque_number deposited_on payment_number adjustments])
-      .merge(payment.register_amounts, status: payment.status)
+      .merge(payment.register_amounts, status: payment.status, game_count: payment.game_count)
   end
 end

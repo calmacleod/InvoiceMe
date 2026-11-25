@@ -79,6 +79,7 @@ class OfficialPayment < ApplicationRecord
   def imported_game_fees_cents = assignments.sum { |entry| entry.fetch("fee_cents") }
   def imported_travel_ot_cents = assignments.sum { |entry| entry.fetch("travel_ot_cents") }
   def horizon_deductions_cents = assignments.sum { |entry| entry.fetch("deductions_cents") }
+  def game_count = assignments.filter_map { |entry| entry["event_id"].presence }.uniq.size
   def game_fees_cents = imported_game_fees_cents + game_fee_adjustment_cents
   def travel_ot_cents = imported_travel_ot_cents + travel_ot_adjustment_cents
   def additional_items_cents = adjustments.sum { |item| item.fetch("amount_cents") }

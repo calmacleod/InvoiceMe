@@ -63,7 +63,7 @@ class OfficialPaymentsSystemTest < ActionDispatch::SystemTestCase
     click_link "Officials payments"
 
     within '[aria-labelledby="earnings-register-heading"]' do
-      assert_equal [ "Official", "Net earnings", "Payment" ], all("thead th").map(&:text)
+      assert_equal [ "Official", "Total games", "Net earnings", "Payment" ], register_headings
       assert_link "Birch, Riley"
       assert_no_link "River, Morgan"
       assert_no_link "Linden, Casey"
@@ -74,10 +74,10 @@ class OfficialPaymentsSystemTest < ActionDispatch::SystemTestCase
 
     within '[aria-labelledby="earnings-register-heading"]' do
       headings = [
-        "Official", "Game fees incl. adj.", "Game fee adj.", "Travel/OT incl. adj.", "Travel/OT adj.", "Evaluations", "Prepayment refund", "Other", "Additional items",
+        "Official", "Total games", "Game fees incl. adj.", "Game fee adj.", "Travel/OT incl. adj.", "Travel/OT adj.", "Evaluations", "Prepayment refund", "Other", "Additional items",
         "Association fee", "OFOA registration", "Banquet", "Next year’s prepayment", "Net earnings", "Cheque", "Deposited", "Status"
       ]
-      assert_equal headings.map(&:upcase), all("thead th").map { |heading| heading.text.squish.upcase }
+      assert_equal headings.map(&:upcase), register_headings.map(&:upcase)
       assert_selector "tbody tr", count: 1
       assert_text "Fictional training credit"
       assert_text "Fictional equipment deduction"
@@ -106,6 +106,49 @@ class OfficialPaymentsSystemTest < ActionDispatch::SystemTestCase
       assert_link "River, Morgan"
       assert_no_link "Linden, Casey"
     end
+  end
+
+  test "sorts both sections by the selected heading and keeps the search and breakdown view" do
+    season = seasons(:current)
+    assignment = { "event_id" => "fictional-game", "fee_cents" => 0, "travel_ot_cents" => 0, "deductions_cents" => 0 }
+    season.official_payments.create!(official_name: "Ash, Riley", evaluations_cents: 10_000, horizon_user_id: "fictional-ash",
+      assignments: [ assignment, assignment, assignment.merge("event_id" => "fictional-other-game") ])
+    season.official_payments.create!(official_name: "Ash, Morgan", evaluations_cents: 2_000)
+    season.official_payments.create!(official_name: "River, Casey", evaluations_cents: 30_000)
+    season.official_payments.create!(official_name: "Ash, Taylor", horizon_user_id: "fictional-taylor", assignments: [ assignment ])
+    season.official_payments.create!(official_name: "Ash, Alex")
+
+    visit new_session_path
+    fill_in "Email address", with: users(:one).email_address
+    fill_in "Password", with: "password"
+    click_button "Sign in"
+    click_link "Officials payments"
+    fill_in "Search officials", with: "Ash"
+
+    within '[aria-labelledby="earnings-register-heading"]' do
+      assert_selector "tbody tr:first-child td:first-of-type", exact_text: "2"
+      click_button "Total games"
+      assert_selector 'th[aria-sort="ascending"]', text: "Total games"
+      assert_selector "tbody tr:first-child", text: "Ash, Morgan"
+      click_button "Total games"
+      assert_selector 'th[aria-sort="descending"]', text: "Total games"
+      assert_selector "tbody tr:first-child", text: "Ash, Riley"
+      assert_no_link "River, Casey"
+    end
+    within '[aria-labelledby="no-cheque-due-heading"]' do
+      assert_selector 'th[aria-sort="descending"]', text: "Total games"
+      assert_selector "tbody tr:first-child", text: "Ash, Taylor"
+    end
+
+    click_button "Breakdown"
+    within '[aria-labelledby="earnings-register-heading"]' do
+      click_button "Evaluations"
+      assert_selector 'th[aria-sort="ascending"]', text: "Evaluations"
+      assert_selector "tbody tr:first-child", text: "Ash, Morgan"
+      assert_no_link "River, Casey"
+    end
+    assert_field "Search officials", with: "Ash"
+    assert_selector 'button[aria-pressed="true"]', text: "Breakdown"
   end
 
   test "pastes different amounts into the payment grid and navigates by keyboard" do
@@ -209,6 +252,10 @@ class OfficialPaymentsSystemTest < ActionDispatch::SystemTestCase
   end
 
   private
+
+  def register_headings
+    all("thead th > button").map { |button| button.text.delete("↕↑↓").squish }
+  end
 
   def payment_editor_header
     find("header", text: "Aster, Cameron")

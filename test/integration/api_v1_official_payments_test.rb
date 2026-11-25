@@ -28,9 +28,42 @@ class ApiV1OfficialPaymentsTest < ActionDispatch::IntegrationTest
     get api_v1_official_payment_path(example), headers: headers
     assert_response :success
     assert_equal [], response.parsed_body.fetch("assignments")
+    assert_equal 0, response.parsed_body.fetch("game_count")
     patch api_v1_official_payment_path(example), params: { official_payment: { lock_version: 0, banquet: "60.00" } }, headers: headers, as: :json
     assert_response :forbidden
     assert_equal 0, example.reload.banquet_cents
+  end
+
+  test "counts distinct Horizon games and sorts the entire filtered register before paginating" do
+    first = payment("Zinnia Example", cheque_number: "EX-2")
+    9.times { |index| payment("Fictional Official #{index}") }
+    assignment = { "event_id" => "fictional-game-1", "fee_cents" => 0, "travel_ot_cents" => 0, "deductions_cents" => 0 }
+    last = payment("willow example", horizon_user_id: "fictional-official", reviewed_at: Time.current, cheque_number: "EX-12",
+      assignments: [ assignment, assignment, assignment.merge("event_id" => "fictional-game-2") ])
+    @season.official_payments.create!(official_name: "Alder Unpaid")
+
+    path = api_v1_official_payments_path
+    query = { season_id: @season.id, payable: true, sort: "game_count", direction: "desc", per_page: 10 }
+    get path, params: query, headers: @headers
+    assert_response :success
+    result = response.parsed_body
+    assert_equal [ [ last.id, 2 ], [ first.id, 0 ] ], result.fetch("data").first(2).map { |row| row.values_at("id", "game_count") }
+    assert_equal 11, result.dig("pagination", "total")
+
+    get path, params: query.merge(direction: "asc", page: 2), headers: @headers
+    assert_response :success
+    assert_equal [ last.id ], response.parsed_body.fetch("data").pluck("id")
+
+    %w[official_name cheque_number status].each do |column|
+      get path, params: query.merge(sort: column), headers: @headers
+      assert_response :success
+      assert_equal column == "official_name" ? first.id : last.id, response.parsed_body.fetch("data").first.fetch("id")
+    end
+
+    get path, params: query.merge(sort: "assignments"), headers: @headers
+    assert_response :unprocessable_entity
+    get path, params: query.merge(direction: "sideways"), headers: @headers
+    assert_response :unprocessable_entity
   end
 
   test "creates numbered manual payments and supports the reviewed cheque lifecycle" do

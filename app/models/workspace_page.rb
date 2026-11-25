@@ -8,7 +8,8 @@ class WorkspacePage
     @total = scope.count
     @pages = [ (@total.to_f / @per_page).ceil, 1 ].max
     @page = page.to_i.clamp(1, @pages)
-    @records = scope.limit(@per_page).offset((@page - 1) * @per_page)
+    offset = (@page - 1) * @per_page
+    @records = scope.is_a?(Array) ? scope.slice(offset, @per_page) : scope.limit(@per_page).offset(offset)
   end
 
   def props
